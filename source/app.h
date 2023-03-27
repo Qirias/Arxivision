@@ -7,6 +7,7 @@
 #pragma once
 
 #include "arx_window.h"
+#include "arx_pipeline.h"
 
 namespace arx {
 
@@ -18,5 +19,6 @@ namespace arx {
         void run();
     private:
         ArxWindow arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
+        ArxPipeline arxPipeline{"shaders/vert.spv", "shaders/frag.spv"};
     };
 }
