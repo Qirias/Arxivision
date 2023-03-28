@@ -13,8 +13,11 @@
 
 namespace arx {
     
-    ArxPipeline::ArxPipeline(const std::string& vertFilePath, const std::string& fragFilepath) {
-        createGraphicsPipeline(vertFilePath, fragFilepath);
+    ArxPipeline::ArxPipeline(ArxDevice& device,
+                             const std::string& vertFilepath,
+                             const std::string& fragFilepath,
+                             const PipelineConfigInfo& config) : arxDevice{device} {
+        createGraphicsPipeline(vertFilepath, fragFilepath, config);
     }
 
     std::vector<char> ArxPipeline::readFile(const std::string& filepath) {
@@ -34,12 +37,29 @@ namespace arx {
         return buffer;
     }
 
-    void ArxPipeline::createGraphicsPipeline(const std::string &vertFilepath, const std::string &fragFilepath) {
+    void ArxPipeline::createGraphicsPipeline(const std::string &vertFilepath, const std::string &fragFilepath, const PipelineConfigInfo& config) {
         
         auto vertCode = readFile(vertFilepath);
         auto fragCode = readFile(fragFilepath);
         
         std::cout << "Vertex Shader code sizes: " << vertCode.size() << std::endl;
         std::cout << "Fragment Shader code sizes: " << fragCode.size() << std::endl;
+    }
+
+    void ArxPipeline::createShaderModule(const std::vector<char>& code, VkShaderModule* shaderModule) {
+        VkShaderModuleCreateInfo createInfo{};
+        createInfo.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo.codeSize = code.size();
+        createInfo.pCode    = reinterpret_cast<const uint32_t*>(code.data());
+        
+        if (vkCreateShaderModule(arxDevice.device(), &createInfo, nullptr, shaderModule) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create shader module!");
+        }
+    }
+
+    PipelineConfigInfo ArxPipeline::defaultPipelineConfigInfo(uint32_t width, uint32_t height) {
+        PipelineConfigInfo config{};
+        
+        return config;
     }
 }

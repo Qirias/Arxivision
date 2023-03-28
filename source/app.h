@@ -8,6 +8,7 @@
 
 #include "arx_window.h"
 #include "arx_pipeline.h"
+#include "arx_device.h"
 
 namespace arx {
 
@@ -19,6 +20,9 @@ namespace arx {
         void run();
     private:
         ArxWindow arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
-        ArxPipeline arxPipeline{"shaders/vert.spv", "shaders/frag.spv"};
+        ArxDevice arxDevice{arxWindow};
+        ArxPipeline arxPipeline{arxDevice,
+                                "shaders/vert.spv", "shaders/frag.spv",
+                                ArxPipeline::defaultPipelineConfigInfo(WIDTH, HEIGHT)};
     };
 }
