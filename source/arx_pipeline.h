@@ -13,7 +13,20 @@
 
 namespace arx {
 
-    struct PipelineConfigInfo {};
+    struct PipelineConfigInfo {
+      VkViewport viewport;
+      VkRect2D scissor;
+      VkPipelineViewportStateCreateInfo viewportInfo;
+      VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
+      VkPipelineRasterizationStateCreateInfo rasterizationInfo;
+      VkPipelineMultisampleStateCreateInfo multisampleInfo;
+      VkPipelineColorBlendAttachmentState colorBlendAttachment;
+      VkPipelineColorBlendStateCreateInfo colorBlendInfo;
+      VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
+      VkPipelineLayout pipelineLayout = nullptr;
+      VkRenderPass renderPass = nullptr;
+      uint32_t subpass = 0;
+    };
 
     class ArxPipeline {
     public:
@@ -22,7 +35,7 @@ namespace arx {
                     const std::string& fragFilepath,
                     const PipelineConfigInfo& config);
         
-        ~ArxPipeline() {}
+        ~ArxPipeline();
         
         ArxPipeline(const ArxPipeline&) = delete;
         void operator=(const ArxPipeline&) = delete;
