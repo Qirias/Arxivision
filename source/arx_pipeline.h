@@ -16,7 +16,6 @@ namespace arx {
     struct PipelineConfigInfo {
       VkViewport viewport;
       VkRect2D scissor;
-      VkPipelineViewportStateCreateInfo viewportInfo;
       VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
       VkPipelineRasterizationStateCreateInfo rasterizationInfo;
       VkPipelineMultisampleStateCreateInfo multisampleInfo;
@@ -40,6 +39,7 @@ namespace arx {
         ArxPipeline(const ArxPipeline&) = delete;
         void operator=(const ArxPipeline&) = delete;
         
+        void bind(VkCommandBuffer commandBuffer);
         static PipelineConfigInfo defaultPipelineConfigInfo(uint32_t width, uint32_t height);
         
     private:

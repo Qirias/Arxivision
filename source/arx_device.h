@@ -91,16 +91,16 @@ class ArxDevice {
       bool checkDeviceExtensionSupport(VkPhysicalDevice device);
       SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
 
-      VkInstance instance;
-      VkDebugUtilsMessengerEXT debugMessenger;
-      VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-      ArxWindow &window;
-      VkCommandPool commandPool;
+      VkInstance                        instance;
+      VkDebugUtilsMessengerEXT          debugMessenger;
+      VkPhysicalDevice                  physicalDevice = VK_NULL_HANDLE;
+      ArxWindow                         &window;
+      VkCommandPool                     commandPool;
 
-      VkDevice _device;
-      VkSurfaceKHR _surface;
-      VkQueue _graphicsQueue;
-      VkQueue _presentQueue;
+      VkDevice      _device;
+      VkSurfaceKHR  _surface;
+      VkQueue       _graphicsQueue;
+      VkQueue       _presentQueue;
 
       const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
       const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
