@@ -1,9 +1,3 @@
-//
-//  arx_pipeline.h
-//  ArXivision
-//
-//  Created by kiri on 27/3/23.
-//
 #pragma once
 
 #include "arx_device.h"

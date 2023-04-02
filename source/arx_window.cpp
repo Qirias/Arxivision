@@ -1,10 +1,3 @@
-//
-//  arx_window.cpp
-//  ArXivision
-//
-//  Created by kiri on 26/3/23.
-//
-
 #include <stdio.h>
 #include "arx_window.h"
 #include <stdexcept>

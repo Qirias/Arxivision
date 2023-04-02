@@ -1,10 +1,3 @@
-//
-//  app.cpp
-//  ArXivision
-//
-//  Created by kiri on 26/3/23.
-//
-
 #include <stdio.h>
 #include "app.h"
 
@@ -15,6 +8,7 @@
 namespace arx {
     
     App::App() {
+        loadModels();
         createPipelineLayout();
         createPipeline();
         createCommandBuffers();
@@ -32,6 +26,16 @@ namespace arx {
         }
         
         vkDeviceWaitIdle(arxDevice.device());
+    }
+
+    void App::loadModels() {
+        std::vector<ArxModel::Vertex> vertices {
+            {{ 0.0f, -0.5f}},
+            {{ 0.5f,  0.5f}},
+            {{-0.5f,  0.5f}}
+        };
+        
+        arxModel = std::make_unique<ArxModel>(arxDevice, vertices);
     }
 
     void App::createPipelineLayout() {
@@ -95,7 +99,8 @@ namespace arx {
             vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
             
             arxPipeline->bind(commandBuffers[i]);
-            vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+            arxModel->bind(commandBuffers[i]);
+            arxModel->draw(commandBuffers[i]);
             
             vkCmdEndRenderPass(commandBuffers[i]);
             if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {

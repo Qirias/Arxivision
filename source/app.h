@@ -10,6 +10,7 @@
 #include "arx_pipeline.h"
 #include "arx_device.h"
 #include "arx_swap_chain.h"
+#include "arx_model.h"
 
 // std
 #include <memory>
@@ -31,6 +32,7 @@ namespace arx {
         void run();
         
     private:
+        void loadModels();
         void createPipelineLayout();
         void createPipeline();
         void createCommandBuffers();
@@ -42,5 +44,6 @@ namespace arx {
         std::unique_ptr<ArxPipeline>    arxPipeline;
         VkPipelineLayout                pipelineLayout;
         std::vector<VkCommandBuffer>    commandBuffers;
+        std::unique_ptr<ArxModel>       arxModel;
     };
 }

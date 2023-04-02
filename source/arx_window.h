@@ -1,9 +1,3 @@
-//
-//  arx_window.h
-//  ArXivision
-//
-//  Created by kiri on 26/3/23.
-//
 #pragma once
 
 #define GLFW_INCLUDE_VULKAN
