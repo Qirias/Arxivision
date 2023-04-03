@@ -28,13 +28,32 @@ namespace arx {
         vkDeviceWaitIdle(arxDevice.device());
     }
 
+    void sierpinski(std::vector<ArxModel::Vertex> &vertices, glm::vec2 left, glm::vec2 top, glm::vec2 right, int depth) {
+        if (depth == 0) {
+            vertices.push_back({left});
+            vertices.push_back({top});
+            vertices.push_back({right});
+        } 
+        else {
+            glm::vec2 leftTop = (left + top) * 0.5f;
+            glm::vec2 rightTop = (right + top) * 0.5f;
+            glm::vec2 rightLeft = (right + left) * 0.5f;
+            
+            sierpinski(vertices, left, leftTop, rightLeft, depth - 1);
+            sierpinski(vertices, top, rightTop, leftTop, depth - 1);
+            sierpinski(vertices, right, rightTop, rightLeft, depth - 1);
+        }
+        
+    }
+
     void App::loadModels() {
         std::vector<ArxModel::Vertex> vertices {
-            {{ 0.0f, -0.5f}},
-            {{ 0.5f,  0.5f}},
-            {{-0.5f,  0.5f}}
+            {{ 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+            {{ 0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}},
+            {{-0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}}
         };
-        
+//        std::vector<ArxModel::Vertex> vertices {};
+//        sierpinski(vertices, {0.0f, -0.5f}, { 0.5f,  0.5f}, {-0.5f,  0.5f}, 7);
         arxModel = std::make_unique<ArxModel>(arxDevice, vertices);
     }
 
