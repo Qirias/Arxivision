@@ -36,11 +36,14 @@ namespace arx {
         void createPipelineLayout();
         void createPipeline();
         void createCommandBuffers();
+        void freeCommandBuffers();
         void drawFrame();
+        void recreateSwapChain();
+        void recordCommandBuffer(int imageIndex);
         
         ArxWindow                       arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
         ArxDevice                       arxDevice{arxWindow};
-        ArxSwapChain                    arxSwapChain{arxDevice, arxWindow.getExtend()};
+        std::unique_ptr<ArxSwapChain>   arxSwapChain;
         std::unique_ptr<ArxPipeline>    arxPipeline;
         VkPipelineLayout                pipelineLayout;
         std::vector<VkCommandBuffer>    commandBuffers;

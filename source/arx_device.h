@@ -36,7 +36,7 @@ class ArxDevice {
 
       // Not copyable or movable
       ArxDevice(const ArxDevice &) = delete;
-      ArxDevice operator=(const ArxDevice &) = delete;
+      ArxDevice& operator=(const ArxDevice &) = delete;
       ArxDevice(ArxDevice &&) = delete;
       ArxDevice &operator=(ArxDevice &&) = delete;
 
