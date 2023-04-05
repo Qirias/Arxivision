@@ -1,16 +1,10 @@
-//
-//  app.h
-//  ArXivision
-//
-//  Created by kiri on 26/3/23.
-//
 #pragma once
 
 #include "arx_window.h"
 #include "arx_pipeline.h"
 #include "arx_device.h"
 #include "arx_swap_chain.h"
-#include "arx_model.h"
+#include "arx_game_object.h"
 
 // std
 #include <memory>
@@ -32,7 +26,7 @@ namespace arx {
         void run();
         
     private:
-        void loadModels();
+        void loadGameObjects();
         void createPipelineLayout();
         void createPipeline();
         void createCommandBuffers();
@@ -40,6 +34,7 @@ namespace arx {
         void drawFrame();
         void recreateSwapChain();
         void recordCommandBuffer(int imageIndex);
+        void renderGameObjects(VkCommandBuffer commandBuffer);
         
         ArxWindow                       arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
         ArxDevice                       arxDevice{arxWindow};
@@ -47,6 +42,6 @@ namespace arx {
         std::unique_ptr<ArxPipeline>    arxPipeline;
         VkPipelineLayout                pipelineLayout;
         std::vector<VkCommandBuffer>    commandBuffers;
-        std::unique_ptr<ArxModel>       arxModel;
+        std::vector<ArxGameObject>      gameObjects;
     };
 }

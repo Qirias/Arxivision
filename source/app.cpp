@@ -4,6 +4,7 @@
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 
 // std
 #include <stdexcept>
@@ -13,12 +14,13 @@
 namespace arx {
     
     struct SimplePushConstantData {
+        glm::mat2 transform{1.0f};
         glm::vec2 offset;
         alignas(16)glm::vec3 color;
     };
 
     App::App() {
-        loadModels();
+        loadGameObjects();
         createPipelineLayout();
         recreateSwapChain();
         createCommandBuffers();
@@ -38,33 +40,23 @@ namespace arx {
         vkDeviceWaitIdle(arxDevice.device());
     }
 
-    void sierpinski(std::vector<ArxModel::Vertex> &vertices, glm::vec2 left, glm::vec2 top, glm::vec2 right, int depth) {
-        if (depth == 0) {
-            vertices.push_back({left});
-            vertices.push_back({top});
-            vertices.push_back({right});
-        } 
-        else {
-            glm::vec2 leftTop = (left + top) * 0.5f;
-            glm::vec2 rightTop = (right + top) * 0.5f;
-            glm::vec2 rightLeft = (right + left) * 0.5f;
-            
-            sierpinski(vertices, left, leftTop, rightLeft, depth - 1);
-            sierpinski(vertices, top, rightTop, leftTop, depth - 1);
-            sierpinski(vertices, right, rightTop, rightLeft, depth - 1);
-        }
-        
-    }
-
-    void App::loadModels() {
+    void App::loadGameObjects() {
         std::vector<ArxModel::Vertex> vertices {
             {{ 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
             {{ 0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}},
             {{-0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}}
         };
-//        std::vector<ArxModel::Vertex> vertices {};
-//        sierpinski(vertices, {0.0f, -0.5f}, { 0.5f,  0.5f}, {-0.5f,  0.5f}, 7);
-        arxModel = std::make_unique<ArxModel>(arxDevice, vertices);
+
+        auto arxModel = std::make_shared<ArxModel>(arxDevice, vertices);
+        
+        auto triangle                       = ArxGameObject::createGameObject();
+        triangle.model                      = arxModel;
+        triangle.color                      = {.1f, .8f, .1f};
+        triangle.transform2d.translation.x  = .2f;
+        triangle.transform2d.scale          = {2.f, .5f};
+        triangle.transform2d.rotation       = .25f * glm::two_pi<float>();
+        
+        gameObjects.push_back(std::move(triangle));
     }
 
     void App::createPipelineLayout() {
@@ -145,9 +137,6 @@ namespace arx {
     }
     
     void App::recordCommandBuffer(int imageIndex) {
-        static int frame = 0;
-        frame = (frame + 1) % 100;
-        
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType     = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         
@@ -182,28 +171,35 @@ namespace arx {
         vkCmdSetViewport(commandBuffers[imageIndex], 0, 1, &viewport);
         vkCmdSetScissor(commandBuffers[imageIndex], 0, 1, &scissor);
         
-        arxPipeline->bind(commandBuffers[imageIndex]);
-        arxModel->bind(commandBuffers[imageIndex]);
+        renderGameObjects(commandBuffers[imageIndex]);
+
+        vkCmdEndRenderPass(commandBuffers[imageIndex]);
+        if (vkEndCommandBuffer(commandBuffers[imageIndex]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to record command buffer!");
+        }
+    }
+
+    void App::renderGameObjects(VkCommandBuffer commandBuffer) {
+        arxPipeline->bind(commandBuffer);
         
-        for (int j = 0; j < 4; j++) {
-            SimplePushConstantData push{};
-            push.offset = {-0.5f + frame * 0.02f, -0.4f + j * 0.25f};
-            push.color  = {0.0f, 0.0f, 0.2f + 0.2f * j};
+        for (auto& obj : gameObjects) {
+            obj.transform2d.rotation = glm::mod(obj.transform2d.rotation + 0.01f, glm::two_pi<float>());
             
-            vkCmdPushConstants(commandBuffers[imageIndex],
+            SimplePushConstantData push{};
+            push.offset     = obj.transform2d.translation;
+            push.color      = obj.color;
+            push.transform  = obj.transform2d.mat2();
+            
+            vkCmdPushConstants(commandBuffer,
                                pipelineLayout,
                                VK_SHADER_STAGE_VERTEX_BIT |
                                VK_SHADER_STAGE_FRAGMENT_BIT,
                                0,
                                sizeof(SimplePushConstantData),
                                &push);
-            arxModel->draw(commandBuffers[imageIndex]);
-        }
-         
-
-        vkCmdEndRenderPass(commandBuffers[imageIndex]);
-        if (vkEndCommandBuffer(commandBuffers[imageIndex]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to record command buffer!");
+            
+            obj.model->bind(commandBuffer);
+            obj.model->draw(commandBuffer);
         }
     }
 
