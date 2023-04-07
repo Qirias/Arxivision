@@ -26,13 +26,15 @@ namespace arx {
     void App::run() {
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass()};
         ArxCamera camera{};
+//        camera.setViewDirection(glm::vec3(0.f), glm::vec3(.5f, 0.f, 1.f));
+        camera.setViewTarget(glm::vec3(-1.f, -2.f, -20.f), glm::vec3(0.f, 0.f, 2.5f));
         
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
             
             float aspect = arxRenderer.getAspectRation();
 //            camera.setOrthographicProjection(-aspect, aspect, -1, 1, -1, 1);
-            camera.setPerspectiveProjection(glm::radians(50.f), aspect, .1f, 10.f);
+            camera.setPerspectiveProjection(glm::radians(50.f), aspect, .1f, 100.f);
             
             // beginFrame() will return nullptr if the swapchain need to be recreated
             if (auto commandBuffer = arxRenderer.beginFrame()) {
