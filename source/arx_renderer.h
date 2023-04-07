@@ -21,6 +21,7 @@ namespace arx {
         ArxRenderer &operator=(const ArxWindow &) = delete;
         
         VkRenderPass getSwapChainRenderPass() const { return arxSwapChain->getRenderPass(); }
+        float getAspectRation() const { return arxSwapChain->extentAspectRatio(); }
         bool isFrameInProgress() const { return isFrameStarted; }
         
         VkCommandBuffer getCurrentCommandBuffer() const {

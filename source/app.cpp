@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "app.h"
 #include "simple_render_system.h"
+#include "arx_camera.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -24,14 +25,19 @@ namespace arx {
     
     void App::run() {
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass()};
+        ArxCamera camera{};
         
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
             
+            float aspect = arxRenderer.getAspectRation();
+//            camera.setOrthographicProjection(-aspect, aspect, -1, 1, -1, 1);
+            camera.setPerspectiveProjection(glm::radians(50.f), aspect, .1f, 10.f);
+            
             // beginFrame() will return nullptr if the swapchain need to be recreated
             if (auto commandBuffer = arxRenderer.beginFrame()) {
                 arxRenderer.beginSwapChainRenderPass(commandBuffer);
-                simpleRenderSystem.renderGameObjects(commandBuffer, gameObjects);
+                simpleRenderSystem.renderGameObjects(commandBuffer, gameObjects, camera);
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
                 arxRenderer.endFrame();
             }
@@ -105,7 +111,7 @@ namespace arx {
         
         auto cube = ArxGameObject::createGameObject();
         cube.model                  = arxModel;
-        cube.transform.translation  = {.0f, .0f, .5f};
+        cube.transform.translation  = {.0f, .0f, 2.5f};
         cube.transform.scale        = {.5f, .5f, .5f};
         
         gameObjects.push_back(std::move(cube));

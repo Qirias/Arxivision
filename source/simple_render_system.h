@@ -1,5 +1,6 @@
 #pragma once
 
+#include "arx_camera.h"
 #include "arx_pipeline.h"
 #include "arx_device.h"
 #include "arx_game_object.h"
@@ -19,7 +20,7 @@ namespace arx {
         SimpleRenderSystem(const ArxWindow &) = delete;
         SimpleRenderSystem &operator=(const ArxWindow &) = delete;
         
-        void renderGameObjects(VkCommandBuffer commandBuffer, std::vector<ArxGameObject> &gameObjects);
+        void renderGameObjects(VkCommandBuffer commandBuffer, std::vector<ArxGameObject> &gameObjects, const ArxCamera &camera);
     private:
         void createPipelineLayout();
         void createPipeline(VkRenderPass renderPass);
