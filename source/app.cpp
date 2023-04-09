@@ -2,6 +2,7 @@
 #include "app.h"
 #include "simple_render_system.h"
 #include "arx_camera.h"
+#include "user_input.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -12,6 +13,7 @@
 #include <stdexcept>
 #include <array>
 #include <cassert>
+#include <chrono>
 
 namespace arx {
 
@@ -26,14 +28,25 @@ namespace arx {
     void App::run() {
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass()};
         ArxCamera camera{};
-//        camera.setViewDirection(glm::vec3(0.f), glm::vec3(.5f, 0.f, 1.f));
-        camera.setViewTarget(glm::vec3(-1.f, -2.f, -20.f), glm::vec3(0.f, 0.f, 2.5f));
+        camera.setViewTarget(glm::vec3(-1.f, -2.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
+        
+        auto viewerObject = ArxGameObject::createGameObject();
+        UserInput cameraController{};
+        
+        auto currentTime = std::chrono::high_resolution_clock::now();
         
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
             
+            auto newTime = std::chrono::high_resolution_clock::now();
+            float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
+            currentTime = newTime;
+            
+            cameraController.moveInPlaneXZ(arxWindow.getGLFWwindow(), frameTime, viewerObject);
+            camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
+            
+            
             float aspect = arxRenderer.getAspectRation();
-//            camera.setOrthographicProjection(-aspect, aspect, -1, 1, -1, 1);
             camera.setPerspectiveProjection(glm::radians(50.f), aspect, .1f, 100.f);
             
             // beginFrame() will return nullptr if the swapchain need to be recreated
