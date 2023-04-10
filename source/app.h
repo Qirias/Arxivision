@@ -22,6 +22,8 @@ namespace arx {
         App(const ArxWindow &) = delete;
         App &operator=(const ArxWindow &) = delete;
         
+        ArxWindow& getWindow() { return arxWindow; }
+        
         void run();
         
     private:

@@ -16,22 +16,20 @@ namespace arx {
         
         bool shouldClose() { return glfwWindowShouldClose(window); }
         VkExtent2D getExtend() { return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)}; }
-        bool wasWindowResized() { return  framebufferReisized; }
-        void resetWindowResizedFlag() { framebufferReisized = false; }
+        bool wasWindowResized() { return  framebufferResized; }
+        void resetWindowResizedFlag() { framebufferResized = false; }
         GLFWwindow *getGLFWwindow() const { return window; }
         
         void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
-        
     private:
         static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
         void initWindow();
         
         int width;
         int height;
-        bool framebufferReisized = false;
+        bool framebufferResized = false;
         
         std::string windowName;
         GLFWwindow *window;
     };
 }
-

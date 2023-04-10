@@ -31,7 +31,7 @@ namespace arx {
         camera.setViewTarget(glm::vec3(-1.f, -2.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
         
         auto viewerObject = ArxGameObject::createGameObject();
-        UserInput cameraController{};
+        UserInput cameraController{*this};
         
         auto currentTime = std::chrono::high_resolution_clock::now();
         
@@ -42,9 +42,8 @@ namespace arx {
             float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
             currentTime = newTime;
             
-            cameraController.moveInPlaneXZ(arxWindow.getGLFWwindow(), frameTime, viewerObject);
-            camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
-            
+            cameraController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
+            camera.setViewMatrix(viewerObject.transform.translation, cameraController.forwardDir, cameraController.upDir);
             
             float aspect = arxRenderer.getAspectRation();
             camera.setPerspectiveProjection(glm::radians(50.f), aspect, .1f, 100.f);
