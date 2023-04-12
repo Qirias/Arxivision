@@ -8,6 +8,7 @@
 
 // std
 #include <vector>
+#include <memory>
 
 namespace arx {
 
@@ -15,20 +16,30 @@ namespace arx {
     public:
         
         struct Vertex {
-            glm::vec3 position;
-            glm::vec3 color;
+            glm::vec3 position{};
+            glm::vec3 color{};
+            glm::vec3 normal{};
+            glm::vec2 uv{};
             
             static std::vector<VkVertexInputBindingDescription> getBindingDescriptions();
             static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
+            
+            bool operator==(const Vertex &other) const {
+                return position == other.position && color == other.color && normal == other.normal && uv == other.uv;
+            }
         };
         
         struct Builder {
             std::vector<Vertex> vertices{};
             std::vector<uint32_t> indices{};
+            
+            void loadModel(const std::string &filepath);
         };
         
         ArxModel(ArxDevice &device, const ArxModel::Builder &builder);
         ~ArxModel();
+        
+        static std::unique_ptr<ArxModel> createModelFromFile(ArxDevice &device, const std::string &filepath);
         
         ArxModel(const ArxWindow &) = delete;
         ArxModel &operator=(const ArxWindow &) = delete;
