@@ -61,12 +61,12 @@ namespace arx {
     }
 
     void App::loadGameObjects() {
-        std::shared_ptr<ArxModel> arxModel = ArxModel::createModelFromFile(arxDevice, "models/smooth_vase.obj");
+        std::shared_ptr<ArxModel> arxModel = ArxModel::createModelFromFile(arxDevice, "models/flat_vase.obj");
         
         auto gameObj = ArxGameObject::createGameObject();
         gameObj.model                  = arxModel;
-        gameObj.transform.translation  = {.0f, .0f, 2.5f};
-        gameObj.transform.scale        = glm::vec3(3.f);//{.5f, .5f, .5f};
+        gameObj.transform.translation  = {.0f, .5f, 2.5f};
+        gameObj.transform.scale        = glm::vec3(2.f, 1.f, 3.f);
         
         gameObjects.push_back(std::move(gameObj));
     }
