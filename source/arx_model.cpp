@@ -32,15 +32,7 @@ namespace arx {
         createIndexBuffers(builder.indices);
     }
 
-    ArxModel::~ArxModel() {
-        vkDestroyBuffer(arxDevice.device(), vertexBuffer, nullptr);
-        vkFreeMemory(arxDevice.device(), vertexBufferMemory, nullptr);
-        
-        if (hasIndexBuffer) {
-            vkDestroyBuffer(arxDevice.device(), indexBuffer, nullptr);
-            vkFreeMemory(arxDevice.device(), indexBufferMemory, nullptr);
-        }
-    }
+    ArxModel::~ArxModel() {}
 
     std::unique_ptr<ArxModel> ArxModel::createModelFromFile(ArxDevice &device, const std::string &filepath) {
         Builder builder{};
@@ -52,33 +44,29 @@ namespace arx {
         vertexCount = static_cast<uint32_t>(vertices.size());
         assert(vertexCount >= 3 && "Vertex count must be at least 3");
         VkDeviceSize bufferSize = sizeof(vertices[0]) * vertexCount;
+        uint32_t vertexSize = sizeof(vertices[0]);
         
+        ArxBuffer stagingBuffer{
+            arxDevice,
+            vertexSize,
+            vertexCount,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        };
         
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
+        stagingBuffer.map();
+        stagingBuffer.writeToBuffer((void *)vertices.data());
         
-        arxDevice.createBuffer(bufferSize,
-                               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                               stagingBuffer,
-                               stagingBufferMemory);
-
-        void *data;
-        vkMapMemory(arxDevice.device(), stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
-        vkUnmapMemory(arxDevice.device(), stagingBufferMemory);
+        vertexBuffer = std::make_unique<ArxBuffer>(
+                                                   arxDevice,
+                                                   vertexSize,
+                                                   vertexCount,
+                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         
-        arxDevice.createBuffer(bufferSize,
-                               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                               vertexBuffer,
-                               vertexBufferMemory);
-        
-        arxDevice.copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-        
-        vkDestroyBuffer(arxDevice.device(), stagingBuffer, nullptr);
-        vkFreeMemory(arxDevice.device(), stagingBufferMemory, nullptr);
+        arxDevice.copyBuffer(stagingBuffer.getBuffer(), vertexBuffer->getBuffer(), bufferSize);
     }
 
     void ArxModel::createIndexBuffers(const std::vector<uint32_t> &indices) {
@@ -89,32 +77,29 @@ namespace arx {
             return;
         
         VkDeviceSize bufferSize = sizeof(indices[0]) * indexCount;
+        uint32_t indexSize = sizeof(indices[0]);
         
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
+        ArxBuffer stagingBuffer{
+            arxDevice,
+            indexSize,
+            indexCount,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        };
         
-        arxDevice.createBuffer(bufferSize,
-                               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                               stagingBuffer,
-                               stagingBufferMemory);
-
-        void *data;
-        vkMapMemory(arxDevice.device(), stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, indices.data(), static_cast<size_t>(bufferSize));
-        vkUnmapMemory(arxDevice.device(), stagingBufferMemory);
+        stagingBuffer.map();
+        stagingBuffer.writeToBuffer((void *)indices.data());
         
-        arxDevice.createBuffer(bufferSize,
-                               VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                               indexBuffer,
-                               indexBufferMemory);
+        indexBuffer = std::make_unique<ArxBuffer>(
+                                                 arxDevice,
+                                                 indexSize,
+                                                 indexCount,
+                                                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         
-        arxDevice.copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-        
-        vkDestroyBuffer(arxDevice.device(), stagingBuffer, nullptr);
-        vkFreeMemory(arxDevice.device(), stagingBufferMemory, nullptr);
+        arxDevice.copyBuffer(stagingBuffer.getBuffer(), indexBuffer->getBuffer(), bufferSize);
     }
 
     void ArxModel::draw(VkCommandBuffer commandBuffer) {
@@ -127,12 +112,12 @@ namespace arx {
     }
 
     void ArxModel::bind(VkCommandBuffer commandBuffer) {
-        VkBuffer buffers[]      = {vertexBuffer};
+        VkBuffer buffers[]      = {vertexBuffer->getBuffer()};
         VkDeviceSize offsets[]  = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
         
         if (hasIndexBuffer) {
-            vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindIndexBuffer(commandBuffer, indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
         }
     }
 

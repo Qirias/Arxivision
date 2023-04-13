@@ -3,6 +3,7 @@
 #include "simple_render_system.h"
 #include "arx_camera.h"
 #include "user_input.h"
+#include "arx_buffer.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -16,6 +17,11 @@
 #include <chrono>
 
 namespace arx {
+    
+    struct GlobalUbo {
+        glm::mat4 projectionView{1.f};
+        glm::vec3 lightDirection = glm::normalize(glm::vec3{1.f, -3.f, -1.f});
+    };
 
     App::App() {
         loadGameObjects();
@@ -26,6 +32,27 @@ namespace arx {
     }
     
     void App::run() {
+        
+        std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
+        for (int i = 0; i < uboBuffers.size(); i++) {
+            uboBuffers[i] = std::make_unique<ArxBuffer>(arxDevice,
+                                                        sizeof(GlobalUbo),
+                                                        1,
+                                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            uboBuffers[i]->map();
+        }
+        ArxBuffer globalUboBuffer{
+            arxDevice,
+            sizeof(GlobalUbo),
+            ArxSwapChain::MAX_FRAMES_IN_FLIGHT,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            arxDevice.properties.limits.minUniformBufferOffsetAlignment
+        };
+        
+        globalUboBuffer.map();
+        
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass()};
         ArxCamera camera{};
         camera.setViewTarget(glm::vec3(-1.f, -2.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
@@ -50,8 +77,23 @@ namespace arx {
             
             // beginFrame() will return nullptr if the swapchain need to be recreated
             if (auto commandBuffer = arxRenderer.beginFrame()) {
+                int frameIndex = arxRenderer.getFrameIndex();
+                FrameInfo frameInfo{
+                    frameIndex,
+                    frameTime,
+                    commandBuffer,
+                    camera
+                };
+                
+                // update
+                GlobalUbo ubo{};
+                ubo.projectionView = camera.getProjection() * camera.getView();
+                globalUboBuffer.writeToIndex(&ubo, frameIndex);
+                globalUboBuffer.flushIndex(frameIndex);
+                
+                // render
                 arxRenderer.beginSwapChainRenderPass(commandBuffer);
-                simpleRenderSystem.renderGameObjects(commandBuffer, gameObjects, camera);
+                simpleRenderSystem.renderGameObjects(frameInfo, gameObjects);
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
                 arxRenderer.endFrame();
             }

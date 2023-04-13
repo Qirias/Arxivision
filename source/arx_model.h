@@ -1,6 +1,7 @@
 #pragma once
 
 #include "arx_device.h"
+#include "arx_buffer.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -53,14 +54,12 @@ namespace arx {
         
         ArxDevice       &arxDevice;
         
-        VkBuffer        vertexBuffer;
-        VkDeviceMemory  vertexBufferMemory;
-        uint32_t        vertexCount;
+        std::unique_ptr<ArxBuffer>  vertexBuffer;
+        uint32_t                    vertexCount;
         
-        bool            hasIndexBuffer = false;
-        VkBuffer        indexBuffer;
-        VkDeviceMemory  indexBufferMemory;
-        uint32_t        indexCount;
+        bool                        hasIndexBuffer = false;
+        std::unique_ptr<ArxBuffer>  indexBuffer;
+        uint32_t                    indexCount;
     };
 
 }

@@ -4,6 +4,7 @@
 #include "arx_pipeline.h"
 #include "arx_device.h"
 #include "arx_game_object.h"
+#include "arx_frame_info.h"
 
 // std
 #include <memory>
@@ -20,7 +21,7 @@ namespace arx {
         SimpleRenderSystem(const ArxWindow &) = delete;
         SimpleRenderSystem &operator=(const ArxWindow &) = delete;
         
-        void renderGameObjects(VkCommandBuffer commandBuffer, std::vector<ArxGameObject> &gameObjects, const ArxCamera &camera);
+        void renderGameObjects(FrameInfo &frameInfo, std::vector<ArxGameObject> &gameObjects);
     private:
         void createPipelineLayout();
         void createPipeline(VkRenderPass renderPass);
