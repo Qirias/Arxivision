@@ -21,7 +21,7 @@ namespace arx {
         SimpleRenderSystem(const ArxWindow &) = delete;
         SimpleRenderSystem &operator=(const ArxWindow &) = delete;
         
-        void renderGameObjects(FrameInfo &frameInfo, std::vector<ArxGameObject> &gameObjects);
+        void renderGameObjects(FrameInfo &frameInfo);
     private:
         void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);
         void createPipeline(VkRenderPass renderPass);

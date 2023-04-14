@@ -7,6 +7,7 @@
 
 // std
 #include <memory>
+#include <unordered_map>
 
 namespace arx {
     
@@ -22,6 +23,7 @@ namespace arx {
     class ArxGameObject {
     public:
         using id_t = unsigned int;
+        using Map = std::unordered_map<id_t, ArxGameObject>;
         
         static ArxGameObject createGameObject() {
             static id_t currentId = 0;

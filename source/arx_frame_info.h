@@ -1,6 +1,7 @@
 #pragma once
 
 #include "arx_camera.h"
+#include "arx_game_object.h"
 
 namespace arx {
     struct FrameInfo {
@@ -9,5 +10,6 @@ namespace arx {
         VkCommandBuffer commandBuffer;
         ArxCamera &camera;
         VkDescriptorSet globalDescriptorSet;
+        ArxGameObject::Map &gameObjects;
     };
 }

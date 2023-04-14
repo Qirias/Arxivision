@@ -36,6 +36,6 @@ namespace arx {
 
         // note: order of declarations matters
         std::unique_ptr<ArxDescriptorPool>  globalPool{};
-        std::vector<ArxGameObject>          gameObjects;
+        ArxGameObject::Map                  gameObjects;
     };
 }

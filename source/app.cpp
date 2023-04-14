@@ -61,7 +61,7 @@ namespace arx {
         globalUboBuffer.map();
         
         auto globalSetLayout = ArxDescriptorSetLayout::Builder(arxDevice)
-                            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
                             .build();
         
         std::vector<VkDescriptorSet> globalDescriptorSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -103,7 +103,8 @@ namespace arx {
                     frameTime,
                     commandBuffer,
                     camera,
-                    globalDescriptorSets[frameIndex]
+                    globalDescriptorSets[frameIndex],
+                    gameObjects
                 };
                 
                 // update
@@ -114,7 +115,7 @@ namespace arx {
                 
                 // render
                 arxRenderer.beginSwapChainRenderPass(commandBuffer);
-                simpleRenderSystem.renderGameObjects(frameInfo, gameObjects);
+                simpleRenderSystem.renderGameObjects(frameInfo);
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
                 arxRenderer.endFrame();
             }
@@ -124,19 +125,19 @@ namespace arx {
     }
 
     void App::loadGameObjects() {
-        std::shared_ptr<ArxModel> arxModel = ArxModel::createModelFromFile(arxDevice, "models/flat_vase.obj");
+        std::shared_ptr<ArxModel> arxModel = ArxModel::createModelFromFile(arxDevice, "models/smooth_vase.obj");
         
         auto gameObj                    = ArxGameObject::createGameObject();
         gameObj.model                   = arxModel;
         gameObj.transform.translation   = {.0f, .5f, 0.f};
         gameObj.transform.scale         = glm::vec3(3.f);
-        gameObjects.push_back(std::move(gameObj));
+        gameObjects.emplace(gameObj.getId(), std::move(gameObj));
         
         arxModel = ArxModel::createModelFromFile(arxDevice, "models/quad.obj");
         auto floor                  = ArxGameObject::createGameObject();
         floor.model                 = arxModel;
         floor.transform.translation = {0.f, .5f, 0.f};
         floor.transform.scale       = {3.f, 1.f, 3.f};
-        gameObjects.push_back(std::move(floor));
+        gameObjects.emplace(floor.getId(), std::move(floor));
     }
 }
