@@ -20,7 +20,9 @@ namespace arx {
     
     struct GlobalUbo {
         glm::mat4 projectionView{1.f};
-        glm::vec3 lightDirection = glm::normalize(glm::vec3{1.f, -3.f, -1.f});
+        glm::vec4 ambientLightColor{1.f, 1.f, 1.f, .02f};
+        glm::vec3 lightPosition{-1.f};
+        alignas(16)glm::vec4 lightColor{1.f};
     };
 
     App::App() {
@@ -75,6 +77,7 @@ namespace arx {
         camera.setViewTarget(glm::vec3(-1.f, -2.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
         
         auto viewerObject = ArxGameObject::createGameObject();
+        viewerObject.transform.translation.z = -2.5f;
         UserInput cameraController{*this};
         
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -123,11 +126,17 @@ namespace arx {
     void App::loadGameObjects() {
         std::shared_ptr<ArxModel> arxModel = ArxModel::createModelFromFile(arxDevice, "models/flat_vase.obj");
         
-        auto gameObj = ArxGameObject::createGameObject();
-        gameObj.model                  = arxModel;
-        gameObj.transform.translation  = {.5f, .5f, 2.5f};
-        gameObj.transform.scale        = glm::vec3(10.f);
-        
+        auto gameObj                    = ArxGameObject::createGameObject();
+        gameObj.model                   = arxModel;
+        gameObj.transform.translation   = {.0f, .5f, 0.f};
+        gameObj.transform.scale         = glm::vec3(3.f);
         gameObjects.push_back(std::move(gameObj));
+        
+        arxModel = ArxModel::createModelFromFile(arxDevice, "models/quad.obj");
+        auto floor                  = ArxGameObject::createGameObject();
+        floor.model                 = arxModel;
+        floor.transform.translation = {0.f, .5f, 0.f};
+        floor.transform.scale       = {3.f, 1.f, 3.f};
+        gameObjects.push_back(std::move(floor));
     }
 }
