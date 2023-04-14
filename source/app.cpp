@@ -24,6 +24,10 @@ namespace arx {
     };
 
     App::App() {
+        globalPool = ArxDescriptorPool::Builder(arxDevice)
+                    .setMaxSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
+                    .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
+                    .build();
         loadGameObjects();
     }
 
@@ -42,6 +46,7 @@ namespace arx {
                                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
             uboBuffers[i]->map();
         }
+        
         ArxBuffer globalUboBuffer{
             arxDevice,
             sizeof(GlobalUbo),
@@ -53,7 +58,19 @@ namespace arx {
         
         globalUboBuffer.map();
         
-        SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass()};
+        auto globalSetLayout = ArxDescriptorSetLayout::Builder(arxDevice)
+                            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                            .build();
+        
+        std::vector<VkDescriptorSet> globalDescriptorSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
+        for (int i = 0; i < globalDescriptorSets.size(); i++) {
+            auto bufferInfo = uboBuffers[i]->descriptorInfo();
+            ArxDescriptorWriter(*globalSetLayout, *globalPool)
+                .writeBuffer(0, &bufferInfo)
+                .build(globalDescriptorSets[i]);
+        }
+        
+        SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
         ArxCamera camera{};
         camera.setViewTarget(glm::vec3(-1.f, -2.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
         
@@ -82,14 +99,15 @@ namespace arx {
                     frameIndex,
                     frameTime,
                     commandBuffer,
-                    camera
+                    camera,
+                    globalDescriptorSets[frameIndex]
                 };
                 
                 // update
                 GlobalUbo ubo{};
                 ubo.projectionView = camera.getProjection() * camera.getView();
-                globalUboBuffer.writeToIndex(&ubo, frameIndex);
-                globalUboBuffer.flushIndex(frameIndex);
+                uboBuffers[frameIndex]->writeToBuffer(&ubo);
+                uboBuffers[frameIndex]->flush();
                 
                 // render
                 arxRenderer.beginSwapChainRenderPass(commandBuffer);
@@ -107,8 +125,8 @@ namespace arx {
         
         auto gameObj = ArxGameObject::createGameObject();
         gameObj.model                  = arxModel;
-        gameObj.transform.translation  = {.0f, .5f, 2.5f};
-        gameObj.transform.scale        = glm::vec3(2.f, 1.f, 3.f);
+        gameObj.transform.translation  = {.5f, .5f, 2.5f};
+        gameObj.transform.scale        = glm::vec3(10.f);
         
         gameObjects.push_back(std::move(gameObj));
     }

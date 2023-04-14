@@ -8,5 +8,6 @@ namespace arx {
         float frameTime;
         VkCommandBuffer commandBuffer;
         ArxCamera &camera;
+        VkDescriptorSet globalDescriptorSet;
     };
 }

@@ -4,6 +4,7 @@
 #include "arx_device.h"
 #include "arx_renderer.h"
 #include "arx_game_object.h"
+#include "arx_descriptors.h"
 
 // std
 #include <memory>
@@ -29,10 +30,12 @@ namespace arx {
     private:
         void loadGameObjects();
         
-        ArxWindow                       arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
-        ArxDevice                       arxDevice{arxWindow};
-        ArxRenderer                     arxRenderer{arxWindow, arxDevice};
-        
-        std::vector<ArxGameObject>      gameObjects;
+        ArxWindow                           arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
+        ArxDevice                           arxDevice{arxWindow};
+        ArxRenderer                         arxRenderer{arxWindow, arxDevice};
+
+        // note: order of declarations matters
+        std::unique_ptr<ArxDescriptorPool>  globalPool{};
+        std::vector<ArxGameObject>          gameObjects;
     };
 }

@@ -15,7 +15,7 @@ namespace arx {
     class SimpleRenderSystem {
     public:
         
-        SimpleRenderSystem(ArxDevice &device, VkRenderPass renderPass);
+        SimpleRenderSystem(ArxDevice &device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
         ~SimpleRenderSystem();
         
         SimpleRenderSystem(const ArxWindow &) = delete;
@@ -23,7 +23,7 @@ namespace arx {
         
         void renderGameObjects(FrameInfo &frameInfo, std::vector<ArxGameObject> &gameObjects);
     private:
-        void createPipelineLayout();
+        void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);
         void createPipeline(VkRenderPass renderPass);
         
         ArxDevice&                      arxDevice;
