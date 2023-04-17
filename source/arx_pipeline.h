@@ -12,6 +12,8 @@ namespace arx {
         PipelineConfigInfo& operator=(const PipelineConfigInfo&) = delete;
         PipelineConfigInfo() = default;
         
+        std::vector<VkVertexInputBindingDescription> bindingDescriptions{};
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
         VkPipelineViewportStateCreateInfo viewportInfo;
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
         VkPipelineRasterizationStateCreateInfo rasterizationInfo;
