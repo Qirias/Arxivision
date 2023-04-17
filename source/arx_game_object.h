@@ -20,6 +20,11 @@ namespace arx {
         glm::mat3 normalMatrix();
     };
 
+    struct PointLightComponent {
+        float lightIntensity = 1.0f;
+        
+    };
+
     class ArxGameObject {
     public:
         using id_t = unsigned int;
@@ -30,6 +35,8 @@ namespace arx {
             return ArxGameObject{currentId++};
         }
         
+        static ArxGameObject makePointLight(float intensity = 10.f, float radius = .1f, glm::vec3 color = glm::vec3(1.0f));
+        
         ArxGameObject(const ArxGameObject &) = delete;
         ArxGameObject &operator=(const ArxGameObject &) = delete;
         ArxGameObject(ArxGameObject &&) = default;
@@ -37,9 +44,12 @@ namespace arx {
         
         id_t getId() const { return id; }
         
-        std::shared_ptr<ArxModel> model{};
         glm::vec3 color{};
         TransformComponent transform{};
+        
+        // Optional pointer components
+        std::shared_ptr<ArxModel> model{};
+        std::unique_ptr<PointLightComponent> pointLight = nullptr;
     private:
         ArxGameObject(id_t objId) : id{objId} {}
         

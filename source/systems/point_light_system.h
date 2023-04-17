@@ -21,6 +21,7 @@ namespace arx {
         PointLightSystem(const ArxWindow &) = delete;
         PointLightSystem &operator=(const ArxWindow &) = delete;
         
+        void update(FrameInfo &frameInfo, GlobalUbo &ubo);
         void render(FrameInfo &frameInfo);
     private:
         void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);
