@@ -114,8 +114,11 @@ namespace arx {
                 
                 // render
                 arxRenderer.beginSwapChainRenderPass(commandBuffer);
+                
+                // order here matters
                 simpleRenderSystem.renderGameObjects(frameInfo);
                 pointLightSystem.render(frameInfo);
+                
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
                 arxRenderer.endFrame();
             }
