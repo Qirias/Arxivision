@@ -51,6 +51,10 @@ class ArxSwapChain {
         void createRenderPass();
         void createFramebuffers();
         void createSyncObjects();
+        void createColorResources();
+        VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
+        void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+
 
         // Helper functions
         VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
@@ -60,6 +64,12 @@ class ArxSwapChain {
         VkFormat swapChainImageFormat;
         VkFormat swapChainDepthFormat;
         VkExtent2D swapChainExtent;
+    
+        VkImage colorImage;
+        VkDeviceMemory colorImageMemory;
+        VkImageView colorImageView;
+        VkPhysicalDeviceImagelessFramebufferFeatures imagelessFramebufferFeatures;
+
 
         std::vector<VkFramebuffer> swapChainFramebuffers;
         VkRenderPass renderPass;

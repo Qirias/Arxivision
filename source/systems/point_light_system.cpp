@@ -55,7 +55,7 @@ namespace arx {
         assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
         
         PipelineConfigInfo pipelineConfig{};
-        ArxPipeline::defaultPipelineConfigInfo(pipelineConfig);
+        ArxPipeline::defaultPipelineConfigInfo(arxDevice.msaaSamples, pipelineConfig);
         ArxPipeline::enableAlphaBlending(pipelineConfig);
         pipelineConfig.attributeDescriptions.clear();
         pipelineConfig.bindingDescriptions.clear();
