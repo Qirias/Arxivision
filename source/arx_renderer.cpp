@@ -110,7 +110,7 @@ namespace arx {
         currentFrameIndex = (currentFrameIndex + 1) % ArxSwapChain::MAX_FRAMES_IN_FLIGHT;
     }
 
-    void ArxRenderer::beginSwapChainRenderPass(VkCommandBuffer commandBuffer) {
+    void ArxRenderer::beginSwapChainRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer) {
         assert(isFrameStarted && "Can't beginSwapChainRenderPass if frame is not in progress");
         assert(commandBuffer == getCurrentCommandBuffer() && "Can't begin render pass on command buffer from a different frame");
         
@@ -123,7 +123,7 @@ namespace arx {
         renderPassInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
         
         std::array<VkClearValue, 2> clearValues{};
-        clearValues[0].color            = {0.01f, 0.01f, 0.01f, 1.0f};
+        clearValues[0].color            = {0.6f, 0.6f, 0.6f, 1.0f};
         clearValues[1].depthStencil     = {1.0f, 0};
         renderPassInfo.clearValueCount  = static_cast<uint32_t>(clearValues.size());
         renderPassInfo.pClearValues     = clearValues.data();
@@ -140,6 +140,8 @@ namespace arx {
         VkRect2D scissor{{0, 0}, arxSwapChain->getSwapChainExtent()};
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        
+        
     }
 
     void ArxRenderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {

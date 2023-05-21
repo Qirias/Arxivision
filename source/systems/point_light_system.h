@@ -18,8 +18,8 @@ namespace arx {
         PointLightSystem(ArxDevice &device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
         ~PointLightSystem();
         
-        PointLightSystem(const ArxWindow &) = delete;
-        PointLightSystem &operator=(const ArxWindow &) = delete;
+        PointLightSystem(const PointLightSystem &) = delete;
+        PointLightSystem &operator=(const PointLightSystem &) = delete;
         
         void update(FrameInfo &frameInfo, GlobalUbo &ubo);
         void render(FrameInfo &frameInfo);

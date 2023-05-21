@@ -10,6 +10,7 @@
 // std
 #include <cassert>
 #include <cstring>
+#include <iostream>
 
 namespace arx {
 

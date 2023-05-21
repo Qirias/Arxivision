@@ -1,6 +1,8 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
+#include <glm/glm.hpp>
 
 namespace arx {
 
@@ -10,4 +12,5 @@ namespace arx {
       seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
       (hashCombine(seed, rest), ...);
     };
+
 }

@@ -62,6 +62,8 @@ class ArxDevice {
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount);
+    void destroyBuffer(VkBuffer buffer);
+    void freeMemory(VkDeviceMemory memory);
 
     void createImageWithInfo(
         const VkImageCreateInfo &imageInfo,

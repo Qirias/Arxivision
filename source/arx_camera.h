@@ -5,11 +5,27 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include "glm/gtc/matrix_transform.hpp"
+#include <iostream>
+#include <vector>
 
 namespace arx {
     class ArxCamera {
     public:
-    
+        
+        struct AABB {
+            glm::vec3 min{};
+            glm::vec3 max{};
+        };
+        
+        void cull_AABBs_against_frustum(const ArxCamera& camera,
+                                        const std::vector<glm::mat4>& transforms,
+                                        const std::vector<AABB>& aabb_list,
+                                        std::vector<uint32_t>& out_visible_list);
+        
+        bool test_AABB_against_frustum(glm::mat4& MVP, const AABB& aabb);
+        
+        bool within(float lower, float value, float upper);
+            
         void setOrthographicProjection(float left, float right, float top, float bottom, float near, float far);
         
         void setPerspectiveProjection(float fovy, float aspect, float near, float far);

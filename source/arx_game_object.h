@@ -22,7 +22,6 @@ namespace arx {
 
     struct PointLightComponent {
         float lightIntensity = 1.0f;
-        
     };
 
     class ArxGameObject {
@@ -37,6 +36,7 @@ namespace arx {
         
         static ArxGameObject makePointLight(float intensity = 10.f, float radius = .1f, glm::vec3 color = glm::vec3(1.0f));
         
+        ArxGameObject() = default;
         ArxGameObject(const ArxGameObject &) = delete;
         ArxGameObject &operator=(const ArxGameObject &) = delete;
         ArxGameObject(ArxGameObject &&) = default;

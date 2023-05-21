@@ -133,6 +133,8 @@ namespace arx {
 
             vkGetPhysicalDeviceProperties(physicalDevice, &properties);
             std::cout << "physical device: " << properties.deviceName << std::endl;
+            std::cout << "maxStorageBufferRange: " << properties.limits.maxStorageBufferRange << std::endl;
+            
         }
 
         void ArxDevice::createLogicalDevice() {
@@ -152,7 +154,8 @@ namespace arx {
             }
 
             VkPhysicalDeviceFeatures deviceFeatures = {};
-            deviceFeatures.samplerAnisotropy = VK_TRUE;
+            deviceFeatures.samplerAnisotropy    = VK_TRUE;
+            deviceFeatures.fillModeNonSolid     = VK_TRUE;
             
             setImagelessFramebufferFeature();
 
@@ -540,6 +543,15 @@ namespace arx {
               &region);
             endSingleTimeCommands(commandBuffer);
         }
+
+        void ArxDevice::destroyBuffer(VkBuffer buffer) {
+            vkDestroyBuffer(device(), buffer, nullptr);
+        }
+
+        void ArxDevice::freeMemory(VkDeviceMemory memory) {
+            vkFreeMemory(device(), memory, nullptr);
+        }
+
 
         void ArxDevice::createImageWithInfo(
             const VkImageCreateInfo &imageInfo,

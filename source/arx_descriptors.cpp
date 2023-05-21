@@ -190,6 +190,6 @@ namespace arx {
       for (auto &write : writes) {
         write.dstSet = set;
       }
-      vkUpdateDescriptorSets(pool.arxDevice.device(), writes.size(), writes.data(), 0, nullptr);
+      vkUpdateDescriptorSets(pool.arxDevice.device(),static_cast<float>(writes.size()), writes.data(), 0, nullptr);
     }
 }

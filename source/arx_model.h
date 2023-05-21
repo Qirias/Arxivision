@@ -2,6 +2,8 @@
 
 #include "arx_device.h"
 #include "arx_buffer.h"
+//#include "arx_frame_info.h"
+//#include "chunks.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -12,6 +14,12 @@
 #include <memory>
 
 namespace arx {
+
+    // Per-instance data block
+    struct InstanceData {
+        glm::vec3 translation{};
+        glm::vec3 color{};
+    };
 
     class ArxModel {
     public:
@@ -34,32 +42,39 @@ namespace arx {
             std::vector<Vertex> vertices{};
             std::vector<uint32_t> indices{};
             
+            std::vector<InstanceData> instanceData{};
+            uint32_t instanceCount{};
+
             void loadModel(const std::string &filepath);
         };
         
         ArxModel(ArxDevice &device, const ArxModel::Builder &builder);
         ~ArxModel();
         
-        static std::unique_ptr<ArxModel> createModelFromFile(ArxDevice &device, const std::string &filepath);
+        static std::unique_ptr<ArxModel> createModelFromFile(ArxDevice &device, const std::string &filepath, uint32_t instanceCount = 1, const std::vector<InstanceData> &data = {});
         
-        ArxModel(const ArxWindow &) = delete;
-        ArxModel &operator=(const ArxWindow &) = delete;
+        ArxModel(const ArxModel &) = delete;
+        ArxModel &operator=(const ArxModel &) = delete;
         
         void bind(VkCommandBuffer commandBuffer);
         void draw(VkCommandBuffer commandBuffer);
+        uint32_t getIndexCount() { return indexCount; }
     private:
-        void createVertexBuffers(const std::vector<Vertex> &vertices);
+        void createVertexBuffers(const ArxModel::Builder &builder);
         void createIndexBuffers(const std::vector<uint32_t> &indices);
-
+        
         
         ArxDevice       &arxDevice;
         
         std::unique_ptr<ArxBuffer>  vertexBuffer;
         uint32_t                    vertexCount;
         
+        std::unique_ptr<ArxBuffer>  instanceBuffer;
+        uint32_t                    instanceCount;
+
+        
         bool                        hasIndexBuffer = false;
         std::unique_ptr<ArxBuffer>  indexBuffer;
         uint32_t                    indexCount;
     };
-
 }

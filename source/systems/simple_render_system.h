@@ -18,8 +18,8 @@ namespace arx {
         SimpleRenderSystem(ArxDevice &device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
         ~SimpleRenderSystem();
         
-        SimpleRenderSystem(const ArxWindow &) = delete;
-        SimpleRenderSystem &operator=(const ArxWindow &) = delete;
+        SimpleRenderSystem(const SimpleRenderSystem &) = delete;
+        SimpleRenderSystem &operator=(const SimpleRenderSystem &) = delete;
         
         void renderGameObjects(FrameInfo &frameInfo);
     private:

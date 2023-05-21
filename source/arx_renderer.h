@@ -3,6 +3,8 @@
 #include "arx_window.h"
 #include "arx_device.h"
 #include "arx_swap_chain.h"
+#include "arx_frame_info.h"
+#include "chunks.h"
 
 // std
 #include <memory>
@@ -17,8 +19,8 @@ namespace arx {
         ArxRenderer(ArxWindow &window, ArxDevice &device);
         ~ArxRenderer();
         
-        ArxRenderer(const ArxWindow &) = delete;
-        ArxRenderer &operator=(const ArxWindow &) = delete;
+        ArxRenderer(const ArxRenderer &) = delete;
+        ArxRenderer &operator=(const ArxRenderer&) = delete;
         
         VkRenderPass getSwapChainRenderPass() const { return arxSwapChain->getRenderPass(); }
         float getAspectRation() const { return arxSwapChain->extentAspectRatio(); }
@@ -36,7 +38,7 @@ namespace arx {
         
         VkCommandBuffer beginFrame();
         void endFrame();
-        void beginSwapChainRenderPass(VkCommandBuffer commandBuffer);
+        void beginSwapChainRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer);
         void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
         
     private:
@@ -47,7 +49,7 @@ namespace arx {
         ArxWindow&                      arxWindow;
         ArxDevice&                      arxDevice;
         std::unique_ptr<ArxSwapChain>   arxSwapChain;
-        std::vector<VkCommandBuffer>    commandBuffers;
+        std::vector<VkCommandBuffer>    commandBuffers; 
         
         uint32_t                        currentImageIndex;
         int                             currentFrameIndex;
