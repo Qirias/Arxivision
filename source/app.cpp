@@ -5,7 +5,7 @@
 #include "arx_camera.h"
 #include "user_input.h"
 #include "arx_buffer.h"
-#include "chunks.h"
+#include "chunkManager.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -21,14 +21,12 @@
 
 namespace arx {
 
-    App::App() {
+    App::App() : chunkManager{arxDevice} {
         globalPool = ArxDescriptorPool::Builder(arxDevice)
                     .setMaxSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .build();
 //        loadGameObjects();
-        Chunk chunk(arxDevice);
-        chunk.CreateMesh(gameObjects);
     }
 
     App::~App() {
@@ -54,17 +52,6 @@ void printMat4(const glm::mat4& mat) {
             uboBuffers[i]->map();
         }
         
-//        ArxBuffer globalUboBuffer{
-//            arxDevice,
-//            sizeof(GlobalUbo),
-//            ArxSwapChain::MAX_FRAMES_IN_FLIGHT,
-//            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-//            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-//            arxDevice.properties.limits.minUniformBufferOffsetAlignment
-//        };
-//
-//        globalUboBuffer.map();
-        
         auto globalSetLayout = ArxDescriptorSetLayout::Builder(arxDevice)
                             .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
                             .build();
@@ -85,6 +72,7 @@ void printMat4(const glm::mat4& mat) {
         
         auto viewerObject = ArxGameObject::createGameObject();
         viewerObject.transform.translation.z = -4.5f;
+        viewerObject.transform.translation.y = -8.f;
         UserInput cameraController{*this};
         
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -115,6 +103,8 @@ void printMat4(const glm::mat4& mat) {
                     gameObjects
                 };
                 
+                chunkManager.Update(gameObjects, camera.getPosition());
+                
                 // update
                 GlobalUbo ubo{};
                 ubo.projection      = camera.getProjection();
@@ -128,7 +118,7 @@ void printMat4(const glm::mat4& mat) {
                 arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
                 
                 // order here matters
-                simpleRenderSystem.renderGameObjects(frameInfo);
+                simpleRenderSystem.renderGameObjects(frameInfo, chunkManager);
 //                pointLightSystem.render(frameInfo);
                 
                 arxRenderer.endSwapChainRenderPass(commandBuffer);

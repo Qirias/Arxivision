@@ -69,7 +69,7 @@ namespace arx {
 //        std::cout << "[ " << mat[3][0] << " " << mat[3][1] << " " << mat[3][2] << " " << mat[3][3] << " ]" << std::endl;
 //    }
     
-    void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo) {
+    void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo, ChunkManager &chunks) {
         arxPipeline->bind(frameInfo.commandBuffer);
         
         vkCmdBindDescriptorSets(frameInfo.commandBuffer,
@@ -80,23 +80,42 @@ namespace arx {
                                 0,
                                 nullptr);
         
-        
-        SimplePushConstantData push{};
-        frameInfo.gameObjects[0].transform.scale = glm::vec3(0.1f);
-        push.modelMatrix    = frameInfo.gameObjects[0].transform.mat4();
-        push.normalMatrix   = frameInfo.gameObjects[0].transform.normalMatrix();
+        for (int i = 1; i < chunks.GetChunks().size() + 1; ++i) {
+//            Chunk* chunk = tempChunks[i];
+            if (frameInfo.gameObjects[i].model == nullptr) continue;
+            SimplePushConstantData push{};
+            frameInfo.gameObjects[i].transform.scale = glm::vec3(0.5f);
+            push.modelMatrix    = frameInfo.gameObjects[i].transform.mat4();
+            push.normalMatrix   = frameInfo.gameObjects[i].transform.normalMatrix();
 
-        
-        vkCmdPushConstants(frameInfo.commandBuffer,
-                           pipelineLayout,
-                           VK_SHADER_STAGE_VERTEX_BIT |
-                           VK_SHADER_STAGE_FRAGMENT_BIT,
-                           0,
-                           sizeof(SimplePushConstantData),
-                           &push);
-        
-        frameInfo.gameObjects[0].model->bind(frameInfo.commandBuffer);
-        frameInfo.gameObjects[0].model->draw(frameInfo.commandBuffer);
+
+            vkCmdPushConstants(frameInfo.commandBuffer,
+                               pipelineLayout,
+                               VK_SHADER_STAGE_VERTEX_BIT |
+                               VK_SHADER_STAGE_FRAGMENT_BIT,
+                               0,
+                               sizeof(SimplePushConstantData),
+                               &push);
+            
+            frameInfo.gameObjects[i].model->bind(frameInfo.commandBuffer);
+            frameInfo.gameObjects[i].model->draw(frameInfo.commandBuffer);
+        }
+//        SimplePushConstantData push{};
+//        frameInfo.gameObjects[0].transform.scale = glm::vec3(0.5f);
+//        push.modelMatrix    = frameInfo.gameObjects[0].transform.mat4();
+//        push.normalMatrix   = frameInfo.gameObjects[0].transform.normalMatrix();
+//
+//
+//        vkCmdPushConstants(frameInfo.commandBuffer,
+//                           pipelineLayout,
+//                           VK_SHADER_STAGE_VERTEX_BIT |
+//                           VK_SHADER_STAGE_FRAGMENT_BIT,
+//                           0,
+//                           sizeof(SimplePushConstantData),
+//                           &push);
+//
+//        frameInfo.gameObjects[0].model->bind(frameInfo.commandBuffer);
+//        frameInfo.gameObjects[0].model->draw(frameInfo.commandBuffer);
         
 //        for (auto& kv : frameInfo.gameObjects) {
 //            auto& obj = kv.second;

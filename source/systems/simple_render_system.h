@@ -5,6 +5,7 @@
 #include "arx_device.h"
 #include "arx_game_object.h"
 #include "arx_frame_info.h"
+#include "chunkManager.h"
 
 // std
 #include <memory>
@@ -21,7 +22,7 @@ namespace arx {
         SimpleRenderSystem(const SimpleRenderSystem &) = delete;
         SimpleRenderSystem &operator=(const SimpleRenderSystem &) = delete;
         
-        void renderGameObjects(FrameInfo &frameInfo);
+        void renderGameObjects(FrameInfo &frameInfo, ChunkManager &chunks);
     private:
         void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);
         void createPipeline(VkRenderPass renderPass);

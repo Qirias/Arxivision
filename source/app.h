@@ -5,6 +5,7 @@
 #include "arx_renderer.h"
 #include "arx_game_object.h"
 #include "arx_descriptors.h"
+#include "chunkManager.h"
 
 // std
 #include <memory>
@@ -37,5 +38,6 @@ namespace arx {
         // note: order of declarations matters
         std::unique_ptr<ArxDescriptorPool>  globalPool{};
         ArxGameObject::Map                  gameObjects;
+        ChunkManager                        chunkManager;
     };
 }
