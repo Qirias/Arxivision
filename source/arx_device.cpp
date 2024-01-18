@@ -498,10 +498,10 @@ namespace arx {
             submitInfo.sType                  = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             submitInfo.commandBufferCount     = 1;
             submitInfo.pCommandBuffers        = &commandBuffer;
-
+            
             vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
             vkQueueWaitIdle(_graphicsQueue);
-
+            
             vkFreeCommandBuffers(_device, commandPool, 1, &commandBuffer);
         }
 
@@ -578,3 +578,5 @@ namespace arx {
         }
     }
 }
+
+

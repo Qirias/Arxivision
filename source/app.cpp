@@ -27,6 +27,7 @@ namespace arx {
                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .build();
 //        loadGameObjects();
+//        arxDevice.startSubmissionThread();
     }
 
     App::~App() {
@@ -41,7 +42,7 @@ void printMat4(const glm::mat4& mat) {
 }
     
     void App::run() {
-        
+        bool startedThread = false;
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
             uboBuffers[i] = std::make_unique<ArxBuffer>(arxDevice,
@@ -103,7 +104,12 @@ void printMat4(const glm::mat4& mat) {
                     gameObjects
                 };
                 
-                chunkManager.Update(gameObjects, camera.getPosition());
+//                chunkManager.Update(gameObjects, camera.getPosition());
+                chunkManager.UpdateGameObjectsAndCamera(gameObjects, camera.getPosition());
+                if (!startedThread) {
+                    chunkManager.StartUpdateThread();
+                    startedThread = true;
+                }
                 
                 // update
                 GlobalUbo ubo{};
