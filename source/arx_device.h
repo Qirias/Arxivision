@@ -17,11 +17,9 @@ struct SwapChainSupportDetails {
 struct QueueFamilyIndices {
     uint32_t graphicsFamily;
     uint32_t presentFamily;
-    uint32_t computeFamily; // For the chunk thread
     bool graphicsFamilyHasValue = false;
     bool presentFamilyHasValue = false;
-    bool computeFamilyHasValue = false;
-    bool isComplete() { return graphicsFamilyHasValue && presentFamilyHasValue && computeFamilyHasValue; }
+    bool isComplete() { return graphicsFamilyHasValue && presentFamilyHasValue; }
 };
 
 class ArxDevice {
