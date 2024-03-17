@@ -5,6 +5,7 @@
 // std lib headers
 #include <string>
 #include <vector>
+#include "threadpool.h"
 
 namespace arx {
 
@@ -45,6 +46,7 @@ class ArxDevice {
     VkSurfaceKHR surface() { return _surface; }
     VkQueue graphicsQueue() { return _graphicsQueue; }
     VkQueue presentQueue() { return _presentQueue; }
+
 
     SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
@@ -95,12 +97,13 @@ class ArxDevice {
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
     VkSampleCountFlagBits getMaxUsableSampleCount();
 
-    VkInstance                        instance;
-    VkDebugUtilsMessengerEXT          debugMessenger;
-    VkPhysicalDevice                  physicalDevice = VK_NULL_HANDLE;
-    ArxWindow                         &window;
-    VkCommandPool                     commandPool;
-    VkPhysicalDeviceImagelessFramebufferFeatures imagelessFramebufferFeatures;
+    VkInstance                                      instance;
+    VkDebugUtilsMessengerEXT                        debugMessenger;
+    VkPhysicalDevice                                physicalDevice = VK_NULL_HANDLE;
+    ArxWindow                                       &window;
+    VkCommandPool                                   commandPool;
+    VkPhysicalDeviceImagelessFramebufferFeatures    imagelessFramebufferFeatures;
+    uint32_t                                        numThreads{0};
 
     VkDevice      _device;
     VkSurfaceKHR  _surface;
@@ -113,6 +116,8 @@ class ArxDevice {
                                                      "VK_KHR_imageless_framebuffer",
                                                      "VK_KHR_maintenance2",
                                                      "VK_KHR_image_format_list"};
+        
+    public:
+        ThreadPool                                      threadPool;
     };
-
 }

@@ -12,35 +12,31 @@
 
 namespace arx {
 
-    class ChunkManager {
+class ChunkManager {
     public:
         ChunkManager(ArxDevice &device);
         ~ChunkManager();
-        
-        void Update(ArxGameObject::Map& gameObjects, const glm::vec3& playerPosition);
-        void UpdateGameObjectsAndCamera(ArxGameObject::Map& updatedGameObjects, const glm::vec3& cameraPosition);
+
         void StartUpdateThread();
-
-        Chunk* CreateChunk(ArxGameObject::Map& gameObjects, const glm::vec3& position);
-        bool IsPointInArea(const glm::vec3& point, const glm::vec3& areaCenter, float areaSize) const;
-        glm::vec3 CalculateAdjacentChunkPosition(const glm::vec3& position) const;
+        void UpdateGameObjectsAndCamera(ArxGameObject::Map& updatedGameObjects, const glm::vec3& playerPos);
         const std::vector<Chunk*>& GetChunks() const { return m_vpChunks; }
-        bool IsChunkAtPosition(const glm::vec3& position) const;
-        
-    private:
-        ArxDevice           &arxDevice;
-        std::vector<Chunk*> m_vpChunks;
-        
-        bool HasChunkAtPosition(const glm::vec3& position) const;
-        
-        std::thread             m_UpdateThread;
-        std::atomic<bool>       m_IsUpdateThreadRunning;
-        std::mutex              updateMutex; // Declare and initialize the mutex
-        ArxGameObject::Map*     gameObjectsPtr; // Shared reference to updated gameObjects
-        glm::vec3               playerPosition; // Shared updated camera position
-        std::condition_variable initializationCV;
-        bool                    isInitialized = false;
 
-        void UpdateThreadFunction();
+    private:
+        ArxDevice& arxDevice;
+        std::vector<Chunk*> m_vpChunks;
+    
+        std::mutex updateMutex;
+        std::condition_variable initializationCV;
+        ArxGameObject::Map* gameObjectsPtr = nullptr;
+        glm::vec3 playerPosition;
+        bool isInitialized = false;
+        bool m_IsUpdateThreadRunning;
+        std::once_flag m_ThreadStartFlag;
+
+        void Update(ArxGameObject::Map& gameObjects, const glm::vec3 &playerPosition);
+        bool HasChunkAtPosition(const glm::vec3& position) const;
+        bool IsChunkAtPosition(const glm::vec3& position) const;
+        Chunk* CreateChunk(ArxGameObject::Map& gameObjects, const glm::vec3 &position);
+        void UpdateThreadFunction(); // Not used anymore
     };
 }

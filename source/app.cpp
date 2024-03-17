@@ -106,10 +106,8 @@ void printMat4(const glm::mat4& mat) {
                 
 //                chunkManager.Update(gameObjects, camera.getPosition());
                 chunkManager.UpdateGameObjectsAndCamera(gameObjects, camera.getPosition());
-                if (!startedThread) {
-                    chunkManager.StartUpdateThread();
-                    startedThread = true;
-                }
+                chunkManager.StartUpdateThread(); // gets called once
+               
                 
                 // update
                 GlobalUbo ubo{};

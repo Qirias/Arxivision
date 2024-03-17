@@ -5,6 +5,7 @@
 #include <iostream>
 #include <set>
 #include <unordered_set>
+#include <cassert>
 
 namespace arx {
 
@@ -54,6 +55,9 @@ namespace arx {
             pickPhysicalDevice();
             createLogicalDevice();
             createCommandPool();
+            numThreads = std::thread::hardware_concurrency();
+            assert(numThreads > 0);
+            threadPool.setThreadCount(numThreads);
         }
 
         ArxDevice::~ArxDevice() {
