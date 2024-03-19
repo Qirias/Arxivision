@@ -2,86 +2,89 @@
 
 namespace arx {
     
-    ChunkManager::ChunkManager(ArxDevice &device) : arxDevice(device), m_IsUpdateThreadRunning(true) {
+    ChunkManager::ChunkManager(ArxDevice &device) : arxDevice{device} {
         
     }
 
     ChunkManager::~ChunkManager() {
-        // Stop the update thread
-        m_IsUpdateThreadRunning = false;
-        
-        // Clean up resources
         for (Chunk* chunk : m_vpChunks)
             delete chunk;
-
-        // No need to manually free command buffers and destroy command pools here
     }
 
-    void ChunkManager::StartUpdateThread() {
-        std::call_once(m_ThreadStartFlag, [this]() {
-            arxDevice.threadPool.threads[0]->addJob([this]() {
-                UpdateThreadFunction();
-            });
-        });
-    }
+    void ChunkManager::processBuilder(ArxGameObject::Map& voxel) {
+        
+        float scaleFactor = 1.0f;
+        
+        builder.loadModel("models/obj_1.obj");
 
-    void ChunkManager::UpdateThreadFunction() {
-        while (m_IsUpdateThreadRunning) {
-            ArxGameObject::Map* localGameObjectsPtr = nullptr;
-            glm::vec3 localPlayerPosition;
+        glm::mat4 viewMatrix = camera.getView();
+        glm::mat4 projectionMatrix = camera.getProjection();
 
-            {
-//                std::unique_lock<std::mutex> lock(updateMutex);
-                // Wait for initialization
-//                initializationCV.wait(lock, [this]() { return isInitialized; });
+        glm::vec3 minBounds = glm::vec3(std::numeric_limits<float>::max());
+        glm::vec3 maxBounds = glm::vec3(std::numeric_limits<float>::lowest());
 
-                // Copy the shared data to local variables
-                localGameObjectsPtr = gameObjectsPtr;
-                localPlayerPosition = playerPosition;
-            } // lock's destructor automatically unlocks the mutex when it goes out of scope
+        // Transform vertices and normals into world space
+        for (int i = 0; i < builder.vertices.size(); i++) {
+            // Assuming vertex.position and vertex.normal are in local space
+            glm::vec4 localVertex = glm::vec4(builder.vertices[i].position * scaleFactor, 1.0f);
+            localVertex.y *= -1;
+            glm::vec3 localNormal = builder.vertices[i].normal;
+            localNormal.y *= -1;
 
-            if (localGameObjectsPtr) {
-                ArxGameObject::Map& gameObjects = *localGameObjectsPtr;
-                Update(gameObjects, localPlayerPosition); // Call Update function with local data
-            }
+            // Transform vertex to world space
+            glm::vec4 worldVertex = viewMatrix * localVertex;
+            worldVertex = projectionMatrix * worldVertex;
 
-            // Sleep for a short time to avoid busy waiting
-//            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            builder.vertices[i].position = glm::vec3(worldVertex);
+
+            // Transform normal to world space
+            glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(viewMatrix))); // Normal matrix for transforming normals
+            builder.vertices[i].normal = glm::normalize(normalMatrix * localNormal);
+
+            minBounds = glm::min(minBounds, builder.vertices[i].position);
+            maxBounds = glm::max(maxBounds, builder.vertices[i].position);
+//            std::cout << builder.vertices[i].position.x << " " << builder.vertices[i].position.y << " " << builder.vertices[i].position.z << "\n";
         }
-    }
 
-    void ChunkManager::UpdateGameObjectsAndCamera(ArxGameObject::Map& updatedGameObjects, const glm::vec3& playerPos) {
-        gameObjectsPtr = &updatedGameObjects;
-        playerPosition = playerPos;
-        isInitialized = true;
-    }
+        // Calculate scaled model size
+        glm::vec3 modelSize = maxBounds - minBounds;
 
-    void ChunkManager::Update(ArxGameObject::Map& gameObjects, const glm::vec3 &playerPosition) {
-        // Determine the minimum and maximum chunk indices based on the player's position
-        const float chunkCreationThreshold = 100.0f;
-        const float exclusionDistance = chunkCreationThreshold + CHUNK_SIZE;
-        float minX = std::floor((playerPosition.x - exclusionDistance) / CHUNK_SIZE);
-        float minZ = std::floor((playerPosition.z - exclusionDistance) / CHUNK_SIZE);
-        float maxX = std::ceil((playerPosition.x + exclusionDistance) / CHUNK_SIZE);
-        float maxZ = std::ceil((playerPosition.z + exclusionDistance) / CHUNK_SIZE);
-        int y = 0; // Specify the desired Y level
+        // Calculate chunk dimensions based on scaled model size
+        int numChunksX = static_cast<int>(std::ceil(modelSize.x / CHUNK_SIZE));
+        int numChunksY = static_cast<int>(std::ceil(modelSize.y / CHUNK_SIZE));
+        int numChunksZ = static_cast<int>(std::ceil(modelSize.z / CHUNK_SIZE));
+        std::cout << "ChunksX: " << numChunksX << " ChunksY: " << numChunksY << " ChunksZ: " << numChunksZ << "\n";
+        std::cout << "Number of Chunks to Load: " << numChunksX*numChunksY*numChunksZ << "\n";
+        
+        int chunkNum = 0;
+        // Create chunks
+        for (int x = 0; x < numChunksX; ++x) {
+            for (int y = 0; y < numChunksY; ++y) {
+                for (int z = 0; z < numChunksZ; ++z) {
+                    glm::vec3 chunkPosition = minBounds + glm::vec3(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE);
+//                    std::cout << "Chunk Position: " << "(" << x << ", " << y << ", " << z << "): " << chunkPosition.x << ", " << chunkPosition.y << ", " << chunkPosition.z << std::endl;
 
-        // Generate chunks within the specified range on the specified Y level
-        for (float x = minX; x <= maxX; ++x) {
-            for (float z = minZ; z <= maxZ; ++z) {
-                glm::vec3 chunkPosition(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE);
-
-                // Check if a chunk already exists at this position
-                if (!HasChunkAtPosition(chunkPosition)) {
-                    // Create a new chunk at the position
-                    Chunk* newChunk = CreateChunk(gameObjects, chunkPosition);
+                    // Extract vertices within the current chunk
+                    std::vector<arx::ArxModel::Vertex> chunkVertices;
+                    for (const auto& vertex : builder.vertices) {
+                        if (vertex.position.x >= chunkPosition.x && vertex.position.x < chunkPosition.x + CHUNK_SIZE &&
+                            vertex.position.y >= chunkPosition.y && vertex.position.y < chunkPosition.y + CHUNK_SIZE &&
+                            vertex.position.z >= chunkPosition.z && vertex.position.z < chunkPosition.z + CHUNK_SIZE) {
+                            chunkVertices.push_back(vertex);
+                        }
+                    }
+                    std::cout << "Chunk number: " << ++chunkNum << "\n";
+                    Chunk* newChunk = CreateChunk(voxel, chunkPosition, chunkVertices);
                     m_vpChunks.push_back(newChunk);
-                    std::cout << m_vpChunks.size() << std::endl;
                 }
             }
         }
-
     }
+
+
+    void ChunkManager::Update(ArxGameObject::Map& voxel, const glm::vec3 &playerPosition) {
+    }
+
 
     bool ChunkManager::HasChunkAtPosition(const glm::vec3& position) const {
         // Calculate the minimum and maximum positions within the area
@@ -101,27 +104,25 @@ namespace arx {
                 }
             }
         }
+
         return false;
     }
 
     bool ChunkManager::IsChunkAtPosition(const glm::vec3& position) const {
         for (Chunk* chunk : m_vpChunks) {
-            // Get the position of the chunk
             glm::vec3 chunkPosition = chunk->getPosition();
 
-            // Check if the chunk position matches the specified position
             if (chunkPosition == position) {
                 return true;
             }
         }
+        
         return false;
     }
 
-    Chunk* ChunkManager::CreateChunk(ArxGameObject::Map& gameObjects, const glm::vec3 &position) {
-        Chunk* newChunk = new Chunk(arxDevice, position, gameObjects);
-        // Setup the chunk and add it to the appropriate lists
-        // (e.g., m_vpChunkLoadList, m_vpChunkSetupList, etc.)
-        // based on your existing implementation
+    Chunk* ChunkManager::CreateChunk(ArxGameObject::Map& voxel, const glm::vec3 &position, std::vector<ArxModel::Vertex>& vertices) {
+        Chunk* newChunk = new Chunk(arxDevice, position, voxel, vertices);
+        
         return newChunk;
     }
 }

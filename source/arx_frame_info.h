@@ -29,6 +29,6 @@ static const int CHUNK_SIZE = 16;
         VkCommandBuffer commandBuffer;
         ArxCamera &camera;
         VkDescriptorSet globalDescriptorSet;
-        ArxGameObject::Map &gameObjects;
+        ArxGameObject::Map &voxel;
     };
 }

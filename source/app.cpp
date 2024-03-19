@@ -27,7 +27,6 @@ namespace arx {
                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .build();
 //        loadGameObjects();
-//        arxDevice.startSubmissionThread();
     }
 
     App::~App() {
@@ -42,7 +41,7 @@ void printMat4(const glm::mat4& mat) {
 }
     
     void App::run() {
-        bool startedThread = false;
+        
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
             uboBuffers[i] = std::make_unique<ArxBuffer>(arxDevice,
@@ -71,10 +70,21 @@ void printMat4(const glm::mat4& mat) {
         ArxCamera camera{};
         camera.setViewTarget(glm::vec3(-1.f, -2.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
         
+       
+        
         auto viewerObject = ArxGameObject::createGameObject();
         viewerObject.transform.translation.z = -4.5f;
         viewerObject.transform.translation.y = -8.f;
         UserInput cameraController{*this};
+        
+        
+        camera.setViewMatrix(viewerObject.transform.translation, cameraController.forwardDir, cameraController.upDir);
+        
+        float aspect = arxRenderer.getAspectRation();
+        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+        
+        chunkManager.setCamera(camera);
+        chunkManager.processBuilder(gameObjects);
         
         auto currentTime = std::chrono::high_resolution_clock::now();
         
@@ -88,10 +98,7 @@ void printMat4(const glm::mat4& mat) {
             
             cameraController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
             camera.setViewMatrix(viewerObject.transform.translation, cameraController.forwardDir, cameraController.upDir);
-            
-            float aspect = arxRenderer.getAspectRation();
-            camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
-            
+                        
             // beginFrame() will return nullptr if the swapchain need to be recreated
             if (auto commandBuffer = arxRenderer.beginFrame()) {
                 int frameIndex = arxRenderer.getFrameIndex();
@@ -104,10 +111,7 @@ void printMat4(const glm::mat4& mat) {
                     gameObjects
                 };
                 
-//                chunkManager.Update(gameObjects, camera.getPosition());
-                chunkManager.UpdateGameObjectsAndCamera(gameObjects, camera.getPosition());
-                chunkManager.StartUpdateThread(); // gets called once
-               
+                //chunkManager.Update(gameObjects, camera.getPosition());
                 
                 // update
                 GlobalUbo ubo{};

@@ -137,7 +137,6 @@ namespace arx {
 
             vkGetPhysicalDeviceProperties(physicalDevice, &properties);
             std::cout << "physical device: " << properties.deviceName << std::endl;
-            
         }
 
         void ArxDevice::createLogicalDevice() {

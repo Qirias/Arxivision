@@ -80,13 +80,13 @@ namespace arx {
                                 0,
                                 nullptr);
         
-        for (int i = 1; i < chunks.GetChunks().size() + 1; ++i) {
+        for (int i = 1; i <= chunks.GetChunks().size(); ++i) {
 //            Chunk* chunk = tempChunks[i];
-            if (frameInfo.gameObjects[i].model == nullptr) continue;
+            if (frameInfo.voxel[i].model == nullptr) continue;
             SimplePushConstantData push{};
-            frameInfo.gameObjects[i].transform.scale = glm::vec3(0.5f);
-            push.modelMatrix    = frameInfo.gameObjects[i].transform.mat4();
-            push.normalMatrix   = frameInfo.gameObjects[i].transform.normalMatrix();
+            frameInfo.voxel[i].transform.scale = glm::vec3(0.5);
+            push.modelMatrix    = frameInfo.voxel[i].transform.mat4();
+            push.normalMatrix   = frameInfo.voxel[i].transform.normalMatrix();
 
 
             vkCmdPushConstants(frameInfo.commandBuffer,
@@ -97,8 +97,8 @@ namespace arx {
                                sizeof(SimplePushConstantData),
                                &push);
             
-            frameInfo.gameObjects[i].model->bind(frameInfo.commandBuffer);
-            frameInfo.gameObjects[i].model->draw(frameInfo.commandBuffer);
+            frameInfo.voxel[i].model->bind(frameInfo.commandBuffer);
+            frameInfo.voxel[i].model->draw(frameInfo.commandBuffer);
         }
 //        SimplePushConstantData push{};
 //        frameInfo.gameObjects[0].transform.scale = glm::vec3(0.5f);

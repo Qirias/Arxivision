@@ -87,6 +87,10 @@ namespace arx
             jobQueue.push(std::move(function));
             condition.notify_one();
         }
+        
+//        threadPool.threads[0]->addJob([this]() {
+//            function goes here
+//        });
 
         // Wait until all work items have been finished
         void wait()

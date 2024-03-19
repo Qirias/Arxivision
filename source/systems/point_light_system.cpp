@@ -71,7 +71,7 @@ namespace arx {
         auto rotateLight = glm::rotate(glm::mat4(1.f), frameInfo.frameTime, {0.f, -1.f, 0.f});
 
         int lightIndex = 0;
-        for (auto& kv : frameInfo.gameObjects) {
+        for (auto& kv : frameInfo.voxel) {
             auto& obj = kv.second;
             if (obj.pointLight == nullptr) continue;
             
@@ -93,7 +93,7 @@ namespace arx {
         // sort lights
         std::map<float, ArxGameObject::id_t> sorted;
         
-        for (auto& kv : frameInfo.gameObjects) {
+        for (auto& kv : frameInfo.voxel) {
             auto& obj = kv.second;
             if (obj.pointLight == nullptr) continue;
             
@@ -116,7 +116,7 @@ namespace arx {
         // iterate through sorted lights in reverse order
         for (auto it = sorted.rbegin(); it != sorted.rend(); it++) {
             // use game obj id to find light object
-            auto& obj = frameInfo.gameObjects.at(it->second);
+            auto& obj = frameInfo.voxel.at(it->second);
             
             PointLightPushConstants push{};
             push.position   = glm::vec4(obj.transform.translation, 1.f);

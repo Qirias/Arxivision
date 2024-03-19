@@ -9,7 +9,7 @@ namespace arx {
     class Block {
     public:
         Block() { active = true; }
-        Block(BlockType type) : blockType(type), active(true) {}
+        Block(BlockType type) : blockType(type), active(false) {}
         ~Block() {}
         
         bool isActive() const { return active; }
