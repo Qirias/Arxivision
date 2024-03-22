@@ -3,6 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
 #include <atomic>
+#include <random>
 
 #include "arx_pipeline.h"
 #include "arx_frame_info.h"
@@ -34,7 +35,7 @@ namespace arx {
     class Chunk {
     public:
         
-        Chunk(ArxDevice &device, const glm::vec3& position, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices);
+        Chunk(ArxDevice &device, const glm::vec3& position, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices, glm::ivec3 terrainSize = glm::ivec3(0));
         ~Chunk();
         
         void Update();
@@ -47,9 +48,18 @@ namespace arx {
         inline bool point_inside_aabb(const glm::vec3& point, const glm::vec3& minBox, const glm::vec3& maxBox);
         inline bool aabb_edge_intersects_triangle_face(const glm::vec3& minBox, const glm::vec3& maxBox, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2);
         bool intersect_aabb_triangle_cgal(const CGAL::Bbox_3& aabb, const Point& p0, const Point& p1, const Point& p2);
+        bool isVoxelInSierpinski(int x, int y, int z);
+        glm::vec3 determineColorBasedOnPosition(glm::vec3 voxelGlobalPos, glm::ivec3 terrainSize);
+        int calculateRecursionDepth(glm::ivec3 terrainSize);
+        bool isVoxelinSponge(int x, int y, int z, int depth);
+        
     private:
-        Block                                       ***blocks;
-        glm::vec3                                   position;
-        std::vector<std::vector<InstanceData>>      instanceData;
+        std::unique_ptr<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>      blocks;
+        glm::vec3                                                           position;
+        std::vector<std::vector<InstanceData>>                              instanceData;
+        std::unique_ptr<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>  colors; 
+        
+        void initializeBlocks();
+        int applyCARule(glm::ivec3 terrainSize);
     };
 }

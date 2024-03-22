@@ -53,6 +53,21 @@ void main() {
 //    }
     
 //    outColor = vec4(diffuseLight * fragColor + specularLight * fragColor, 1.0);
-    outColor = vec4(fragColor, 1.0f);
+    vec3 lightPos = vec3(20, -50, -10); // Example light position
+       vec3 lightColor = vec3(1, 1, 1); // White light
+       
+       // Ambient
+       float ambientStrength = 0.1;
+       vec3 ambient = ambientStrength * lightColor;
+       
+       // Diffuse
+       vec3 norm = normalize(fragNormalWorld);
+       vec3 lightDir = normalize(lightPos - fragPosWorld);
+       float diff = max(dot(norm, lightDir), 0.0);
+       vec3 diffuse = diff * lightColor;
+       
+       vec3 result = (ambient + diffuse) * fragColor;
+       outColor = vec4(result, 1.0);
+//    outColor = vec4(fragColor, 1.0f);
 
 }

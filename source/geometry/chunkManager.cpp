@@ -7,18 +7,14 @@ namespace arx {
     }
 
     ChunkManager::~ChunkManager() {
-        for (Chunk* chunk : m_vpChunks)
-            delete chunk;
+        
     }
 
-    void ChunkManager::processBuilder(ArxGameObject::Map& voxel) {
-        
-        float scaleFactor = 1.0f;
-        
-        builder.loadModel("models/obj_1.obj");
+    void ChunkManager::obj2vox(ArxGameObject::Map& voxel, const std::string& path, const float scaleFactor) {
+        builder.loadModel(path);
 
-        glm::mat4 viewMatrix = camera.getView();
-        glm::mat4 projectionMatrix = camera.getProjection();
+        glm::dmat4 viewMatrix = camera.getView();
+        glm::dmat4 projectionMatrix = camera.getProjection();
 
         glm::vec3 minBounds = glm::vec3(std::numeric_limits<float>::max());
         glm::vec3 maxBounds = glm::vec3(std::numeric_limits<float>::lowest());
@@ -47,7 +43,7 @@ namespace arx {
         }
 
         // Calculate scaled model size
-        glm::vec3 modelSize = maxBounds - minBounds;
+        glm::vec3 modelSize = glm::ceil(maxBounds - minBounds);
 
         // Calculate chunk dimensions based on scaled model size
         int numChunksX = static_cast<int>(std::ceil(modelSize.x / CHUNK_SIZE));
@@ -81,43 +77,25 @@ namespace arx {
         }
     }
 
+    void ChunkManager::initializeTerrain(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize) {
+        this->terrainSize = terrainSize;
+        
+        int numChunksX = (terrainSize.x + CHUNK_SIZE ) / CHUNK_SIZE;
+        int numChunksY = (terrainSize.y + CHUNK_SIZE ) / CHUNK_SIZE;
+        int numChunksZ = (terrainSize.z + CHUNK_SIZE ) / CHUNK_SIZE;
 
-    void ChunkManager::Update(ArxGameObject::Map& voxel, const glm::vec3 &playerPosition) {
-    }
+        // This vector represents an empty placeholder since we're not using model vertices for initialization.
+        std::vector<arx::ArxModel::Vertex> emptyVertices;
 
-
-    bool ChunkManager::HasChunkAtPosition(const glm::vec3& position) const {
-        // Calculate the minimum and maximum positions within the area
-        glm::vec3 minPosition = glm::floor(position);
-        glm::vec3 maxPosition = glm::ceil(position);
-
-        // Iterate over all points within the area
-        for (float x = minPosition.x; x <= maxPosition.x; x += CHUNK_SIZE) {
-            for (float y = minPosition.y; y <= maxPosition.y; y += CHUNK_SIZE) {
-                for (float z = minPosition.z; z <= maxPosition.z; z += CHUNK_SIZE) {
-                    glm::vec3 chunkPosition(x, y, z);
-
-                    // Check if there is a chunk at the current position
-                    if (IsChunkAtPosition(chunkPosition)) {
-                        return true;
-                    }
+        for (int x = 0; x < numChunksX; ++x) {
+            for (int y = 0; y < numChunksY; ++y) {
+                for (int z = 0; z < numChunksZ; ++z) {
+                    glm::vec3 chunkPosition(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE);
+                    Chunk* newChunk = CreateChunk(voxel, chunkPosition, emptyVertices);
+                    m_vpChunks.push_back(newChunk);
                 }
             }
         }
-
-        return false;
-    }
-
-    bool ChunkManager::IsChunkAtPosition(const glm::vec3& position) const {
-        for (Chunk* chunk : m_vpChunks) {
-            glm::vec3 chunkPosition = chunk->getPosition();
-
-            if (chunkPosition == position) {
-                return true;
-            }
-        }
-        
-        return false;
     }
 
     Chunk* ChunkManager::CreateChunk(ArxGameObject::Map& voxel, const glm::vec3 &position, std::vector<ArxModel::Vertex>& vertices) {
