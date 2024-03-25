@@ -7,21 +7,18 @@ namespace arx {
     Chunk::Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices, glm::ivec3 terrainSize) : position{pos} {
         initializeBlocks();
         
+        int adjustedChunkSize = CHUNK_SIZE / VOXEL_SIZE;
         std::vector<InstanceData> tmpInstance;
-        tmpInstance.resize(applyCARule(terrainSize));
+        tmpInstance.resize(applyCARule(terrainSize)); // Make sure Voxelize supports VOXEL_SIZE argument
         
         uint32_t instances = 0;
-        float scale = 1.0f;
-        for (int x = 0; x < CHUNK_SIZE; x++) {
-            for (int y = 0; y < CHUNK_SIZE; y++) {
-                for (int z = 0; z < CHUNK_SIZE; z++) {
-                    //int index = x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE;
+        for (int x = 0; x < adjustedChunkSize; x++) {
+            for (int y = 0; y < adjustedChunkSize; y++) {
+                for (int z = 0; z < adjustedChunkSize; z++) {
                     if (!blocks[x][y][z].isActive()) continue;
-                    tmpInstance[instances].color = glm::vec3(colors[x][y][z]);
-                    
-                    tmpInstance[instances].translation = glm::vec3(static_cast<float>(x) + position.x,
-                                                                   static_cast<float>(y) + position.y,
-                                                                   static_cast<float>(z) + position.z)*glm::vec3(scale);
+                    glm::vec3 translation = glm::vec3(x*VOXEL_SIZE, y*VOXEL_SIZE, z*VOXEL_SIZE) + position;
+                    tmpInstance[instances].color = colors[x][y][z];
+                    tmpInstance[instances].translation = translation;
                     instances++;
                 }
             }
@@ -43,7 +40,7 @@ namespace arx {
     bool Chunk::CheckVoxelIntersection(const std::vector<arx::ArxModel::Vertex>& vertices, const glm::vec3& voxelPosition) {
 
         CGAL::Bbox_3 aabb(voxelPosition.x, voxelPosition.y, voxelPosition.z,
-                          voxelPosition.x + 1, voxelPosition.y + 1, voxelPosition.z + 1);
+                          voxelPosition.x + VOXEL_SIZE, voxelPosition.y + VOXEL_SIZE, voxelPosition.z + VOXEL_SIZE);
 
         for (size_t i = 0; i < vertices.size(); i += 3) {
             // Convert to CGAL Point
@@ -66,7 +63,9 @@ namespace arx {
 
         std::atomic<int> instances(0);
 
-        int totalVoxels = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+        // Adjust the total voxels based on the VOXEL_SIZE
+        int adjustedChunkSize = static_cast<int>(CHUNK_SIZE / VOXEL_SIZE);
+        int totalVoxels = adjustedChunkSize * adjustedChunkSize * adjustedChunkSize;
         int voxelsPerThread = totalVoxels / numThreads;
 
         for (unsigned int t = 0; t < numThreads; ++t) {
@@ -76,18 +75,18 @@ namespace arx {
                 endIdx = totalVoxels;
             }
 
-            threadPool.threads[t]->addJob([this, startIdx, endIdx, &vertices, &instances]() {
+            threadPool.threads[t]->addJob([this, startIdx, endIdx, &vertices, &instances, adjustedChunkSize]() {
                 for (int idx = startIdx; idx < endIdx; ++idx) {
-                    int x = idx / (CHUNK_SIZE * CHUNK_SIZE);
-                    int y = (idx / CHUNK_SIZE) % CHUNK_SIZE;
-                    int z = idx % CHUNK_SIZE;
-                    
-                    glm::vec3 voxelPosition = position + glm::vec3(x, y, z);
+                    int x = idx / (adjustedChunkSize * adjustedChunkSize);
+                    int y = (idx / adjustedChunkSize) % adjustedChunkSize;
+                    int z = idx % adjustedChunkSize;
+
+                    // Calculate the voxel position considering the VOXEL_SIZE
+                    glm::vec3 voxelPosition = position + glm::vec3(x * VOXEL_SIZE, y * VOXEL_SIZE, z * VOXEL_SIZE);
                     if (CheckVoxelIntersection(vertices, voxelPosition)) {
+                        // Properly index into the blocks array based on VOXEL_SIZE
                         blocks[x][y][z].setActive(true);
                         instances.fetch_add(1, std::memory_order_relaxed);
-                    } else {
-                        blocks[x][y][z].setActive(false);
                     }
                 }
             });
@@ -101,6 +100,7 @@ namespace arx {
 
 
 
+
     bool Chunk::intersect_aabb_triangle_cgal(const CGAL::Bbox_3& aabb, const Point& p0, const Point& p1, const Point& p2) {
         std::vector<Triangle> triangles;
         triangles.push_back(Triangle(p0, p1, p2));
@@ -111,21 +111,23 @@ namespace arx {
     }
 
     void Chunk::initializeBlocks() {
-        blocks = std::make_unique<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>(CHUNK_SIZE);
-        colors = std::make_unique<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>(CHUNK_SIZE);
-        for (int x = 0; x < CHUNK_SIZE; x++) {
-            blocks[x] = std::make_unique<std::unique_ptr<Block[]>[]>(CHUNK_SIZE);
-            colors[x] = std::make_unique<std::unique_ptr<glm::vec3[]>[]>(CHUNK_SIZE);
-            for (int y = 0; y < CHUNK_SIZE; y++) {
-                blocks[x][y] = std::make_unique<Block[]>(CHUNK_SIZE);
-                colors[x][y] = std::make_unique<glm::vec3[]>(CHUNK_SIZE);
-                for (int z = 0; z < CHUNK_SIZE; z++) {
+        int adjustedChunkSize = CHUNK_SIZE / VOXEL_SIZE;
+        blocks = std::make_unique<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>(adjustedChunkSize);
+        colors = std::make_unique<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>(adjustedChunkSize);
+        for (int x = 0; x < adjustedChunkSize; x++) {
+            blocks[x] = std::make_unique<std::unique_ptr<Block[]>[]>(adjustedChunkSize);
+            colors[x] = std::make_unique<std::unique_ptr<glm::vec3[]>[]>(adjustedChunkSize);
+            for (int y = 0; y < adjustedChunkSize; y++) {
+                blocks[x][y] = std::make_unique<Block[]>(adjustedChunkSize);
+                colors[x][y] = std::make_unique<glm::vec3[]>(adjustedChunkSize);
+                for (int z = 0; z < adjustedChunkSize; z++) {
                     blocks[x][y][z].setActive(false);
                     colors[x][y][z] = glm::vec3(0);
                 }
             }
         }
     }
+
 
 int Chunk::applyCARule(glm::ivec3 terrainSize) {
     int instances = 0;
@@ -196,32 +198,6 @@ int Chunk::applyCARule(glm::ivec3 terrainSize) {
 
         return true;
     }
-
-
-//    int Chunk::applyCARule(glm::ivec3 terrainSize) {
-//        int instances = 0;
-//        for (int x = 0; x < CHUNK_SIZE; x++) {
-//            for (int y = 0; y < CHUNK_SIZE; y++) {
-//                for (int z = 0; z < CHUNK_SIZE; z++) {
-//                    // Simple rule for an initial fractal-like structure
-//                    if ((x ^ y ^ z) % 21 == 0) { // Example condition, not an actual fractal rule
-//                        blocks[x][y][z].setActive(true);
-//                        colors[x][y][z] = glm::vec3(x / static_cast<float>(CHUNK_SIZE),
-//                                                    y / static_cast<float>(CHUNK_SIZE),
-//                                                    z / static_cast<float>(CHUNK_SIZE));
-//                        instances++;
-//                    } else {
-//                        blocks[x][y][z].setActive(false);
-//                    }
-//                }
-//            }
-//        }
-//        
-//        return instances;
-//    }
-
-
-
 
     Chunk::~Chunk() {
         

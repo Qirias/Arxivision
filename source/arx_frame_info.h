@@ -7,7 +7,8 @@ namespace arx {
     
 #define MAX_LIGHTS 10
 
-static const int CHUNK_SIZE = 16;
+static const int CHUNK_SIZE = 27;
+static const float VOXEL_SIZE = 1;
 
     struct PointLight {
       glm::vec4 position{};  // ignore w

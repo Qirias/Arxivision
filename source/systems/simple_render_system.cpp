@@ -84,7 +84,7 @@ namespace arx {
 //            Chunk* chunk = tempChunks[i];
             if (frameInfo.voxel[i].model == nullptr) continue;
             SimplePushConstantData push{};
-            frameInfo.voxel[i].transform.scale = glm::vec3(0.5);
+            frameInfo.voxel[i].transform.scale = glm::vec3(VOXEL_SIZE/2);
             push.modelMatrix    = frameInfo.voxel[i].transform.mat4();
             push.normalMatrix   = frameInfo.voxel[i].transform.normalMatrix();
 

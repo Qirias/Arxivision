@@ -84,7 +84,7 @@ void printMat4(const glm::mat4& mat) {
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         
         chunkManager.setCamera(camera);
-//        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 15);
+//        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 4);
         chunkManager.initializeTerrain(gameObjects, glm::ivec3(70));
         
 //        chunkManager.obj2vox(gameObjects, "models/star_wars.obj", 15);
