@@ -27,10 +27,10 @@ namespace arx {
         ~ChunkManager();
         
         void setCamera(ArxCamera& camera) { this->camera = camera; }
-        Chunk* CreateChunk(ArxGameObject::Map& voxel, const glm::vec3& position, std::vector<ArxModel::Vertex>& vertices);
         const std::vector<Chunk*>& GetChunks() const { return m_vpChunks; }
         void obj2vox(ArxGameObject::Map& voxel, const std::string& path, const float scaleFactor);
         void initializeTerrain(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize);
+        void initializeHeightTerrain(ArxGameObject::Map& voxel, const int n);
         
     private:
         ArxDevice                   &arxDevice;
@@ -38,5 +38,9 @@ namespace arx {
         ArxModel::Builder           builder;
         ArxCamera                   camera;
         glm::ivec3                  terrainSize;
+        
+        std::vector<std::vector<float>> heightMap;
+        
+        void generateHeightmap(const glm::ivec2& size);
     };
 }

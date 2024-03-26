@@ -7,17 +7,16 @@ namespace arx {
     Chunk::Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices, glm::ivec3 terrainSize) : position{pos} {
         initializeBlocks();
         
-        int adjustedChunkSize = CHUNK_SIZE / VOXEL_SIZE;
         std::vector<InstanceData> tmpInstance;
-        tmpInstance.resize(applyCARule(terrainSize)); // Make sure Voxelize supports VOXEL_SIZE argument
+        tmpInstance.resize(Voxelize(vertices));
         
         uint32_t instances = 0;
-        for (int x = 0; x < adjustedChunkSize; x++) {
-            for (int y = 0; y < adjustedChunkSize; y++) {
-                for (int z = 0; z < adjustedChunkSize; z++) {
+        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
                     if (!blocks[x][y][z].isActive()) continue;
                     glm::vec3 translation = glm::vec3(x*VOXEL_SIZE, y*VOXEL_SIZE, z*VOXEL_SIZE) + position;
-                    tmpInstance[instances].color = colors[x][y][z];
+                    tmpInstance[instances].color = glm::vec3(0.5f);
                     tmpInstance[instances].translation = translation;
                     instances++;
                 }
@@ -34,6 +33,42 @@ namespace arx {
             cube.model = cubeModel;
             voxel.emplace(cube.getId(), std::move(cube));
         }
+    }
+
+    Chunk::Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, const std::vector<std::vector<float>>& heightMap, const glm::ivec3& globalOffset) : position(pos) {
+        
+        initializeBlocks();
+        
+        std::vector<InstanceData> tmpInstance;
+        activateVoxelsFromHeightmap(heightMap, globalOffset);
+        smoothTerrain();
+        colorVoxels();
+        tmpInstance.resize(instances);
+        
+        uint32_t index = 0;
+        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
+                    if (!blocks[x][y][z].isActive()) continue;
+                    glm::vec3 translation = glm::vec3(x*VOXEL_SIZE, y*VOXEL_SIZE, z*VOXEL_SIZE) + position;
+                    tmpInstance[index].color = colors[x][y][z];
+                    tmpInstance[index].translation = translation;
+                    index++;
+                }
+            }
+        }
+        
+        std::cout << "Instances drawn: " << instances << std::endl;
+        if (instances > 0)
+        {
+            instanceData.push_back(tmpInstance);
+            
+            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
+            auto cube = ArxGameObject::createGameObject();
+            cube.model = cubeModel;
+            voxel.emplace(cube.getId(), std::move(cube));
+        }
+        
     }
 
 
@@ -64,8 +99,8 @@ namespace arx {
         std::atomic<int> instances(0);
 
         // Adjust the total voxels based on the VOXEL_SIZE
-        int adjustedChunkSize = static_cast<int>(CHUNK_SIZE / VOXEL_SIZE);
-        int totalVoxels = adjustedChunkSize * adjustedChunkSize * adjustedChunkSize;
+        int adjustedChunk = CHUNK_SIZE / VOXEL_SIZE;
+        int totalVoxels = adjustedChunk * adjustedChunk * adjustedChunk;
         int voxelsPerThread = totalVoxels / numThreads;
 
         for (unsigned int t = 0; t < numThreads; ++t) {
@@ -75,11 +110,11 @@ namespace arx {
                 endIdx = totalVoxels;
             }
 
-            threadPool.threads[t]->addJob([this, startIdx, endIdx, &vertices, &instances, adjustedChunkSize]() {
+            threadPool.threads[t]->addJob([this, startIdx, endIdx, &vertices, &instances, adjustedChunk]() {
                 for (int idx = startIdx; idx < endIdx; ++idx) {
-                    int x = idx / (adjustedChunkSize * adjustedChunkSize);
-                    int y = (idx / adjustedChunkSize) % adjustedChunkSize;
-                    int z = idx % adjustedChunkSize;
+                    int x = idx / (adjustedChunk * adjustedChunk);
+                    int y = (idx / adjustedChunk) % adjustedChunk;
+                    int z = idx % adjustedChunk;
 
                     // Calculate the voxel position considering the VOXEL_SIZE
                     glm::vec3 voxelPosition = position + glm::vec3(x * VOXEL_SIZE, y * VOXEL_SIZE, z * VOXEL_SIZE);
@@ -111,16 +146,15 @@ namespace arx {
     }
 
     void Chunk::initializeBlocks() {
-        int adjustedChunkSize = CHUNK_SIZE / VOXEL_SIZE;
-        blocks = std::make_unique<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>(adjustedChunkSize);
-        colors = std::make_unique<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>(adjustedChunkSize);
-        for (int x = 0; x < adjustedChunkSize; x++) {
-            blocks[x] = std::make_unique<std::unique_ptr<Block[]>[]>(adjustedChunkSize);
-            colors[x] = std::make_unique<std::unique_ptr<glm::vec3[]>[]>(adjustedChunkSize);
-            for (int y = 0; y < adjustedChunkSize; y++) {
-                blocks[x][y] = std::make_unique<Block[]>(adjustedChunkSize);
-                colors[x][y] = std::make_unique<glm::vec3[]>(adjustedChunkSize);
-                for (int z = 0; z < adjustedChunkSize; z++) {
+        blocks = std::make_unique<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>(ADJUSTED_CHUNK);
+        colors = std::make_unique<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>(ADJUSTED_CHUNK);
+        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+            blocks[x] = std::make_unique<std::unique_ptr<Block[]>[]>(ADJUSTED_CHUNK);
+            colors[x] = std::make_unique<std::unique_ptr<glm::vec3[]>[]>(ADJUSTED_CHUNK);
+            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                blocks[x][y] = std::make_unique<Block[]>(ADJUSTED_CHUNK);
+                colors[x][y] = std::make_unique<glm::vec3[]>(ADJUSTED_CHUNK);
+                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
                     blocks[x][y][z].setActive(false);
                     colors[x][y][z] = glm::vec3(0);
                 }
@@ -133,9 +167,9 @@ int Chunk::applyCARule(glm::ivec3 terrainSize) {
     int instances = 0;
     int recursionDepth = calculateRecursionDepth(terrainSize);
 
-    for (int x = 0; x < CHUNK_SIZE; x++) {
-        for (int y = 0; y < CHUNK_SIZE; y++) {
-            for (int z = 0; z < CHUNK_SIZE; z++) {
+    for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+        for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+            for (int z = 0; z < ADJUSTED_CHUNK; z++) {
                 glm::vec3 voxelGlobalPos = position + glm::vec3(x, y, z);
 
                 if (isVoxelinSponge(voxelGlobalPos.x, voxelGlobalPos.y, voxelGlobalPos.z, recursionDepth)) {
@@ -198,6 +232,129 @@ int Chunk::applyCARule(glm::ivec3 terrainSize) {
 
         return true;
     }
+        
+    void Chunk::activateVoxelsFromHeightmap(const std::vector<std::vector<float>>& heightMap, const glm::ivec3& globalOffset) {
+        // Iterate over each voxel in the chunk
+        
+        int maxHeight = static_cast<int>(heightMap[0].size());
+        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+            for (int z = 0; z < ADJUSTED_CHUNK; z++) {
+                // Convert local chunk coordinates to global heightmap coordinates
+                int globalX = x + globalOffset.x;
+                int globalZ = z + globalOffset.z;
+
+                // Ensure global coordinates are within the bounds of the heightmap
+                if (globalX >= 0 && globalX < heightMap.size() && globalZ >= 0 && globalZ < heightMap[globalX].size()) {
+                    // Get the height from the heightmap and adjust for the actual height range
+                    float heightValue = heightMap[globalX][globalZ]; // Assuming this is normalized to [0, maxHeight]
+
+                    // Flip the height by adjusting how we activate voxels based on the Y position
+                    for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                        int globalY = y + globalOffset.y;
+                        // Instead of activating voxels below the heightmap value, activate those above it
+                        // Adjust this condition based on how your heights are represented in the heightMap
+                        if (maxHeight - globalY <= heightValue) {
+                            blocks[x][y][z].setActive(true);
+                            instances++;
+                        }
+                    }
+                } else {
+                    // Deactivate all voxels if outside the heightmap bounds
+                    for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                        blocks[x][y][z].setActive(false);
+                    }
+                }
+            }
+        }
+    }
+
+    int Chunk::countActiveNeighbors(int x, int y, int z) {
+        int count = 0;
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                for (int k = -1; k <= 1; k++) {
+                    if (i == 0 && j == 0 && k == 0) continue; // Skip the center voxel itself
+                    
+                    int nx = x + i;
+                    int ny = y + j;
+                    int nz = z + k;
+                    
+                    // Check bounds
+                    if (nx >= 0 && nx < ADJUSTED_CHUNK && ny >= 0 && ny < ADJUSTED_CHUNK && nz >= 0 && nz < ADJUSTED_CHUNK) {
+                        if (blocks[nx][ny][nz].isActive()) {
+                            count++;
+                        }
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    void Chunk::smoothTerrain() {
+        auto newBlocks = std::make_unique<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>(ADJUSTED_CHUNK);
+        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+            newBlocks[x] = std::make_unique<std::unique_ptr<Block[]>[]>(ADJUSTED_CHUNK);
+            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                newBlocks[x][y] = std::make_unique<Block[]>(ADJUSTED_CHUNK);
+                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
+                    newBlocks[x][y][z].setActive(blocks[x][y][z].isActive());
+                }
+            }
+        }
+        
+        const int thresholdDeactivate = 4;
+        const int thresholdActivate = 5;
+        
+        // Apply smoothing logic
+        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
+                    int activeNeighbors = countActiveNeighbors(x, y, z);
+                    
+                    
+                    if (blocks[x][y][z].isActive() && activeNeighbors < thresholdDeactivate) {
+                        newBlocks[x][y][z].setActive(false);
+                        instances--;
+                    } else if (!blocks[x][y][z].isActive() && activeNeighbors > thresholdActivate) {
+                        newBlocks[x][y][z].setActive(true);
+                        instances++;
+                    }
+                }
+            }
+        }
+        
+        blocks.swap(newBlocks);
+    }
+
+    void Chunk::colorVoxels() {
+        glm::vec3 green(0.0f, 1.0f, 0.0f); // Green for the highest voxels
+        glm::vec3 brown(0.55f, 0.27f, 0.07f); // Brown for the rest
+
+        // Iterate over each column in the chunk
+        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+            for (int z = 0; z < ADJUSTED_CHUNK; z++) {
+                // Find the highest active voxel in the current column
+                int highestActiveY = -1;
+                for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                    if (blocks[x][y][z].isActive()) {
+                        highestActiveY = y;
+                    }
+                }
+
+                int greenLayerStart = highestActiveY - static_cast<int>((highestActiveY + 1) * 0.2) + 1;
+
+                // Apply colors based on the calculated cutoff
+                for (int y = 0; y <= highestActiveY; y++) {
+                    if (blocks[x][y][z].isActive()) {
+                        // flipped
+                        colors[x][y][z] = (y >= greenLayerStart) ? brown : green;
+                    }
+                }
+            }
+        }
+    }
+
 
     Chunk::~Chunk() {
         

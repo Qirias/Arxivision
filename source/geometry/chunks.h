@@ -35,7 +35,8 @@ namespace arx {
     class Chunk {
     public:
         
-        Chunk(ArxDevice &device, const glm::vec3& position, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices, glm::ivec3 terrainSize = glm::ivec3(0));
+        Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices, glm::ivec3 terrainSize = glm::ivec3(0));
+        Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, const std::vector<std::vector<float>>& heightMap, const glm::ivec3& globalOffset);
         ~Chunk();
         
         void Update();
@@ -52,12 +53,18 @@ namespace arx {
         glm::vec3 determineColorBasedOnPosition(glm::vec3 voxelGlobalPos, glm::ivec3 terrainSize);
         int calculateRecursionDepth(glm::ivec3 terrainSize);
         bool isVoxelinSponge(int x, int y, int z, int depth);
+        void activateVoxelsFromHeightmap(const std::vector<std::vector<float>>& heightMap, const glm::ivec3& globalOffset);
+        void applyTrilinearInterpolation();
+        int countActiveNeighbors(int x, int y, int z);
+        void smoothTerrain();
+        void colorVoxels();
         
     private:
         std::unique_ptr<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>      blocks;
         glm::vec3                                                           position;
         std::vector<std::vector<InstanceData>>                              instanceData;
         std::unique_ptr<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>  colors; 
+        uint32_t                                                            instances = 0;
         
         void initializeBlocks();
         int applyCARule(glm::ivec3 terrainSize);

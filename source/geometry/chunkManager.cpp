@@ -70,7 +70,7 @@ namespace arx {
                         }
                     }
                     std::cout << "Chunk number: " << ++chunkNum << "\n";
-                    Chunk* newChunk = CreateChunk(voxel, chunkPosition, chunkVertices);
+                    Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, chunkVertices);
                     m_vpChunks.push_back(newChunk);
                 }
             }
@@ -91,16 +91,86 @@ namespace arx {
             for (int y = 0; y < numChunksY; ++y) {
                 for (int z = 0; z < numChunksZ; ++z) {
                     glm::vec3 chunkPosition(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE);
-                    Chunk* newChunk = CreateChunk(voxel, chunkPosition, emptyVertices);
+                    Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, emptyVertices);
                     m_vpChunks.push_back(newChunk);
                 }
             }
         }
     }
 
-    Chunk* ChunkManager::CreateChunk(ArxGameObject::Map& voxel, const glm::vec3 &position, std::vector<ArxModel::Vertex>& vertices) {
-        Chunk* newChunk = new Chunk(arxDevice, position, voxel, vertices);
+void ChunkManager::generateHeightmap(const glm::ivec2& size) {
+    heightMap.resize(size.x, std::vector<float>(size.y, 0.0f));
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(-15, 60);
+
+    // Initialize corners with values closer to maxHeight
+    heightMap[0][0] = dis(gen);
+    heightMap[0][size.y - 1] = dis(gen);
+    heightMap[size.x - 1][0] = dis(gen);
+    heightMap[size.x - 1][size.y - 1] = dis(gen);
+
+    int sideLength = size.x - 1;
+    float roughness = 0.5f;
+    
+    while (sideLength >= 2) {
+        int halfSide = sideLength / 2;
+
+        // Diamond step
+        for (int x = 0; x < size.x - 1; x += halfSide) {
+            for (int y = 0; y < size.y - 1; y += halfSide) {
+                int midX = x + halfSide;
+                int midY = y + halfSide;
+                float avg = (
+                    heightMap[x][y] +
+                    heightMap[(x + sideLength) % size.x][y] +
+                    heightMap[x][(y + sideLength) % size.y] +
+                    heightMap[(x + sideLength) % size.x][(y + sideLength) % size.y]
+                ) / 4.0f;
+                heightMap[midX % size.x][midY % size.y] = avg + dis(gen) * roughness;
+            }
+        }
+
+        // Square step
+        for (int x = 0; x < size.x; x += halfSide) {
+            for (int y = (x + halfSide) % sideLength; y < size.y; y += sideLength) {
+                float sum = 0.0f;
+                int count = 0;
+
+                // Collect the four surrounding heights
+                if (x >= halfSide) { sum += heightMap[x - halfSide][y]; count++; }
+                if (x + halfSide < size.x) { sum += heightMap[(x + halfSide) % size.x][y]; count++; }
+                if (y >= halfSide) { sum += heightMap[x][y - halfSide]; count++; }
+                if (y + halfSide < size.y) { sum += heightMap[x][(y + halfSide) % size.y]; count++; }
+
+                float avg = sum / count;
+                heightMap[x][y] = avg + dis(gen) * roughness;
+            }
+        }
         
-        return newChunk;
+        sideLength = halfSide;
+        roughness *= std::pow(2.0, -0.5); // Decrease roughness
+    }
+
+    // Normalize heightmap (Optional)
+}
+
+
+    void ChunkManager::initializeHeightTerrain(ArxGameObject::Map& voxel, int n) {
+        glm::ivec3 terrainSize = glm::ivec3(n * ADJUSTED_CHUNK, n * ADJUSTED_CHUNK, n * ADJUSTED_CHUNK);
+        glm::ivec2 heightMapSize = glm::ivec2(terrainSize.x, terrainSize.z);
+        generateHeightmap(heightMapSize);
+
+        for (int chunkX = 0; chunkX < n; chunkX++) {
+            for (int chunkY = 0; chunkY < n; chunkY++) {
+                for (int chunkZ = 0; chunkZ < n; chunkZ++) {
+                    glm::vec3 chunkPosition = glm::vec3(chunkX * ADJUSTED_CHUNK, chunkY * ADJUSTED_CHUNK, chunkZ * ADJUSTED_CHUNK);
+                    glm::ivec3 globalOffset(chunkX * ADJUSTED_CHUNK, chunkY * ADJUSTED_CHUNK, chunkZ * ADJUSTED_CHUNK);
+                    Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, heightMap, globalOffset);
+                    m_vpChunks.push_back(newChunk);
+                }
+            }
+        }
     }
 }
