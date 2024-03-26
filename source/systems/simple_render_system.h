@@ -22,7 +22,7 @@ namespace arx {
         SimpleRenderSystem(const SimpleRenderSystem &) = delete;
         SimpleRenderSystem &operator=(const SimpleRenderSystem &) = delete;
         
-        void renderGameObjects(FrameInfo &frameInfo, ChunkManager &chunks);
+        void renderGameObjects(FrameInfo &frameInfo, std::vector<Chunk*> &chunks);
     private:
         void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);
         void createPipeline(VkRenderPass renderPass);

@@ -5,24 +5,21 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include "glm/gtc/matrix_transform.hpp"
+
 #include <iostream>
 #include <vector>
 
 namespace arx {
     class ArxCamera {
     public:
-        
         struct AABB {
             glm::vec3 min{};
             glm::vec3 max{};
         };
         
-        void cull_AABBs_against_frustum(const ArxCamera& camera,
-                                        const std::vector<glm::mat4>& transforms,
-                                        const std::vector<AABB>& aabb_list,
-                                        std::vector<uint32_t>& out_visible_list);
+        void cull_chunks_against_frustum(const std::vector<glm::vec3>& chunkPositions, std::vector<uint32_t>& out_visible_list, int CHUNK_SIZE);
         
-        bool test_AABB_against_frustum(glm::mat4& MVP, const AABB& aabb);
+        bool test_AABB_against_frustum(glm::mat4& MVP, const glm::vec3& chunkPosition, int CHUNK_SIZE);
         
         bool within(float lower, float value, float upper);
             

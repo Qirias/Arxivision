@@ -117,6 +117,15 @@ void printMat4(const glm::mat4& mat) {
                 
                 //chunkManager.Update(gameObjects, camera.getPosition());
                 
+                // Frustum culling
+                std::vector<uint32_t> visibleChunksIndices;
+                camera.cull_chunks_against_frustum(chunkManager.GetChunkPositions(), visibleChunksIndices, CHUNK_SIZE);
+                
+                std::vector<Chunk*> visibleChunks;
+                for (auto index : visibleChunksIndices) {
+                    visibleChunks.push_back(chunkManager.GetChunks()[index]);
+                }
+                
                 // update
                 GlobalUbo ubo{};
                 ubo.projection      = camera.getProjection();
@@ -130,7 +139,7 @@ void printMat4(const glm::mat4& mat) {
                 arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
                 
                 // order here matters
-                simpleRenderSystem.renderGameObjects(frameInfo, chunkManager);
+                simpleRenderSystem.renderGameObjects(frameInfo, visibleChunks);
 //                pointLightSystem.render(frameInfo);
                 
                 arxRenderer.endSwapChainRenderPass(commandBuffer);

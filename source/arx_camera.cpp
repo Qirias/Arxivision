@@ -106,43 +106,44 @@ namespace arx {
         return Result;
     }
 
-    void ArxCamera::cull_AABBs_against_frustum(const ArxCamera& camera,
-                                    const std::vector<glm::mat4>& transforms,
-                                    const std::vector<AABB>& aabb_list,
-                                               std::vector<uint32_t>& out_visible_list) {
-        glm::mat4 VP = camera.projectionMatrix * camera.viewMatrix;
-        for (uint32_t i = 0; i < aabb_list.size(); i++) {
-            // model->view->projection transform
-            glm::mat4 MVP = VP * transforms[i];
-            
-            const AABB& aabb = aabb_list[i];
-            if (test_AABB_against_frustum(MVP, aabb)) {
-                out_visible_list.push_back(i);
-            }
+void ArxCamera::cull_chunks_against_frustum(
+    const std::vector<glm::vec3>& chunkPositions,
+    std::vector<uint32_t>& out_visible_list, int CHUNK_SIZE) {
+
+    glm::mat4 VP = projectionMatrix * viewMatrix;
+
+    for (uint32_t i = 0; i < chunkPositions.size(); i++) {
+        glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), chunkPositions[i]);
+        glm::mat4 MVP = VP * modelMatrix;
+
+        if (test_AABB_against_frustum(MVP, chunkPositions[i], CHUNK_SIZE)) {
+            out_visible_list.push_back(i);
         }
     }
+}
 
-    bool ArxCamera::test_AABB_against_frustum(glm::mat4& MVP, const AABB& aabb)
+
+    bool ArxCamera::test_AABB_against_frustum(glm::mat4& MVP, const glm::vec3& chunkPosition, int CHUNK_SIZE)
     {
-        // Use our min max to define eight corners
-        glm::vec4 corners[8] = {
-            {aabb.min.x, aabb.min.y, aabb.min.z, 1.0}, // x y z
-            {aabb.max.x, aabb.min.y, aabb.min.z, 1.0}, // X y z
-            {aabb.min.x, aabb.max.y, aabb.min.z, 1.0}, // x Y z
-            {aabb.max.x, aabb.max.y, aabb.min.z, 1.0}, // X Y z
+        AABB chunkAABB;
+        chunkAABB.min = chunkPosition;
+        chunkAABB.max = chunkPosition + glm::vec3(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE);
 
-            {aabb.min.x, aabb.min.y, aabb.max.z, 1.0}, // x y Z
-            {aabb.max.x, aabb.min.y, aabb.max.z, 1.0}, // X y Z
-            {aabb.min.x, aabb.max.y, aabb.max.z, 1.0}, // x Y Z
-            {aabb.max.x, aabb.max.y, aabb.max.z, 1.0}, // X Y Z
+        glm::vec4 corners[8] = {
+            {chunkAABB.min.x, chunkAABB.min.y, chunkAABB.min.z, 1.0},
+            {chunkAABB.max.x, chunkAABB.min.y, chunkAABB.min.z, 1.0},
+            {chunkAABB.min.x, chunkAABB.max.y, chunkAABB.min.z, 1.0},
+            {chunkAABB.max.x, chunkAABB.max.y, chunkAABB.min.z, 1.0},
+            {chunkAABB.min.x, chunkAABB.min.y, chunkAABB.max.z, 1.0},
+            {chunkAABB.max.x, chunkAABB.min.y, chunkAABB.max.z, 1.0},
+            {chunkAABB.min.x, chunkAABB.max.y, chunkAABB.max.z, 1.0},
+            {chunkAABB.max.x, chunkAABB.max.y, chunkAABB.max.z, 1.0}
         };
 
+        // Perform the frustum culling check
         bool inside = false;
-
         for (size_t corner_idx = 0; corner_idx < sizeof(corners)/sizeof(corners[0]); corner_idx++) {
-            // Transform vertex
             glm::vec4 corner = MVP * corners[corner_idx];
-            // Check vertex against clip space bounds
             inside = inside ||
                 (within(-corner.w, corner.x, corner.w) &&
                 within(-corner.w, corner.y, corner.w) &&
