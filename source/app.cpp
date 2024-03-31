@@ -68,28 +68,24 @@ void printMat4(const glm::mat4& mat) {
 //        PointLightSystem pointLightSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
 
         ArxCamera camera{};
-        camera.setViewTarget(glm::vec3(-1.f, -2.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
-        
-       
+//        camera.setViewTarget(glm::vec3(-1.f, -2.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
         
         auto viewerObject = ArxGameObject::createGameObject();
-        viewerObject.transform.translation.z = -4.5f;
-        viewerObject.transform.translation.y = -8.f;
+        viewerObject.transform.scale = glm::vec3(0.1);
         UserInput cameraController{*this};
         
         
-        camera.setViewMatrix(viewerObject.transform.translation, cameraController.forwardDir, cameraController.upDir);
+//        camera.setViewMatrix(viewerObject.transform.translation, cameraController.forwardDir, cameraController.upDir);
+        camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
         
         float aspect = arxRenderer.getAspectRation();
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         
         chunkManager.setCamera(camera);
-//        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 10);
+//        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 15);
 //        chunkManager.initializeTerrain(gameObjects, glm::ivec3(70));
         chunkManager.initializeHeightTerrain(gameObjects, 8);
-        
-//        chunkManager.obj2vox(gameObjects, "models/star_wars.obj", 15);
-    
+            
         auto currentTime = std::chrono::high_resolution_clock::now();
         
         
@@ -101,8 +97,8 @@ void printMat4(const glm::mat4& mat) {
             currentTime = newTime;
             
             cameraController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
-            camera.setViewMatrix(viewerObject.transform.translation, cameraController.forwardDir, cameraController.upDir);
-                        
+            camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
+
             // beginFrame() will return nullptr if the swapchain need to be recreated
             if (auto commandBuffer = arxRenderer.beginFrame()) {
                 int frameIndex = arxRenderer.getFrameIndex();
@@ -118,13 +114,12 @@ void printMat4(const glm::mat4& mat) {
                 //chunkManager.Update(gameObjects, camera.getPosition());
                 
                 // Frustum culling
+//                camera.setPerspectiveProjection(glm::radians(55.f), aspect, .1f, 1024.f);
+
                 std::vector<uint32_t> visibleChunksIndices;
                 camera.cull_chunks_against_frustum(chunkManager.GetChunkPositions(), visibleChunksIndices, CHUNK_SIZE);
                 
-                std::vector<Chunk*> visibleChunks;
-                for (auto index : visibleChunksIndices) {
-                    visibleChunks.push_back(chunkManager.GetChunks()[index]);
-                }
+//                camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
                 
                 // update
                 GlobalUbo ubo{};
@@ -139,11 +134,12 @@ void printMat4(const glm::mat4& mat) {
                 arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
                 
                 // order here matters
-                simpleRenderSystem.renderGameObjects(frameInfo, visibleChunks);
+                simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
 //                pointLightSystem.render(frameInfo);
                 
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
                 arxRenderer.endFrame();
+                visibleChunksIndices.clear();
             }
         }
         vkDeviceWaitIdle(arxDevice.device());

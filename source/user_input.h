@@ -26,7 +26,7 @@ namespace arx {
         void processMouseMovement();
         
         KeyMappings keys{};
-        float moveSpeed{30.f};
+        float moveSpeed{120.f};
         float lookSpeed{0.05f};
         double xpos;
         double ypos;

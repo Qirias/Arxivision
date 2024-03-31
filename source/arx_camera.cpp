@@ -65,29 +65,23 @@ namespace arx {
         setViewDirection(position, target - position, up);
     }
 
-    void ArxCamera::setViewMatrix(glm::vec3 position, glm::vec3 front, glm::vec3 up)
-    {
-        viewMatrix = lookAtRH(position, position + front, up);
-    }
-
-    glm::mat4 ArxCamera::lookAtRH(glm::vec3 eye, glm::vec3 center, glm::vec3 up) {
+    void ArxCamera::lookAtRH(glm::vec3 eye, glm::vec3 center, glm::vec3 up) {
         glm::vec3 f(normalize(center - eye));
         glm::vec3 s(normalize(cross(f, up)));
         glm::vec3 u(cross(s, f));
 
-        glm::mat4 Result(1);
-        Result[0][0] = s.x;
-        Result[1][0] = s.y;
-        Result[2][0] = s.z;
-        Result[0][1] = -u.x; // Invert Y axis
-        Result[1][1] = -u.y;
-        Result[2][1] = -u.z;
-        Result[0][2] = -f.x;
-        Result[1][2] = -f.y;
-        Result[2][2] = -f.z;
-        Result[3][0] = -glm::dot(s, eye);
-        Result[3][1] =  glm::dot(u, eye); // Negate Y translation
-        Result[3][2] =  glm::dot(f, eye);
+        viewMatrix[0][0] = s.x;
+        viewMatrix[1][0] = s.y;
+        viewMatrix[2][0] = s.z;
+        viewMatrix[0][1] = -u.x; // Invert Y axis
+        viewMatrix[1][1] = -u.y;
+        viewMatrix[2][1] = -u.z;
+        viewMatrix[0][2] = -f.x;
+        viewMatrix[1][2] = -f.y;
+        viewMatrix[2][2] = -f.z;
+        viewMatrix[3][0] = -glm::dot(s, eye);
+        viewMatrix[3][1] =  glm::dot(u, eye); // Negate Y translation
+        viewMatrix[3][2] =  glm::dot(f, eye);
         
         inverseViewMatrix = glm::mat4{1.f};
         inverseViewMatrix[0][0] = s.x;
@@ -102,32 +96,30 @@ namespace arx {
         inverseViewMatrix[3][0] = eye.x;
         inverseViewMatrix[3][1] = eye.y;
         inverseViewMatrix[3][2] = eye.z;
-        
-        return Result;
     }
 
-void ArxCamera::cull_chunks_against_frustum(
-    const std::vector<glm::vec3>& chunkPositions,
-    std::vector<uint32_t>& out_visible_list, int CHUNK_SIZE) {
+    void ArxCamera::cull_chunks_against_frustum(
+        const std::vector<std::pair<glm::vec3, unsigned int>>& chunkPositions,
+        std::vector<uint32_t>& out_visible_list, int CHUNK_SIZE) {
 
-    glm::mat4 VP = projectionMatrix * viewMatrix;
+        glm::mat4 VP = projectionMatrix * viewMatrix;
 
-    for (uint32_t i = 0; i < chunkPositions.size(); i++) {
-        glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), chunkPositions[i]);
-        glm::mat4 MVP = VP * modelMatrix;
-
-        if (test_AABB_against_frustum(MVP, chunkPositions[i], CHUNK_SIZE)) {
-            out_visible_list.push_back(i);
+        for (uint32_t i = 1; i <= chunkPositions.size(); i++) {
+            if (chunkPositions[i].second != -1) {
+                if (test_AABB_against_frustum(VP, chunkPositions[i].first, CHUNK_SIZE)) {
+                    out_visible_list.push_back(chunkPositions[i].second);
+                    
+                }
+            }
         }
     }
-}
 
 
-    bool ArxCamera::test_AABB_against_frustum(glm::mat4& MVP, const glm::vec3& chunkPosition, int CHUNK_SIZE)
+    bool ArxCamera::test_AABB_against_frustum(glm::mat4& VP, const glm::vec3& chunkPosition, int CHUNK_SIZE)
     {
         AABB chunkAABB;
         chunkAABB.min = chunkPosition;
-        chunkAABB.max = chunkPosition + glm::vec3(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE);
+        chunkAABB.max = chunkPosition + glm::vec3(CHUNK_SIZE);
 
         glm::vec4 corners[8] = {
             {chunkAABB.min.x, chunkAABB.min.y, chunkAABB.min.z, 1.0},
@@ -143,11 +135,11 @@ void ArxCamera::cull_chunks_against_frustum(
         // Perform the frustum culling check
         bool inside = false;
         for (size_t corner_idx = 0; corner_idx < sizeof(corners)/sizeof(corners[0]); corner_idx++) {
-            glm::vec4 corner = MVP * corners[corner_idx];
+            glm::vec4 corner = VP * corners[corner_idx];
             inside = inside ||
                 (within(-corner.w, corner.x, corner.w) &&
-                within(-corner.w, corner.y, corner.w) &&
-                within(0.0f, corner.z, corner.w));
+                 within(-corner.w, corner.y, corner.w) &&
+                 within(-corner.w, corner.z, corner.w));
         }
         return inside;
     }

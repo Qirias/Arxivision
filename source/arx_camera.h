@@ -17,7 +17,7 @@ namespace arx {
             glm::vec3 max{};
         };
         
-        void cull_chunks_against_frustum(const std::vector<glm::vec3>& chunkPositions, std::vector<uint32_t>& out_visible_list, int CHUNK_SIZE);
+        void cull_chunks_against_frustum(const std::vector<std::pair<glm::vec3, unsigned int>>& chunkPositions, std::vector<uint32_t>& out_visible_list, int CHUNK_SIZE);
         
         bool test_AABB_against_frustum(glm::mat4& MVP, const glm::vec3& chunkPosition, int CHUNK_SIZE);
         
@@ -29,8 +29,7 @@ namespace arx {
         
         void setViewDirection(glm::vec3 position, glm::vec3 direction, glm::vec3 up = glm::vec3{0.f, -1.f, 0.f});
         void setViewTarget(glm::vec3 target, glm::vec3 direction, glm::vec3 up = glm::vec3{0.f, -1.f, 0.f});
-        void setViewMatrix(glm::vec3 position, glm::vec3 front, glm::vec3 up);
-        glm::mat4 lookAtRH(glm::vec3 eye, glm::vec3 center, glm::vec3 up);
+        void lookAtRH(glm::vec3 eye, glm::vec3 center, glm::vec3 up);
         
         const glm::mat4& getProjection() const { return projectionMatrix; }
         const glm::mat4& getView () const { return viewMatrix; }

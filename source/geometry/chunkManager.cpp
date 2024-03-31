@@ -71,7 +71,7 @@ namespace arx {
                     std::cout << "Chunk number: " << ++chunkNum << "\n";
                     Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, chunkVertices);
                     m_vpChunks.push_back(newChunk);
-                    setChunkPosition(chunkPosition);
+                    setChunkPosition({chunkPosition, newChunk->getID()});
                 }
             }
         }
@@ -93,7 +93,7 @@ namespace arx {
                     glm::vec3 chunkPosition(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE);
                     Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, emptyVertices);
                     m_vpChunks.push_back(newChunk);
-                    setChunkPosition(chunkPosition);
+                    setChunkPosition({chunkPosition, newChunk->getID()});
                 }
             }
         }
@@ -104,7 +104,7 @@ namespace arx {
 
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_real_distribution<> dis(-15, 60);
+        std::uniform_real_distribution<> dis(-10, 70);
 
         // Initialize corners with values closer to maxHeight
         heightMap[0][0] = dis(gen);
@@ -153,8 +153,6 @@ namespace arx {
             sideLength = halfSide;
             roughness *= std::pow(2.0, -0.5); // Decrease roughness
         }
-
-        // Normalize heightmap (Optional)
     }
 
 
@@ -170,13 +168,13 @@ namespace arx {
                     glm::ivec3 globalOffset(chunkX * ADJUSTED_CHUNK, chunkY * ADJUSTED_CHUNK, chunkZ * ADJUSTED_CHUNK);
                     Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, heightMap, globalOffset);
                     m_vpChunks.push_back(newChunk);
-                    setChunkPosition(chunkPosition);
+                    setChunkPosition({chunkPosition, newChunk->getID()});
                 }
             }
         }
     }
     
-    void ChunkManager::setChunkPosition(const glm::vec3& position) {
-        chunkPositions.push_back(position);
+    void ChunkManager::setChunkPosition(const std::pair<glm::vec3, unsigned int>& position) {
+        chunkPositions.push_back({position.first, position.second});
     }
 }

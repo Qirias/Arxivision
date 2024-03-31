@@ -4,21 +4,22 @@
 
 namespace arx {
 
-    Chunk::Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices, glm::ivec3 terrainSize) : position{pos} {
+    Chunk::Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices) : position{pos} {
         initializeBlocks();
         
         std::vector<InstanceData> tmpInstance;
-        tmpInstance.resize(Voxelize(vertices));
+        instances = Voxelize(vertices);
+        tmpInstance.resize(instances);
         
-        uint32_t instances = 0;
+        uint32_t index = 0;
         for (int x = 0; x < ADJUSTED_CHUNK; x++) {
             for (int y = 0; y < ADJUSTED_CHUNK; y++) {
                 for (int z = 0; z < ADJUSTED_CHUNK; z++) {
                     if (!blocks[x][y][z].isActive()) continue;
                     glm::vec3 translation = glm::vec3(x*VOXEL_SIZE, y*VOXEL_SIZE, z*VOXEL_SIZE) + position;
-                    tmpInstance[instances].color = glm::vec3(0.5f);
-                    tmpInstance[instances].translation = translation;
-                    instances++;
+                    tmpInstance[index].color = glm::vec3(0.5f);
+                    tmpInstance[index].translation = translation;
+                    index++;
                 }
             }
         }
@@ -27,11 +28,11 @@ namespace arx {
         if (instances > 0)
         {
             instanceData.push_back(tmpInstance);
-            
             std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
             auto cube = ArxGameObject::createGameObject();
-            cube.model = cubeModel;
-            voxel.emplace(cube.getId(), std::move(cube));
+            id = cube.getId();
+            std::cout << "id: " << id << "\n";
+            voxel.emplace(id, std::move(cube));
         }
     }
 
@@ -62,11 +63,11 @@ namespace arx {
         if (instances > 0)
         {
             instanceData.push_back(tmpInstance);
-            
             std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
             auto cube = ArxGameObject::createGameObject();
             cube.model = cubeModel;
-            voxel.emplace(cube.getId(), std::move(cube));
+            id = cube.getId();
+            voxel.emplace(id, std::move(cube));
         }
         
     }
@@ -96,7 +97,7 @@ namespace arx {
         unsigned int numThreads = std::thread::hardware_concurrency();
         threadPool.setThreadCount(numThreads);
 
-        std::atomic<int> instances(0);
+        std::atomic<int> inst(0);
 
         // Adjust the total voxels based on the VOXEL_SIZE
         int adjustedChunk = CHUNK_SIZE / VOXEL_SIZE;
@@ -110,7 +111,7 @@ namespace arx {
                 endIdx = totalVoxels;
             }
 
-            threadPool.threads[t]->addJob([this, startIdx, endIdx, &vertices, &instances, adjustedChunk]() {
+            threadPool.threads[t]->addJob([this, startIdx, endIdx, &vertices, &inst, adjustedChunk]() {
                 for (int idx = startIdx; idx < endIdx; ++idx) {
                     int x = idx / (adjustedChunk * adjustedChunk);
                     int y = (idx / adjustedChunk) % adjustedChunk;
@@ -121,7 +122,7 @@ namespace arx {
                     if (CheckVoxelIntersection(vertices, voxelPosition)) {
                         // Properly index into the blocks array based on VOXEL_SIZE
                         blocks[x][y][z].setActive(true);
-                        instances.fetch_add(1, std::memory_order_relaxed);
+                        inst.fetch_add(1, std::memory_order_relaxed);
                     }
                 }
             });
@@ -130,7 +131,7 @@ namespace arx {
         threadPool.wait();
 
         // Convert atomic<int> to int for the return value
-        return instances.load(std::memory_order_relaxed);
+        return inst.load(std::memory_order_relaxed);
     }
 
 

@@ -31,20 +31,20 @@ namespace arx {
         void obj2vox(ArxGameObject::Map& voxel, const std::string& path, const float scaleFactor);
         void initializeTerrain(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize);
         void initializeHeightTerrain(ArxGameObject::Map& voxel, const int n);
-        std::vector<glm::vec3> GetChunkPositions() { return chunkPositions; }
+        std::vector<std::pair<glm::vec3, unsigned int>> GetChunkPositions() { return chunkPositions; }
         
     private:
-        ArxDevice                   &arxDevice;
-        std::vector<Chunk*>         m_vpChunks;
-        ArxModel::Builder           builder;
-        ArxCamera                   camera;
-        glm::ivec3                  terrainSize;
-        std::vector<glm::vec3>      chunkPositions;
+        ArxDevice                                               &arxDevice;
+        std::vector<Chunk*>                                     m_vpChunks;
+        ArxModel::Builder                                       builder;
+        ArxCamera                                               camera;
+        glm::ivec3                                              terrainSize;
+        std::vector<std::pair<glm::vec3, unsigned int>>         chunkPositions;
         
         std::vector<std::vector<float>> heightMap;
         
         void diamondSquare(const glm::ivec2& size);
-        void setChunkPosition(const glm::vec3& position);
+        void setChunkPosition(const std::pair<glm::vec3, unsigned int>& position);
         
     };
 }

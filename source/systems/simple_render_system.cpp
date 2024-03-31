@@ -69,7 +69,7 @@ namespace arx {
 //        std::cout << "[ " << mat[3][0] << " " << mat[3][1] << " " << mat[3][2] << " " << mat[3][3] << " ]" << std::endl;
 //    }
     
-    void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo, std::vector<Chunk*> &chunks) {
+    void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo, std::vector<uint32_t> &visibleChunksIndices) {
         arxPipeline->bind(frameInfo.commandBuffer);
         
         vkCmdBindDescriptorSets(frameInfo.commandBuffer,
@@ -79,10 +79,9 @@ namespace arx {
                                 &frameInfo.globalDescriptorSet,
                                 0,
                                 nullptr);
-        std::cout << "Chunks Rendered: " << chunks.size() << "\n";
+        std::cout << "Chunks Rendered: " << visibleChunksIndices.size() << "\n";
         
-        for (int i = 1; i <= chunks.size(); ++i) {
-//            Chunk* chunk = tempChunks[i];
+        for (auto i : visibleChunksIndices) {
             if (frameInfo.voxel[i].model == nullptr) continue;
             SimplePushConstantData push{};
             frameInfo.voxel[i].transform.scale = glm::vec3(VOXEL_SIZE/2);

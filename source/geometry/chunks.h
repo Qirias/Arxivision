@@ -35,13 +35,15 @@ namespace arx {
     class Chunk {
     public:
         
-        Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices, glm::ivec3 terrainSize = glm::ivec3(0));
+        Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices);
         Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, const std::vector<std::vector<float>>& heightMap, const glm::ivec3& globalOffset);
         ~Chunk();
         
         void Update();
         void Render();
         glm::vec3 getPosition() const { return position; }
+        unsigned int getID() const { return id; }
+        
         
         int Voxelize(const std::vector<arx::ArxModel::Vertex>& vertices);
         inline bool intersect_aabb_triangle(const glm::vec3& minBox, const glm::vec3& maxBox, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2);
@@ -65,7 +67,8 @@ namespace arx {
         std::vector<std::vector<InstanceData>>                              instanceData;
         std::unique_ptr<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>  colors; 
         uint32_t                                                            instances = 0;
-        
+        unsigned int                                                        id = -1;
+
         void initializeBlocks();
         int applyCARule(glm::ivec3 terrainSize);
     };
