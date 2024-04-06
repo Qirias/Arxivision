@@ -100,39 +100,5 @@ namespace arx {
             frameInfo.voxel[i].model->bind(frameInfo.commandBuffer);
             frameInfo.voxel[i].model->draw(frameInfo.commandBuffer);
         }
-//        SimplePushConstantData push{};
-//        frameInfo.gameObjects[0].transform.scale = glm::vec3(0.5f);
-//        push.modelMatrix    = frameInfo.gameObjects[0].transform.mat4();
-//        push.normalMatrix   = frameInfo.gameObjects[0].transform.normalMatrix();
-//
-//
-//        vkCmdPushConstants(frameInfo.commandBuffer,
-//                           pipelineLayout,
-//                           VK_SHADER_STAGE_VERTEX_BIT |
-//                           VK_SHADER_STAGE_FRAGMENT_BIT,
-//                           0,
-//                           sizeof(SimplePushConstantData),
-//                           &push);
-//
-//        frameInfo.gameObjects[0].model->bind(frameInfo.commandBuffer);
-//        frameInfo.gameObjects[0].model->draw(frameInfo.commandBuffer);
-        
-//        for (auto& kv : frameInfo.gameObjects) {
-//            auto& obj = kv.second;
-//            if (obj.model == nullptr) continue;
-//            SimplePushConstantData push{};
-//            push.modelMatrix    = obj.transform.mat4();
-//            push.normalMatrix   = obj.transform.normalMatrix();
-//
-//            vkCmdPushConstants(frameInfo.commandBuffer,
-//                               pipelineLayout,
-//                               VK_SHADER_STAGE_VERTEX_BIT |
-//                               VK_SHADER_STAGE_FRAGMENT_BIT,
-//                               0,
-//                               sizeof(SimplePushConstantData),
-//                               &push);
-//            obj.model->bind(frameInfo.commandBuffer);
-//            obj.model->draw(frameInfo.commandBuffer);
-//        }
     }
 }

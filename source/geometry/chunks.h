@@ -51,25 +51,22 @@ namespace arx {
         inline bool point_inside_aabb(const glm::vec3& point, const glm::vec3& minBox, const glm::vec3& maxBox);
         inline bool aabb_edge_intersects_triangle_face(const glm::vec3& minBox, const glm::vec3& maxBox, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2);
         bool intersect_aabb_triangle_cgal(const CGAL::Bbox_3& aabb, const Point& p0, const Point& p1, const Point& p2);
-        bool isVoxelInSierpinski(int x, int y, int z);
-        glm::vec3 determineColorBasedOnPosition(glm::vec3 voxelGlobalPos, glm::ivec3 terrainSize);
-        int calculateRecursionDepth(glm::ivec3 terrainSize);
-        bool isVoxelinSponge(int x, int y, int z, int depth);
         void activateVoxelsFromHeightmap(const std::vector<std::vector<float>>& heightMap, const glm::ivec3& globalOffset);
-        void applyTrilinearInterpolation();
         int countActiveNeighbors(int x, int y, int z);
         void smoothTerrain();
         void colorVoxels();
+        void deactivateHiddenVoxels();
         
     private:
         std::unique_ptr<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>      blocks;
+        std::unique_ptr<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>      culledBlocks;
+        std::unique_ptr<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>  colors;
+        
         glm::vec3                                                           position;
-        std::vector<std::vector<InstanceData>>                              instanceData;
-        std::unique_ptr<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>  colors; 
+        std::map<unsigned int, std::vector<InstanceData>>                   instanceData;
         uint32_t                                                            instances = 0;
         unsigned int                                                        id = -1;
 
         void initializeBlocks();
-        int applyCARule(glm::ivec3 terrainSize);
     };
 }

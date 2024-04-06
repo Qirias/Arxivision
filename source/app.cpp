@@ -84,7 +84,7 @@ void printMat4(const glm::mat4& mat) {
         chunkManager.setCamera(camera);
 //        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 15);
 //        chunkManager.initializeTerrain(gameObjects, glm::ivec3(70));
-        chunkManager.initializeHeightTerrain(gameObjects, 8);
+        chunkManager.initializeHeightTerrain(gameObjects, 24);
             
         auto currentTime = std::chrono::high_resolution_clock::now();
         

@@ -113,10 +113,14 @@ namespace arx {
             }
         }
     }
-
+ 
 
     bool ArxCamera::test_AABB_against_frustum(glm::mat4& VP, const glm::vec3& chunkPosition, int CHUNK_SIZE)
     {
+        // Pass the test if too close to the chunk. Frustum won't see any chunk corners
+        if (glm::distance(getPosition(), chunkPosition + glm::vec3(CHUNK_SIZE)*0.5f) < 10.0f)
+            return true;
+            
         AABB chunkAABB;
         chunkAABB.min = chunkPosition;
         chunkAABB.max = chunkPosition + glm::vec3(CHUNK_SIZE);
@@ -139,7 +143,7 @@ namespace arx {
             inside = inside ||
                 (within(-corner.w, corner.x, corner.w) &&
                  within(-corner.w, corner.y, corner.w) &&
-                 within(-corner.w, corner.z, corner.w));
+                 within(0.0f, corner.z, corner.w));
         }
         return inside;
     }

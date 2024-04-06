@@ -77,28 +77,6 @@ namespace arx {
         }
     }
 
-    void ChunkManager::initializeTerrain(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize) {
-        this->terrainSize = terrainSize;
-        
-        int numChunksX = (terrainSize.x + CHUNK_SIZE ) / CHUNK_SIZE;
-        int numChunksY = (terrainSize.y + CHUNK_SIZE ) / CHUNK_SIZE;
-        int numChunksZ = (terrainSize.z + CHUNK_SIZE ) / CHUNK_SIZE;
-
-        // This vector represents an empty placeholder since we're not using model vertices for initialization.
-        std::vector<arx::ArxModel::Vertex> emptyVertices;
-
-        for (int x = 0; x < numChunksX; ++x) {
-            for (int y = 0; y < numChunksY; ++y) {
-                for (int z = 0; z < numChunksZ; ++z) {
-                    glm::vec3 chunkPosition(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE);
-                    Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, emptyVertices);
-                    m_vpChunks.push_back(newChunk);
-                    setChunkPosition({chunkPosition, newChunk->getID()});
-                }
-            }
-        }
-    }
-
     void ChunkManager::diamondSquare(const glm::ivec2& size) {
         heightMap.resize(size.x, std::vector<float>(size.y, 0.0f));
 
