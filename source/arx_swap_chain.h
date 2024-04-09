@@ -1,6 +1,7 @@
 #pragma once
 
 #include "arx_device.h"
+#include "systems/occlusion_system.hpp"
 
 // std lib headers
 #include <string>
@@ -52,7 +53,7 @@ class ArxSwapChain {
         void createFramebuffers();
         void createSyncObjects();
         void createColorResources();
-        VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
+        VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, uint32_t baseMipLevel = 0);
         void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 
 
@@ -61,36 +62,52 @@ class ArxSwapChain {
         VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes);
         VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
 
-        VkFormat swapChainImageFormat;
-        VkFormat swapChainDepthFormat;
-        VkExtent2D swapChainExtent;
+        VkFormat                                        swapChainImageFormat;
+        VkFormat                                        swapChainDepthFormat;
+        VkExtent2D                                      swapChainExtent;
     
-        VkImage colorImage;
-        VkDeviceMemory colorImageMemory;
-        VkImageView colorImageView;
-        VkPhysicalDeviceImagelessFramebufferFeatures imagelessFramebufferFeatures;
+        VkImage                                         colorImage;
+        VkDeviceMemory                                  colorImageMemory;
+        VkImageView                                     colorImageView;
+        VkPhysicalDeviceImagelessFramebufferFeatures    imagelessFramebufferFeatures;
 
 
-        std::vector<VkFramebuffer> swapChainFramebuffers;
-        VkRenderPass renderPass;
+        std::vector<VkFramebuffer>  swapChainFramebuffers;
+        VkRenderPass                renderPass;
 
-        std::vector<VkImage> depthImages;
+        
+        std::vector<VkImage>        depthImages; // Multisampled
         std::vector<VkDeviceMemory> depthImageMemorys;
-        std::vector<VkImageView> depthImageViews;
-        std::vector<VkImage> swapChainImages;
-        std::vector<VkImageView> swapChainImageViews;
+        std::vector<VkImageView>    depthImageViews;
+    
+        // Single-sampled depth resolve attachment
+        VkImage                     depthImage;
+        VkImageView                 depthImageView;
+        VkDeviceMemory              depthImageMemory;
+        VkSampler                   depthSampler;
+    
+        std::vector<VkImage>        swapChainImages;
+        std::vector<VkImageView>    swapChainImageViews;
 
         ArxDevice &device;
         VkExtent2D windowExtent;
 
-        VkSwapchainKHR swapChain;
-        std::shared_ptr<ArxSwapChain> oldSwapChain;
+        VkSwapchainKHR                  swapChain;
+        std::shared_ptr<ArxSwapChain>   oldSwapChain;
 
-        std::vector<VkSemaphore> imageAvailableSemaphores;
-        std::vector<VkSemaphore> renderFinishedSemaphores;
-        std::vector<VkFence> inFlightFences;
-        std::vector<VkFence> imagesInFlight;
-        size_t currentFrame = 0;
+        std::vector<VkSemaphore>        imageAvailableSemaphores;
+        std::vector<VkSemaphore>        renderFinishedSemaphores;
+        std::vector<VkFence>            inFlightFences;
+        std::vector<VkFence>            imagesInFlight;
+        size_t                          currentFrame = 0;
+    
+        public:
+        OcclusionSystem cull;
+        void createDepthPyramid();
+        void createDepthSampler();
+        void createDepthPyramidDescriptors();
+        void computeDepthPyramid(VkCommandBuffer commandBuffer);
+        void createBarriers();
+        VkImageMemoryBarrier createImageBarrier(VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, VkImageAspectFlags aspectFlags, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, uint32_t baseMipLevels, uint32_t levelCount);
     };
-
 }

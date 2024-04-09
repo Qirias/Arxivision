@@ -36,6 +36,8 @@ namespace arx {
             return currentFrameIndex;
         }
         
+        ArxSwapChain* getSwapChain() const { return arxSwapChain.get(); }
+        
         VkCommandBuffer beginFrame();
         void endFrame();
         void beginSwapChainRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer);

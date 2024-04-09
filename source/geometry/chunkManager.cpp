@@ -3,6 +3,7 @@
 namespace arx {
     
     ChunkManager::ChunkManager(ArxDevice &device) : arxDevice{device} {
+        
     }
 
     ChunkManager::~ChunkManager() {
@@ -82,7 +83,7 @@ namespace arx {
 
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_real_distribution<> dis(-10, 70);
+        std::uniform_real_distribution<> dis(-40, 150);
 
         // Initialize corners with values closer to maxHeight
         heightMap[0][0] = dis(gen);
@@ -91,7 +92,7 @@ namespace arx {
         heightMap[size.x - 1][size.y - 1] = dis(gen);
 
         int sideLength = size.x - 1;
-        float roughness = 0.5f;
+        float roughness = 0.3f;
         
         while (sideLength >= 2) {
             int halfSide = sideLength / 2;
@@ -151,6 +152,26 @@ namespace arx {
             }
         }
     }
+
+    void ChunkManager::initializeTerrain(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize) {
+        
+        int numChunksX = (terrainSize.x) / ADJUSTED_CHUNK;
+        int numChunksY = (terrainSize.y) / ADJUSTED_CHUNK;
+        int numChunksZ = (terrainSize.z) / ADJUSTED_CHUNK;
+
+        for (int x = 0; x < numChunksX; ++x) {
+            for (int y = 0; y < numChunksY; ++y) {
+                for (int z = 0; z < numChunksZ; ++z) {
+                    glm::vec3 chunkPosition(x * ADJUSTED_CHUNK, y * ADJUSTED_CHUNK, z * ADJUSTED_CHUNK);
+                    Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, terrainSize);
+                    m_vpChunks.push_back(newChunk);
+                    setChunkPosition({newChunk->getPosition(), newChunk->getID()});
+                }
+            }
+        }
+    }
+
+
     
     void ChunkManager::setChunkPosition(const std::pair<glm::vec3, unsigned int>& position) {
         chunkPositions.push_back({position.first, position.second});

@@ -119,7 +119,7 @@ namespace arx {
             if (deviceCount == 0) {
                 throw std::runtime_error("failed to find GPUs with Vulkan support!");
             }
-            std::cout << "Device count: " << deviceCount << std::endl;
+//            std::cout << "Device count: " << deviceCount << std::endl;
             std::vector<VkPhysicalDevice> devices(deviceCount);
             vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
@@ -136,7 +136,7 @@ namespace arx {
             }
 
             vkGetPhysicalDeviceProperties(physicalDevice, &properties);
-            std::cout << "physical device: " << properties.deviceName << std::endl;
+            std::cout << "Physical device: " << properties.deviceName << std::endl;
         }
 
         void ArxDevice::createLogicalDevice() {

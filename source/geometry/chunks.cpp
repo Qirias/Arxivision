@@ -29,6 +29,7 @@ namespace arx {
             std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
             auto cube = ArxGameObject::createGameObject();
             id = cube.getId();
+            cube.model = cubeModel;
             voxel.emplace(id, std::move(cube));
             instanceData[id] = tmpInstance;
         }
@@ -42,14 +43,14 @@ namespace arx {
         activateVoxelsFromHeightmap(heightMap, globalOffset);
         smoothTerrain();
         colorVoxels();
-        deactivateHiddenVoxels();
+        //        deactivateHiddenVoxels();
         tmpInstance.resize(instances);
         
         uint32_t index = 0;
         for (int x = 0; x < ADJUSTED_CHUNK; x++) {
             for (int y = 0; y < ADJUSTED_CHUNK; y++) {
                 for (int z = 0; z < ADJUSTED_CHUNK; z++) {
-                    if (!culledBlocks[x][y][z].isActive()) continue;
+                    if (!blocks[x][y][z].isActive()) continue;
                     glm::vec3 translation = glm::vec3(x*VOXEL_SIZE, y*VOXEL_SIZE, z*VOXEL_SIZE) + position;
                     tmpInstance[index].color = colors[x][y][z];
                     tmpInstance[index].translation = translation;
@@ -69,7 +70,41 @@ namespace arx {
         }
     }
 
+    Chunk::Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, glm::ivec3 terrainSize) : position{pos} {
+        initializeBlocks();
+
+        std::vector<InstanceData> tmpInstance;
+        applyCARule(terrainSize);
+        tmpInstance.resize(instances);
+
+        uint32_t instances = 0;
+        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
+                    if (!blocks[x][y][z].isActive()) continue;
+                    glm::vec3 translation = glm::vec3(x*VOXEL_SIZE, y*VOXEL_SIZE, z*VOXEL_SIZE) + position;
+                    tmpInstance[instances].color = colors[x][y][z];
+                    tmpInstance[instances].translation = translation;
+                    instances++;
+                }
+            }
+        }
+
+        std::cout << "Instances drawn: " << instances << std::endl;
+        if (instances > 0)
+        {
+            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
+            auto cube = ArxGameObject::createGameObject();
+            cube.model = cubeModel;
+            id = cube.getId();
+            voxel.emplace(id, std::move(cube));
+            instanceData[id] = tmpInstance;
+        }
+    }
+
+
     void Chunk::deactivateHiddenVoxels() {
+        // First, mark all voxels as active based on the original 'blocks' array.
         for (int x = 0; x < ADJUSTED_CHUNK; x++) {
             for (int y = 0; y < ADJUSTED_CHUNK; y++) {
                 for (int z = 0; z < ADJUSTED_CHUNK; z++) {
@@ -77,26 +112,28 @@ namespace arx {
                 }
             }
         }
-        
-        for (int x = 1; x < ADJUSTED_CHUNK - 1; x++) {
-            for (int y = 1; y < ADJUSTED_CHUNK - 1; y++) {
-                for (int z = 1; z < ADJUSTED_CHUNK - 1; z++) {
-                    // Check all neighbors
+
+        // Then, iterate through each voxel to check if it's completely occluded by its neighbors.
+        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
+                    if (!blocks[x][y][z].isActive()) continue; // Skip inactive blocks
+                    
                     bool isHidden = true;
-                    for (int i = -1; i <= 1 && isHidden; i++) {
-                        for (int j = -1; j <= 1 && isHidden; j++) {
-                            for (int k = -1; k <= 1 && isHidden; k++) {
-                                if (i == 0 && j == 0 && k == 0) continue; // Skip the voxel itself
-
-                                // If any neighbor is inactive, the voxel is not hidden
-                                if (!blocks[x + i][y + j][z + k].isActive()) {
-                                    isHidden = false;
-                                }
-                            }
-                        }
-                    }
-
-                    // Deactivate hidden voxel
+                    // Check negative X neighbor or boundary
+                    isHidden &= (x > 0) ? blocks[x-1][y][z].isActive() : true;
+                    // Check positive X neighbor or boundary
+                    isHidden &= (x < ADJUSTED_CHUNK - 1) ? blocks[x+1][y][z].isActive() : true;
+                    // Check negative Y neighbor or boundary
+                    isHidden &= (y > 0) ? blocks[x][y-1][z].isActive() : true;
+                    // Check positive Y neighbor or boundary
+                    isHidden &= (y < ADJUSTED_CHUNK - 1) ? blocks[x][y+1][z].isActive() : true;
+                    // Check negative Z neighbor or boundary
+                    isHidden &= (z > 0) ? blocks[x][y][z-1].isActive() : true;
+                    // Check positive Z neighbor or boundary
+                    isHidden &= (z < ADJUSTED_CHUNK - 1) ? blocks[x][y][z+1].isActive() : true;
+                    
+                    // If all neighbors are active, mark the voxel as inactive in the 'culledBlocks' array
                     if (isHidden) {
                         culledBlocks[x][y][z].setActive(false);
                         instances--;
@@ -105,6 +142,7 @@ namespace arx {
             }
         }
     }
+
 
     bool Chunk::CheckVoxelIntersection(const std::vector<arx::ArxModel::Vertex>& vertices, const glm::vec3& voxelPosition) {
 
@@ -293,7 +331,7 @@ namespace arx {
     }
 
     void Chunk::colorVoxels() {
-        glm::vec3 green(0.0f, 1.0f, 0.0f); // Green for the highest voxels
+        glm::vec3 green(0.0f, 1.0f, 0.0f); // Green for the top voxels
         glm::vec3 brown(0.55f, 0.27f, 0.07f); // Brown for the rest
 
         // Iterate over each column in the chunk
@@ -301,25 +339,87 @@ namespace arx {
             for (int z = 0; z < ADJUSTED_CHUNK; z++) {
                 // Find the highest active voxel in the current column
                 int highestActiveY = -1;
-                for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                for (int y = ADJUSTED_CHUNK - 1; y >= 0; y--) {
                     if (blocks[x][y][z].isActive()) {
                         highestActiveY = y;
+                        break; // Stop at the first active voxel found from top to bottom
                     }
                 }
 
-                int greenLayerStart = highestActiveY - static_cast<int>((highestActiveY + 1) * 0.2) + 1;
-
-                // Apply colors based on the calculated cutoff
-                for (int y = 0; y <= highestActiveY; y++) {
+                // Color only the highest active voxel green, and the rest below it brown
+                for (int y = 0; y < ADJUSTED_CHUNK; y++) {
                     if (blocks[x][y][z].isActive()) {
-                        // flipped
-                        colors[x][y][z] = (y >= greenLayerStart) ? brown : green;
+                        colors[x][y][z] = (y == highestActiveY) ? green : brown;
                     }
                 }
             }
         }
     }
 
+    void Chunk::applyCARule(glm::ivec3 terrainSize) {
+        int recursionDepth = calculateRecursionDepth(terrainSize);
+
+        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
+            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
+                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
+                    glm::vec3 voxelGlobalPos = position + glm::vec3(x, y, z);
+
+                    if (isVoxelinSponge(voxelGlobalPos.x, voxelGlobalPos.y, voxelGlobalPos.z, recursionDepth)) {
+                        blocks[x][y][z].setActive(true);
+                        instances++;
+
+                        colors[x][y][z] = determineColorBasedOnPosition(voxelGlobalPos, terrainSize);
+                    }
+                }
+            }
+        }
+    }
+
+
+    glm::vec3 Chunk::determineColorBasedOnPosition(glm::vec3 voxelGlobalPos, glm::ivec3 terrainSize) {
+        glm::vec3 yellowBase(0.95f, 0.95f, 0.2f);
+       
+        float redModulation = (std::sin(voxelGlobalPos.x * 0.1f) + 1.0f) * 0.5f;
+        float greenModulation = (std::cos(voxelGlobalPos.y * 0.1f) + 1.0f) * 0.5f;
+
+        glm::vec3 modulatedColor = glm::vec3(
+            yellowBase.r * redModulation,
+            yellowBase.g * greenModulation,
+            yellowBase.b
+        );
+
+        modulatedColor = glm::clamp(modulatedColor, 0.0f, 1.0f);
+
+        return modulatedColor;
+    }
+
+    int Chunk::calculateRecursionDepth(glm::ivec3 terrainSize) {
+        int minSize = (terrainSize.x*ADJUSTED_CHUNK);
+        int depth = 0;
+
+        while (minSize >= pow(3, depth)) {
+            depth++;
+        }
+
+        return depth - 1;
+    }
+
+    bool Chunk::isVoxelinSponge(int x, int y, int z, int depth) {
+        if (depth == 0 ||
+            (x % 3 == 1 && y % 3 == 1) ||
+            (x % 3 == 1 && z % 3 == 1) ||
+            (y % 3 == 1 && z % 3 == 1) ||
+            (x % 3 == 1 && y % 3 == 1 && z % 3 == 1)) {
+            return false;
+        }
+
+        // If we're not at the base level, and this isn't a center piece, recurse towards the base level
+        if (x > 0 || y > 0 || z > 0) {
+            return isVoxelinSponge(x / 3, y / 3, z / 3, depth - 1);
+        }
+
+        return true;
+    }
 
     Chunk::~Chunk() {
         

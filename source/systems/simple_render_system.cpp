@@ -79,7 +79,7 @@ namespace arx {
                                 &frameInfo.globalDescriptorSet,
                                 0,
                                 nullptr);
-        std::cout << "Chunks Rendered: " << visibleChunksIndices.size() << "\n";
+//        std::cout << "Chunks Rendered: " << visibleChunksIndices.size() << "\n";
         
         for (auto i : visibleChunksIndices) {
             if (frameInfo.voxel[i].model == nullptr) continue;

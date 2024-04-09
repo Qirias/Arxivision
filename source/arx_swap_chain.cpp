@@ -8,16 +8,17 @@
 #include <limits>
 #include <set>
 #include <stdexcept>
+#include <fstream>
 
 namespace arx {
 
     ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent)
-        : device{deviceRef}, windowExtent{extent} {
+        : device{deviceRef}, windowExtent{extent}, cull(deviceRef) {
         init();
     }
 
     ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent, std::shared_ptr<ArxSwapChain> previous)
-        : device{deviceRef}, windowExtent{extent}, oldSwapChain(previous) {
+        : device{deviceRef}, windowExtent{extent}, oldSwapChain(previous), cull(deviceRef) {
         init();
             
         // clean up old swap chain since it's no longer needed
@@ -32,42 +33,74 @@ namespace arx {
         createDepthResources();
         createFramebuffers();
         createSyncObjects();
+        
+        createDepthSampler();
+        createDepthPyramid();
+        createDepthPyramidDescriptors();
+        createBarriers();
     }
 
     ArxSwapChain::~ArxSwapChain() {
-      vkDestroyImageView(device.device(), colorImageView, nullptr);
-      vkDestroyImage(device.device(), colorImage, nullptr);
-      vkFreeMemory(device.device(), colorImageMemory, nullptr);
+        vkDestroyImageView(device.device(), colorImageView, nullptr);
+        vkDestroyImage(device.device(), colorImage, nullptr);
+        vkFreeMemory(device.device(), colorImageMemory, nullptr);
+
+        for (auto imageView : swapChainImageViews) {
+            vkDestroyImageView(device.device(), imageView, nullptr);
+        }
+        swapChainImageViews.clear();
+
+        if (swapChain != nullptr) {
+            vkDestroySwapchainKHR(device.device(), swapChain, nullptr);
+            swapChain = nullptr;
+        }
+
+        for (int i = 0; i < depthImages.size(); i++) {
+            vkDestroyImageView(device.device(), depthImageViews[i], nullptr);
+            vkDestroyImage(device.device(), depthImages[i], nullptr);
+            vkFreeMemory(device.device(), depthImageMemorys[i], nullptr);
+        }
+        vkDestroyImage(device.device(), depthImage, nullptr);
+        vkDestroyImageView(device.device(), depthImageView, nullptr);
+        vkFreeMemory(device.device(), depthImageMemory, nullptr);
         
-      for (auto imageView : swapChainImageViews) {
-        vkDestroyImageView(device.device(), imageView, nullptr);
-      }
-      swapChainImageViews.clear();
+        vkDestroySampler(device.device(), depthSampler, nullptr);
+        depthSampler = VK_NULL_HANDLE;
+        
+        
 
-      if (swapChain != nullptr) {
-        vkDestroySwapchainKHR(device.device(), swapChain, nullptr);
-        swapChain = nullptr;
-      }
+        for (auto framebuffer : swapChainFramebuffers) {
+            vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
+        }
 
-      for (int i = 0; i < depthImages.size(); i++) {
-        vkDestroyImageView(device.device(), depthImageViews[i], nullptr);
-        vkDestroyImage(device.device(), depthImages[i], nullptr);
-        vkFreeMemory(device.device(), depthImageMemorys[i], nullptr);
-      }
+        vkDestroyRenderPass(device.device(), renderPass, nullptr);
 
-      for (auto framebuffer : swapChainFramebuffers) {
-        vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
-      }
-
-      vkDestroyRenderPass(device.device(), renderPass, nullptr);
-
-      // cleanup synchronization objects
-      for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroySemaphore(device.device(), renderFinishedSemaphores[i], nullptr);
-        vkDestroySemaphore(device.device(), imageAvailableSemaphores[i], nullptr);
-        vkDestroyFence(device.device(), inFlightFences[i], nullptr);
-      }
+        // cleanup synchronization objects
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            vkDestroySemaphore(device.device(), renderFinishedSemaphores[i], nullptr);
+            vkDestroySemaphore(device.device(), imageAvailableSemaphores[i], nullptr);
+            vkDestroyFence(device.device(), inFlightFences[i], nullptr);
+        }
+        
+        // depth pyramid
+        for (VkImageView view : cull.depthPyramidMips) {
+            vkDestroyImageView(device.device(), view, nullptr);
+        }
+        cull.depthPyramidMips.clear();
+        
+        vkDestroyImage(device.device(), cull.depthPyramidImage, nullptr);
+        vkFreeMemory(device.device(), cull.depthPyramidMemory, nullptr);
+        
+        vkDestroyPipeline(device.device(), cull.arxPipeline->computePipeline, nullptr);
+        cull.arxPipeline->computePipeline = VK_NULL_HANDLE;
+        
+        vkDestroyPipelineLayout(device.device(), cull.pipelineLayout, nullptr);
+        cull.pipelineLayout = VK_NULL_HANDLE;
+        
+        cull.depthDescriptorSets.clear();
     }
+
+    
 
     VkResult ArxSwapChain::acquireNextImage(uint32_t *imageIndex) {
       vkWaitForFences(
@@ -218,76 +251,76 @@ namespace arx {
     }
 
     void ArxSwapChain::createRenderPass() {
-      VkAttachmentDescription depthAttachment{};
-      depthAttachment.format            = findDepthFormat();
-      depthAttachment.samples           = device.msaaSamples;
-      depthAttachment.loadOp            = VK_ATTACHMENT_LOAD_OP_CLEAR;
-      depthAttachment.storeOp           = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      depthAttachment.stencilLoadOp     = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-      depthAttachment.stencilStoreOp    = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      depthAttachment.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
-      depthAttachment.finalLayout       = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        VkAttachmentDescription depthAttachment{};
+        depthAttachment.format            = findDepthFormat();
+        depthAttachment.samples           = device.msaaSamples;
+        depthAttachment.loadOp            = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp           = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.stencilLoadOp     = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachment.stencilStoreOp    = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.finalLayout       = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-      VkAttachmentReference depthAttachmentRef{};
-      depthAttachmentRef.attachment = 1;
-      depthAttachmentRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        VkAttachmentReference depthAttachmentRef{};
+        depthAttachmentRef.attachment = 1;
+        depthAttachmentRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-      VkAttachmentDescription colorAttachment = {};
-      colorAttachment.format            = getSwapChainImageFormat();
-      colorAttachment.samples           = device.msaaSamples;
-      colorAttachment.loadOp            = VK_ATTACHMENT_LOAD_OP_CLEAR;
-      colorAttachment.storeOp           = VK_ATTACHMENT_STORE_OP_STORE;
-      colorAttachment.stencilStoreOp    = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      colorAttachment.stencilLoadOp     = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-      colorAttachment.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
-      colorAttachment.finalLayout       = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        VkAttachmentDescription colorAttachment = {};
+        colorAttachment.format            = getSwapChainImageFormat();
+        colorAttachment.samples           = device.msaaSamples;
+        colorAttachment.loadOp            = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachment.storeOp           = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachment.stencilStoreOp    = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachment.stencilLoadOp     = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachment.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.finalLayout       = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-      VkAttachmentReference colorAttachmentRef = {};
-      colorAttachmentRef.attachment = 0;
-      colorAttachmentRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        
-      VkAttachmentDescription colorAttachmentResolve{};
-      colorAttachmentResolve.format           = getSwapChainImageFormat();
-      colorAttachmentResolve.samples          = VK_SAMPLE_COUNT_1_BIT;
-      colorAttachmentResolve.loadOp           = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-      colorAttachmentResolve.storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
-      colorAttachmentResolve.stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-      colorAttachmentResolve.stencilStoreOp   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-      colorAttachmentResolve.initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
-      colorAttachmentResolve.finalLayout      = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        
-      VkAttachmentReference colorAttachmentResolveRef{};
-      colorAttachmentResolveRef.attachment    = 2;
-      colorAttachmentResolveRef.layout        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        VkAttachmentReference colorAttachmentRef = {};
+        colorAttachmentRef.attachment = 0;
+        colorAttachmentRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-      VkSubpassDescription subpass = {};
-      subpass.pipelineBindPoint         = VK_PIPELINE_BIND_POINT_GRAPHICS;
-      subpass.colorAttachmentCount      = 1;
-      subpass.pColorAttachments         = &colorAttachmentRef;
-      subpass.pDepthStencilAttachment   = &depthAttachmentRef;
-      subpass.pResolveAttachments       = &colorAttachmentResolveRef;
+        VkAttachmentDescription colorAttachmentResolve{};
+        colorAttachmentResolve.format           = getSwapChainImageFormat();
+        colorAttachmentResolve.samples          = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachmentResolve.loadOp           = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentResolve.storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentResolve.stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentResolve.stencilStoreOp   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachmentResolve.initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachmentResolve.finalLayout      = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-      VkSubpassDependency dependency = {};
-      dependency.srcSubpass     = VK_SUBPASS_EXTERNAL;
-      dependency.srcAccessMask  = 0;
-      dependency.srcStageMask   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-      dependency.dstSubpass     = 0;
-      dependency.dstStageMask   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-      dependency.dstAccessMask  = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        VkAttachmentReference colorAttachmentResolveRef{};
+        colorAttachmentResolveRef.attachment    = 2;
+        colorAttachmentResolveRef.layout        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-      std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
-      VkRenderPassCreateInfo renderPassInfo = {};
-      renderPassInfo.sType              = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-      renderPassInfo.attachmentCount    = static_cast<uint32_t>(attachments.size());
-      renderPassInfo.pAttachments       = attachments.data();
-      renderPassInfo.subpassCount       = 1;
-      renderPassInfo.pSubpasses         = &subpass;
-      renderPassInfo.dependencyCount    = 1;
-      renderPassInfo.pDependencies      = &dependency;
+        VkSubpassDescription subpass = {};
+        subpass.pipelineBindPoint         = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount      = 1;
+        subpass.pColorAttachments         = &colorAttachmentRef;
+        subpass.pDepthStencilAttachment   = &depthAttachmentRef;
+        subpass.pResolveAttachments       = &colorAttachmentResolveRef;
 
-      if (vkCreateRenderPass(device.device(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create render pass!");
-      }
+        VkSubpassDependency dependency = {};
+        dependency.srcSubpass     = VK_SUBPASS_EXTERNAL;
+        dependency.srcAccessMask  = 0;
+        dependency.srcStageMask   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.dstSubpass     = 0;
+        dependency.dstStageMask   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.dstAccessMask  = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
+        VkRenderPassCreateInfo renderPassInfo = {};
+        renderPassInfo.sType              = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount    = static_cast<uint32_t>(attachments.size());
+        renderPassInfo.pAttachments       = attachments.data();
+        renderPassInfo.subpassCount       = 1;
+        renderPassInfo.pSubpasses         = &subpass;
+        renderPassInfo.dependencyCount    = 1;
+        renderPassInfo.pDependencies      = &dependency;
+
+        if (vkCreateRenderPass(device.device(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create render pass!");
+        }
     }
 
     void ArxSwapChain::createFramebuffers() {
@@ -323,18 +356,17 @@ namespace arx {
         colorImageView = createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
 
-    VkImageView ArxSwapChain::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) {
+    VkImageView ArxSwapChain::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, uint32_t baseMipLevel) {
         VkImageViewCreateInfo viewInfo{};
         viewInfo.sType                              = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         viewInfo.image                              = image;
         viewInfo.viewType                           = VK_IMAGE_VIEW_TYPE_2D;
         viewInfo.format                             = format;
         viewInfo.subresourceRange.aspectMask        = aspectFlags;
-        viewInfo.subresourceRange.baseMipLevel      = 0;
-        viewInfo.subresourceRange.levelCount        = 1;
+        viewInfo.subresourceRange.baseMipLevel      = baseMipLevel;
+        viewInfo.subresourceRange.levelCount        = mipLevels;
         viewInfo.subresourceRange.baseArrayLayer    = 0;
         viewInfo.subresourceRange.layerCount        = 1;
-        viewInfo.subresourceRange.levelCount        = mipLevels;
         
         VkImageView imageView;
         if (vkCreateImageView(device.device(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
@@ -381,52 +413,63 @@ namespace arx {
     }
 
     void ArxSwapChain::createDepthResources() {
-      VkFormat depthFormat          = findDepthFormat();
-      swapChainDepthFormat          = depthFormat;
-      VkExtent2D swapChainExtent    = getSwapChainExtent();
+        VkFormat depthFormat          = findDepthFormat();
+        swapChainDepthFormat          = depthFormat;
+        VkExtent2D swapChainExtent    = getSwapChainExtent();
 
-      depthImages.resize(imageCount());
-      depthImageMemorys.resize(imageCount());
-      depthImageViews.resize(imageCount());
+        depthImages.resize(imageCount());
+        depthImageMemorys.resize(imageCount());
+        depthImageViews.resize(imageCount());
 
-      for (int i = 0; i < depthImages.size(); i++) {
-        VkImageCreateInfo imageInfo{};
-        imageInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageInfo.imageType         = VK_IMAGE_TYPE_2D;
-        imageInfo.extent.width      = swapChainExtent.width;
-        imageInfo.extent.height     = swapChainExtent.height;
-        imageInfo.extent.depth      = 1;
-        imageInfo.mipLevels         = 1;
-        imageInfo.arrayLayers       = 1;
-        imageInfo.format            = depthFormat;
-        imageInfo.tiling            = VK_IMAGE_TILING_OPTIMAL;
-        imageInfo.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage             = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        imageInfo.samples           = device.msaaSamples;
-        imageInfo.sharingMode       = VK_SHARING_MODE_EXCLUSIVE;
-        imageInfo.flags             = 0;
+        for (int i = 0; i < depthImages.size(); i++) {
+            VkImageCreateInfo imageInfo{};
+            imageInfo.sType             = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageInfo.imageType         = VK_IMAGE_TYPE_2D;
+            imageInfo.extent.width      = swapChainExtent.width;
+            imageInfo.extent.height     = swapChainExtent.height;
+            imageInfo.extent.depth      = 1;
+            imageInfo.mipLevels         = 1;
+            imageInfo.arrayLayers       = 1;
+            imageInfo.format            = depthFormat;
+            imageInfo.tiling            = VK_IMAGE_TILING_OPTIMAL;
+            imageInfo.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageInfo.usage             = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageInfo.samples           = device.msaaSamples;
+            imageInfo.sharingMode       = VK_SHARING_MODE_EXCLUSIVE;
+            imageInfo.flags             = 0;
 
-        device.createImageWithInfo(
-            imageInfo,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            depthImages[i],
-            depthImageMemorys[i]);
+            device.createImageWithInfo(
+                imageInfo,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                depthImages[i],
+                depthImageMemorys[i]);
 
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType                              = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image                              = depthImages[i];
-        viewInfo.viewType                           = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format                             = depthFormat;
-        viewInfo.subresourceRange.aspectMask        = VK_IMAGE_ASPECT_DEPTH_BIT;
-        viewInfo.subresourceRange.baseMipLevel      = 0;
-        viewInfo.subresourceRange.levelCount        = 1;
-        viewInfo.subresourceRange.baseArrayLayer    = 0;
-        viewInfo.subresourceRange.layerCount        = 1;
+            VkImageViewCreateInfo viewInfo{};
+            viewInfo.sType                              = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            viewInfo.image                              = depthImages[i];
+            viewInfo.viewType                           = VK_IMAGE_VIEW_TYPE_2D;
+            viewInfo.format                             = depthFormat;
+            viewInfo.subresourceRange.aspectMask        = VK_IMAGE_ASPECT_DEPTH_BIT;
+            viewInfo.subresourceRange.baseMipLevel      = 0;
+            viewInfo.subresourceRange.levelCount        = 1;
+            viewInfo.subresourceRange.baseArrayLayer    = 0;
+            viewInfo.subresourceRange.layerCount        = 1;
 
-        if (vkCreateImageView(device.device(), &viewInfo, nullptr, &depthImageViews[i]) != VK_SUCCESS) {
-          throw std::runtime_error("failed to create texture image view!");
+            if (vkCreateImageView(device.device(), &viewInfo, nullptr, &depthImageViews[i]) != VK_SUCCESS) {
+              throw std::runtime_error("failed to create texture image view!");
+            }
         }
-      }
+        
+        // Create sinlge-sample depth image
+        createImage(swapChainExtent.width, swapChainExtent.height, 1,
+                    VK_SAMPLE_COUNT_1_BIT,
+                    depthFormat,
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                    depthImage,
+                    depthImageMemory);
+        depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     }
 
     void ArxSwapChain::createSyncObjects() {
@@ -506,4 +549,191 @@ namespace arx {
           VK_IMAGE_TILING_OPTIMAL,
           VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
     }
+
+    void ArxSwapChain::createDepthPyramid() {
+        cull.depthPyramidWidth = cull.previousPow2(swapChainExtent.width);
+        cull.depthPyramidHeight = cull.previousPow2(swapChainExtent.height);
+        
+        uint32_t depthPyramidLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(swapChainExtent.width, swapChainExtent.height)))) + 1;
+        cull.depthPyramidLevels = depthPyramidLevels;
+        
+        createImage(cull.depthPyramidWidth, cull.depthPyramidHeight, depthPyramidLevels,
+                    VK_SAMPLE_COUNT_1_BIT,
+                    VK_FORMAT_R32_SFLOAT,
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                    cull.depthPyramidImage,
+                    cull.depthPyramidMemory);
+        
+        cull.depthPyramidImageView = createImageView(cull.depthPyramidImage, VK_FORMAT_R32_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT, cull.depthPyramidLevels);
+
+        VkCommandBuffer cmd = device.beginSingleTimeCommands();
+        VkImageMemoryBarrier depthPyramidLayoutBarrier = createImageBarrier(VK_IMAGE_LAYOUT_UNDEFINED,
+                                                                           VK_IMAGE_LAYOUT_GENERAL,
+                                                                           cull.depthPyramidImage,
+                                                                           VK_IMAGE_ASPECT_COLOR_BIT,
+                                                                           0, 0, 0,
+                                                                           cull.depthPyramidLevels);
+        
+        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &depthPyramidLayoutBarrier);
+        device.endSingleTimeCommands(cmd);
+        
+        cull.depthPyramidMips.resize(cull.depthPyramidLevels, VK_NULL_HANDLE);
+            for (uint32_t i = 0; i < cull.depthPyramidLevels; ++i) {
+                cull.depthPyramidMips[i] = createImageView(cull.depthPyramidImage, VK_FORMAT_R32_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT, 1, i);
+            }
+    }
+
+    void ArxSwapChain::createDepthSampler() {
+        VkSamplerCreateInfo samplerCreateInfo = {};
+        samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
+        samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
+        samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.minLod = 0;
+        samplerCreateInfo.maxLod = 16.f;
+        
+        // My system does not support this
+//        VkSamplerReductionModeCreateInfo reductionCreateInfo = {};
+//        reductionCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
+//        reductionCreateInfo.reductionMode = VK_SAMPLER_REDUCTION_MODE_MAX;
+//        samplerCreateInfo.pNext = &reductionCreateInfo;
+        
+        if (vkCreateSampler(device.device(), &samplerCreateInfo, 0, &depthSampler) != VK_SUCCESS)
+            throw std::runtime_error("Couldn't create depth sampler!");
+    }
+
+    VkImageMemoryBarrier ArxSwapChain::createImageBarrier(VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, VkImageAspectFlags aspectFlags, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, uint32_t baseMipLevels, uint32_t levelCount)
+    {
+        VkImageMemoryBarrier barrier = {};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = oldLayout;
+        barrier.newLayout = newLayout;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = image;
+        barrier.subresourceRange.aspectMask = aspectFlags;
+        barrier.subresourceRange.baseMipLevel = baseMipLevels;
+        barrier.subresourceRange.levelCount = levelCount;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.srcAccessMask = srcAccessMask;
+        barrier.dstAccessMask = dstAccessMask;
+
+        return barrier;
+    }
+
+    void ArxSwapChain::createDepthPyramidDescriptors() {
+        cull.depthDescriptorSets.resize(cull.depthPyramidLevels, VK_NULL_HANDLE);
+        
+        cull.depthDescriptorPool = ArxDescriptorPool::Builder(device)
+                            .setMaxSets(cull.depthPyramidLevels)
+                            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, cull.depthPyramidLevels)
+                            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, cull.depthPyramidLevels)
+                            .build();
+
+        
+        for (uint32_t i = 0; i < cull.depthPyramidLevels; i++) {
+            VkDescriptorImageInfo srcInfo = {};
+            if (i == 0) {
+                srcInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                srcInfo.imageView = depthImageView;
+            }
+            else {
+                srcInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                srcInfo.imageView = cull.depthPyramidMips[i-1];
+            }
+            srcInfo.sampler = depthSampler;
+
+            VkDescriptorImageInfo dstInfo;
+            dstInfo.sampler = depthSampler;
+            dstInfo.imageView = cull.depthPyramidMips[i];
+            dstInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            
+            ArxDescriptorWriter(*cull.depthDescriptorLayout, *cull.depthDescriptorPool)
+                .writeImage(0, &dstInfo)
+                .writeImage(1, &srcInfo)
+                .build(cull.depthDescriptorSets[i]);
+        }
+    }
+
+    void ArxSwapChain::computeDepthPyramid(VkCommandBuffer commandBuffer) {
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &cull.framebufferDepthWriteBarrier);
+        
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cull.arxPipeline->computePipeline);
+        
+        // Todo: Per-level barriers that would switch between read and write layout for the depth pyramid update.
+        for (uint32_t i = 0; i < cull.depthPyramidLevels; ++i)
+        {
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cull.pipelineLayout, 0, 1, &cull.depthDescriptorSets[i], 0, nullptr);
+
+            uint32_t levelWidth = glm::max(1u, cull.depthPyramidWidth >> i);
+            uint32_t levelHeight = glm::max(1u, cull.depthPyramidHeight >> i);
+
+            glm::vec2 levelSize(levelWidth, levelHeight);
+
+            uint32_t groupCountX = (levelWidth + 32 - 1) / 32;
+            uint32_t groupCountY = (levelHeight + 32 - 1) / 32;
+            vkCmdPushConstants(commandBuffer, cull.pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(glm::vec2), &levelSize);
+            vkCmdDispatch(commandBuffer, groupCountX, groupCountY, 1);
+
+            vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &cull.depthPyramidMipLevelBarriers[i]);
+        }
+
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &cull.framebufferDepthReadBarrier);
+
+    }
+
+
+    void ArxSwapChain::createBarriers() {
+        // Commenting previous values by https://github.com/AurelienLeandri/VulkanCulling/blob/master/src/engine/VulkanRenderer.cpp
+        // Barriers for layout transition between read and write access of the depth pyramid's levels
+        cull.depthPyramidMipLevelBarriers.resize(cull.depthPyramidLevels, {});
+        for (uint32_t i = 0; i < cull.depthPyramidLevels; ++i) {
+            VkImageMemoryBarrier& barrier = cull.depthPyramidMipLevelBarriers[i];
+            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+            barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+            barrier.srcQueueFamilyIndex = VK_SHARING_MODE_EXCLUSIVE;
+            barrier.dstQueueFamilyIndex = VK_SHARING_MODE_EXCLUSIVE;
+            barrier.image = cull.depthPyramidImage;
+            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            barrier.subresourceRange.baseMipLevel = i;
+            barrier.subresourceRange.levelCount = 1;
+            barrier.subresourceRange.baseArrayLayer = 0;
+            barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+        }
+
+        // Barriers for read/write access of the single sampled depth image attached to the framebuffers
+        cull.framebufferDepthWriteBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        cull.framebufferDepthWriteBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        cull.framebufferDepthWriteBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        cull.framebufferDepthWriteBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        cull.framebufferDepthWriteBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        cull.framebufferDepthWriteBarrier.srcQueueFamilyIndex = VK_IMAGE_LAYOUT_UNDEFINED;
+        cull.framebufferDepthWriteBarrier.dstQueueFamilyIndex = VK_SHARING_MODE_EXCLUSIVE;
+        cull.framebufferDepthWriteBarrier.image = depthImage;
+        cull.framebufferDepthWriteBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        cull.framebufferDepthWriteBarrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        cull.framebufferDepthWriteBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+        cull.framebufferDepthReadBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        cull.framebufferDepthReadBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        cull.framebufferDepthReadBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        cull.framebufferDepthReadBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        cull.framebufferDepthReadBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        cull.framebufferDepthReadBarrier.srcQueueFamilyIndex = VK_SHARING_MODE_EXCLUSIVE;
+        cull.framebufferDepthReadBarrier.dstQueueFamilyIndex = VK_SHARING_MODE_EXCLUSIVE;
+        cull.framebufferDepthReadBarrier.image = depthImage;
+        cull.framebufferDepthReadBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        cull.framebufferDepthReadBarrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        cull.framebufferDepthReadBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+    }
 }
+

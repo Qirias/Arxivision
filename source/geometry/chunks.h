@@ -31,12 +31,13 @@ typedef CGAL::AABB_tree<AABB_triangle_traits> Tree;
 namespace arx {
     
     class ArxModel;
-
+    
     class Chunk {
     public:
         
         Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices);
         Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, const std::vector<std::vector<float>>& heightMap, const glm::ivec3& globalOffset);
+        Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, glm::ivec3 terrainSize);
         ~Chunk();
         
         void Update();
@@ -56,6 +57,13 @@ namespace arx {
         void smoothTerrain();
         void colorVoxels();
         void deactivateHiddenVoxels();
+        
+        void applyCARule(glm::ivec3 terrainSize);
+        bool isVoxelInSierpinski(int x, int y, int z);
+        glm::vec3 determineColorBasedOnPosition(glm::vec3 voxelGlobalPos, glm::ivec3 terrainSize);
+        int calculateRecursionDepth(glm::ivec3 terrainSize);
+        bool isVoxelinSponge(int x, int y, int z, int depth);
+
         
     private:
         std::unique_ptr<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>      blocks;

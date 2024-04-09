@@ -17,10 +17,18 @@ namespace arx {
         createGraphicsPipeline(vertFilepath, fragFilepath, config);
     }
 
+    ArxPipeline::ArxPipeline(ArxDevice& device,
+                             const std::string& compFilepath,
+                             const PipelineConfigInfo& config) : arxDevice{device} {
+        createComputePipeline(compFilepath, config);
+    }
+
     ArxPipeline::~ArxPipeline() {
         vkDestroyShaderModule(arxDevice.device(), vertShaderModule, nullptr);
         vkDestroyShaderModule(arxDevice.device(), fragShaderModule, nullptr);
+        vkDestroyShaderModule(arxDevice.device(), computeShaderModule, nullptr);
         vkDestroyPipeline(arxDevice.device(), graphicsPipeline, nullptr);
+        vkDestroyPipeline(arxDevice.device(), computePipeline, nullptr);
     }
 
     std::vector<char> ArxPipeline::readFile(const std::string& filepath) {
@@ -135,7 +143,7 @@ namespace arx {
         configInfo.rasterizationInfo.sType                      = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         configInfo.rasterizationInfo.depthClampEnable           = VK_FALSE;
         configInfo.rasterizationInfo.rasterizerDiscardEnable    = VK_FALSE;
-        configInfo.rasterizationInfo.polygonMode                = VK_POLYGON_MODE_LINE;
+        configInfo.rasterizationInfo.polygonMode                = VK_POLYGON_MODE_FILL;
         configInfo.rasterizationInfo.lineWidth                  = 1.0f;
         configInfo.rasterizationInfo.cullMode                   = VK_CULL_MODE_NONE;
         configInfo.rasterizationInfo.frontFace                  = VK_FRONT_FACE_CLOCKWISE;
@@ -207,5 +215,34 @@ namespace arx {
         configInfo.colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         configInfo.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
         configInfo.colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+    }
+
+    void ArxPipeline::defaultComputePipelineConfigInfo(PipelineConfigInfo& configInfo) {
+        configInfo.computeShaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        configInfo.computeShaderStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+        configInfo.computeShaderStage.pName = "main";
+    }
+
+    void ArxPipeline::createComputePipeline(const std::string &compFilepath, const PipelineConfigInfo& config) {
+        auto compCode = readFile(compFilepath);
+
+        createShaderModule(compCode, &computeShaderModule);
+
+        VkPipelineShaderStageCreateInfo compShaderStageInfo{};
+        compShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        compShaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+        compShaderStageInfo.module = computeShaderModule;
+        compShaderStageInfo.pName = "main";
+
+        VkComputePipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        pipelineInfo.stage = compShaderStageInfo;
+        pipelineInfo.layout = config.pipelineLayout;
+
+        if (vkCreateComputePipelines(arxDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &computePipeline) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create compute pipeline!");
+        }
+
+        vkDestroyShaderModule(arxDevice.device(), computeShaderModule, nullptr);
     }
 }

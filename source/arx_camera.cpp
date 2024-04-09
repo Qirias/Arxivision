@@ -104,7 +104,7 @@ namespace arx {
 
         glm::mat4 VP = projectionMatrix * viewMatrix;
 
-        for (uint32_t i = 1; i <= chunkPositions.size(); i++) {
+        for (uint32_t i = 0; i < chunkPositions.size(); i++) {
             if (chunkPositions[i].second != -1) {
                 if (test_AABB_against_frustum(VP, chunkPositions[i].first, CHUNK_SIZE)) {
                     out_visible_list.push_back(chunkPositions[i].second);

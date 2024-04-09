@@ -26,6 +26,8 @@ namespace arx {
         VkPipelineLayout pipelineLayout = nullptr;
         VkRenderPass renderPass = nullptr;
         uint32_t subpass = 0;
+        
+        VkPipelineShaderStageCreateInfo computeShaderStage{};
     };
 
     class ArxPipeline {
@@ -35,6 +37,10 @@ namespace arx {
                     const std::string& fragFilepath,
                     const PipelineConfigInfo& config);
         
+        ArxPipeline(ArxDevice& device,
+                    const std::string& compFilepath,
+                    const PipelineConfigInfo& config);
+        
         ~ArxPipeline();
         
         ArxPipeline(const ArxPipeline&) = delete;
@@ -42,8 +48,11 @@ namespace arx {
         
         void bind(VkCommandBuffer commandBuffer);
         static void defaultPipelineConfigInfo(VkSampleCountFlagBits msaaSamples, PipelineConfigInfo& configInfo);
+        static void defaultComputePipelineConfigInfo(PipelineConfigInfo& configInfo);
         static void enableAlphaBlending(PipelineConfigInfo& configInfo);
-        
+        void createComputePipeline(const std::string &compFilepath, const PipelineConfigInfo& config);
+        VkPipeline computePipeline;
+        VkShaderModule computeShaderModule;
     private:
         static std::vector<char> readFile(const std::string& filepath);
         

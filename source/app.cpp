@@ -26,19 +26,11 @@ namespace arx {
                     .setMaxSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .build();
-//        loadGameObjects();
     }
 
     App::~App() {
         
     }
-
-void printMat4(const glm::mat4& mat) {
-    std::cout << "[ " << mat[0][0] << " " << mat[0][1] << " " << mat[0][2] << " " << mat[0][3] << " ]" << std::endl;
-    std::cout << "[ " << mat[1][0] << " " << mat[1][1] << " " << mat[1][2] << " " << mat[1][3] << " ]" << std::endl;
-    std::cout << "[ " << mat[2][0] << " " << mat[2][1] << " " << mat[2][2] << " " << mat[2][3] << " ]" << std::endl;
-    std::cout << "[ " << mat[3][0] << " " << mat[3][1] << " " << mat[3][2] << " " << mat[3][3] << " ]" << std::endl;
-}
     
     void App::run() {
         
@@ -65,17 +57,14 @@ void printMat4(const glm::mat4& mat) {
         }
         
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
-//        PointLightSystem pointLightSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
 
         ArxCamera camera{};
-//        camera.setViewTarget(glm::vec3(-1.f, -2.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
         
         auto viewerObject = ArxGameObject::createGameObject();
         viewerObject.transform.scale = glm::vec3(0.1);
         UserInput cameraController{*this};
         
         
-//        camera.setViewMatrix(viewerObject.transform.translation, cameraController.forwardDir, cameraController.upDir);
         camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
         
         float aspect = arxRenderer.getAspectRation();
@@ -83,11 +72,10 @@ void printMat4(const glm::mat4& mat) {
         
         chunkManager.setCamera(camera);
 //        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 15);
-//        chunkManager.initializeTerrain(gameObjects, glm::ivec3(70));
-        chunkManager.initializeHeightTerrain(gameObjects, 24);
-            
-        auto currentTime = std::chrono::high_resolution_clock::now();
+//        chunkManager.initializeHeightTerrain(gameObjects, 8);
+        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
         
+        auto currentTime = std::chrono::high_resolution_clock::now();
         
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
@@ -110,15 +98,11 @@ void printMat4(const glm::mat4& mat) {
                     globalDescriptorSets[frameIndex],
                     gameObjects
                 };
-                
-                //chunkManager.Update(gameObjects, camera.getPosition());
-                
+                                
                 // Frustum culling
-//                camera.setPerspectiveProjection(glm::radians(55.f), aspect, .1f, 1024.f);
-
+//                camera.setPerspectiveProjection(glm::radians(40.f), aspect, .1f, 1024.f);
                 std::vector<uint32_t> visibleChunksIndices;
                 camera.cull_chunks_against_frustum(chunkManager.GetChunkPositions(), visibleChunksIndices, CHUNK_SIZE);
-                
 //                camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
                 
                 // update
@@ -126,7 +110,6 @@ void printMat4(const glm::mat4& mat) {
                 ubo.projection      = camera.getProjection();
                 ubo.view            = camera.getView();
                 ubo.inverseView     = camera.getInverseView();
-//                pointLightSystem.update(frameInfo, ubo);
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
                 
@@ -135,9 +118,9 @@ void printMat4(const glm::mat4& mat) {
                 
                 // order here matters
                 simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
-//                pointLightSystem.render(frameInfo);
                 
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
+                arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
                 arxRenderer.endFrame();
                 visibleChunksIndices.clear();
             }
