@@ -79,7 +79,7 @@ namespace arx {
                                 &frameInfo.globalDescriptorSet,
                                 0,
                                 nullptr);
-//        std::cout << "Chunks Rendered: " << visibleChunksIndices.size() << "\n";
+        std::cout << "Chunks Rendered: " << visibleChunksIndices.size() << "\n";
         
         for (auto i : visibleChunksIndices) {
             if (frameInfo.voxel[i].model == nullptr) continue;
@@ -102,3 +102,73 @@ namespace arx {
         }
     }
 }
+
+/*
+ #version 450
+
+ layout (local_size_x = 256) in;
+
+ struct ObjectData {
+     vec3 aabbMin;
+     vec3 aabbMax;
+ };
+
+ layout (set = 0, binding = 0) uniform CameraData {
+     mat4 viewProj;
+ } camera;
+
+ layout (set = 0, binding = 1) readonly buffer ObjectBuffer {
+     ObjectData objects[];
+ } objectBuffer;
+
+ layout (set = 0, binding = 2) uniform sampler2D depthPyramid;
+
+ layout (set = 0, binding = 3) buffer VisibilityBuffer {
+     uint visibleIndices[];
+ } visibilityBuffer;
+
+ layout (set = 0, binding = 4) uniform GlobalData {
+     uint pyramidWidth;
+     uint pyramidHeight;
+     uint instances;
+ } globalData;
+
+ layout (set = 0, binding = 5) uniform MiscDynamicData {
+     mat4 cullingViewMatrix;
+     int occlusionCulling;
+ } misc;
+
+ bool isVisibleAABB(vec3 aabbMin, vec3 aabbMax) {
+     vec3 boxCenter = 0.5 * (aabbMin + aabbMax);
+     vec3 boxHalfExtents = 0.5 * (aabbMax - aabbMin);
+
+     vec4 clipMin = camera.viewProj * vec4(boxCenter - boxHalfExtents, 1.0);
+     vec4 clipMax = camera.viewProj * vec4(boxCenter + boxHalfExtents, 1.0);
+     
+     vec3 clipMinNDC = clipMin.xyz / clipMin.w;
+     vec3 clipMaxNDC = clipMax.xyz / clipMax.w;
+
+     vec2 uvMin = clipMinNDC.xy * 0.5 + 0.5;
+     vec2 uvMax = clipMaxNDC.xy * 0.5 + 0.5;
+
+     uvMin = clamp(uvMin, vec2(0.0, 0.0), vec2(1.0, 1.0));
+     uvMax = clamp(uvMax, vec2(0.0, 0.0), vec2(1.0, 1.0));
+
+     float width = (uvMax.x - uvMin.x) * float(globalData.pyramidWidth);
+     float height = (uvMax.y - uvMin.y) * float(globalData.pyramidHeight);
+     float lod = max(floor(log2(max(width, height))), 0.0);
+
+     float minDepth = textureLod(depthPyramid, uvMin, lod).r;
+     float maxDepth = textureLod(depthPyramid, uvMax, lod).r;
+
+     return (clipMin.z / clipMin.w) <= minDepth || (clipMax.z / clipMax.w) <= maxDepth;
+ }
+
+ void main() {
+     uint index = gl_GlobalInvocationID.x;
+     if (index < globalData.instances) {
+         visibilityBuffer.visibleIndices[index] = isVisibleAABB(objectBuffer.objects[index].aabbMin, objectBuffer.objects[index].aabbMax) ? 1 : 0;
+     }
+ }
+
+ */

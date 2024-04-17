@@ -32,7 +32,7 @@ class ArxSwapChain {
         uint32_t height() { return swapChainExtent.height; }
 
         float extentAspectRatio() {
-        return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height);
+            return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height);
         }
         VkFormat findDepthFormat();
 
@@ -108,6 +108,12 @@ class ArxSwapChain {
         void createDepthPyramidDescriptors();
         void computeDepthPyramid(VkCommandBuffer commandBuffer);
         void createBarriers();
+        void loadGeometryToDevice();
         VkImageMemoryBarrier createImageBarrier(VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, VkImageAspectFlags aspectFlags, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, uint32_t baseMipLevels, uint32_t levelCount);
+    
+        void createCullingDescriptors();
+        void updateDynamicData();
+        std::vector<uint32_t> computeCulling(VkCommandBuffer commandBuffer, const uint32_t instances);
+        uint32_t chunkInstances;
     };
 }

@@ -73,6 +73,7 @@ namespace arx {
                     Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, chunkVertices);
                     m_vpChunks.push_back(newChunk);
                     setChunkPosition({chunkPosition, newChunk->getID()});
+                    setupAABBForChunk(newChunk->getPosition(), newChunk->getID());
                 }
             }
         }
@@ -148,6 +149,7 @@ namespace arx {
                     Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, heightMap, globalOffset);
                     m_vpChunks.push_back(newChunk);
                     setChunkPosition({chunkPosition, newChunk->getID()});
+                    setupAABBForChunk(newChunk->getPosition(), newChunk->getID());
                 }
             }
         }
@@ -165,15 +167,25 @@ namespace arx {
                     glm::vec3 chunkPosition(x * ADJUSTED_CHUNK, y * ADJUSTED_CHUNK, z * ADJUSTED_CHUNK);
                     Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, terrainSize);
                     m_vpChunks.push_back(newChunk);
-                    setChunkPosition({newChunk->getPosition(), newChunk->getID()});
+                    if (newChunk->getID() != -1) {
+                        setChunkPosition({newChunk->getPosition(), newChunk->getID()});
+                        setupAABBForChunk(newChunk->getPosition(), newChunk->getID());
+                    }
                 }
             }
         }
     }
-
-
     
     void ChunkManager::setChunkPosition(const std::pair<glm::vec3, unsigned int>& position) {
-        chunkPositions.push_back({position.first, position.second});
+            chunkPositions.push_back({position.first, position.second});
+    }
+
+    void ChunkManager::setupAABBForChunk(const glm::vec3& position, const unsigned int chunkId) {
+        
+        AABB aabb;
+        aabb.min = position;
+        aabb.max = position + glm::vec3(ADJUSTED_CHUNK);
+
+        chunkAABBs[chunkId] = aabb;
     }
 }

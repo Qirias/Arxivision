@@ -7,13 +7,13 @@ namespace arx {
     
 #define MAX_LIGHTS 10
 
-static const int CHUNK_SIZE = 27;
+static const int CHUNK_SIZE = 9;
 static const float VOXEL_SIZE = 1;
 static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
 
-    struct PointLight {
-      glm::vec4 position{};  // ignore w
-      glm::vec4 color{};     // w is intensity
+    struct AABB {
+        glm::vec3 min{};
+        glm::vec3 max{};
     };
 
     struct GlobalUbo {
@@ -21,7 +21,6 @@ static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
         glm::mat4 view{1.f};
         glm::mat4 inverseView{1.f};
         glm::vec4 ambientLightColor{1.f, 1.f, 1.f, .02f};
-//        PointLight pointLights[MAX_LIGHTS];
         int numLights;
     };
     

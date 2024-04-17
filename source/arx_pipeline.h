@@ -39,7 +39,7 @@ namespace arx {
         
         ArxPipeline(ArxDevice& device,
                     const std::string& compFilepath,
-                    const PipelineConfigInfo& config);
+                    VkPipelineLayout& pipelineLayout);
         
         ~ArxPipeline();
         
@@ -48,11 +48,10 @@ namespace arx {
         
         void bind(VkCommandBuffer commandBuffer);
         static void defaultPipelineConfigInfo(VkSampleCountFlagBits msaaSamples, PipelineConfigInfo& configInfo);
-        static void defaultComputePipelineConfigInfo(PipelineConfigInfo& configInfo);
         static void enableAlphaBlending(PipelineConfigInfo& configInfo);
-        void createComputePipeline(const std::string &compFilepath, const PipelineConfigInfo& config);
-        VkPipeline computePipeline;
-        VkShaderModule computeShaderModule;
+        void createComputePipeline(const std::string &compFilepath, VkPipelineLayout& pipelineLayout);
+        VkPipeline      computePipeline;
+        VkShaderModule  computeShaderModule;
     private:
         static std::vector<char> readFile(const std::string& filepath);
         

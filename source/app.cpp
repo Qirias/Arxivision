@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include "app.h"
 #include "systems/simple_render_system.h"
-#include "systems/point_light_system.h"
 #include "arx_camera.h"
 #include "user_input.h"
 #include "arx_buffer.h"
@@ -31,6 +30,14 @@ namespace arx {
     App::~App() {
         
     }
+
+//    void printMat4(const glm::mat4& mat) {
+//        std::cout << "Mat\n";
+//        std::cout << "[ " << mat[0][0] << " " << mat[0][1] << " " << mat[0][2] << " " << mat[0][3] << " ]" << std::endl;
+//        std::cout << "[ " << mat[1][0] << " " << mat[1][1] << " " << mat[1][2] << " " << mat[1][3] << " ]" << std::endl;
+//        std::cout << "[ " << mat[2][0] << " " << mat[2][1] << " " << mat[2][2] << " " << mat[2][3] << " ]" << std::endl;
+//        std::cout << "[ " << mat[3][0] << " " << mat[3][1] << " " << mat[3][2] << " " << mat[3][3] << " ]" << std::endl;
+//    }
     
     void App::run() {
         
@@ -75,8 +82,14 @@ namespace arx {
 //        chunkManager.initializeHeightTerrain(gameObjects, 8);
         chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
         
-        auto currentTime = std::chrono::high_resolution_clock::now();
+        uint32_t instances = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
         
+        arxRenderer.getSwapChain()->cull.setObjectDataFromAABBs(chunkManager.getChunkAABBs());
+        arxRenderer.getSwapChain()->cull.setViewProj(camera.getVP(), camera.getInverseView());
+        arxRenderer.getSwapChain()->cull.setGlobalData(arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, instances);
+        arxRenderer.getSwapChain()->loadGeometryToDevice();
+        
+        auto currentTime = std::chrono::high_resolution_clock::now();
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
             
@@ -98,13 +111,21 @@ namespace arx {
                     globalDescriptorSets[frameIndex],
                     gameObjects
                 };
-                                
+                
+                
                 // Frustum culling
 //                camera.setPerspectiveProjection(glm::radians(40.f), aspect, .1f, 1024.f);
-                std::vector<uint32_t> visibleChunksIndices;
-                camera.cull_chunks_against_frustum(chunkManager.GetChunkPositions(), visibleChunksIndices, CHUNK_SIZE);
-//                camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+//                camera.cull_chunks_against_frustum(chunkManager.GetChunkPositions(), visibleChunksIndices, CHUNK_SIZE);
                 
+                // Update Dynamic Data
+                arxRenderer.getSwapChain()->cull.setViewProj(camera.getVP(), camera.getInverseView());
+                arxRenderer.getSwapChain()->updateDynamicData();
+
+                std::vector<uint32_t> visibleChunksIndices;
+                visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
+                
+//                camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+
                 // update
                 GlobalUbo ubo{};
                 ubo.projection      = camera.getProjection();
@@ -147,23 +168,6 @@ namespace arx {
                 floor.transform.scale         = glm::vec3(.1f);
                 gameObjects.emplace(floor.getId(), std::move(floor));
             }
-        }
-        
-        std::vector<glm::vec3> lightColors{
-             {1.f, .1f, .1f},
-             {.1f, .1f, 1.f},
-             {.1f, 1.f, .1f},
-             {1.f, 1.f, .1f},
-             {.1f, 1.f, 1.f},
-             {1.f, 1.f, 1.f}
-        };
-        
-        for (int i = 0; i < lightColors.size(); i++) {
-            auto pointLight                     = ArxGameObject::makePointLight(.2f);
-            pointLight.color                    = lightColors[i];
-            auto rotateLight                    = glm::rotate(glm::mat4(1.f), (i * glm::two_pi<float>()) / lightColors.size(), {0.f, -1.f, 0.f});
-            pointLight.transform.translation    = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
-            gameObjects.emplace(pointLight.getId(), std::move(pointLight));
         }
     }
 }

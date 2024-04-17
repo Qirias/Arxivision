@@ -26,7 +26,6 @@ layout (push_constant) uniform Push {
     mat4 normalMatrix;
 } push;
 
-
 void main() {
     vec4 positionWorld = push.modelMatrix * vec4(position, 1.0);
     positionWorld.xyz += translation;

@@ -22,17 +22,29 @@ namespace arx {
         depthDescriptorLayout = ArxDescriptorSetLayout::Builder(arxDevice)
                         .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT)
                         .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
-                    .build();
+                        .build();
             
-        createPipelineLayout();
-        createPipeline();
+        createDepthPyramidPipelineLayout();
+        createDepthPyramidPipeline();
+            
+        cullingDescriptorLayout = ArxDescriptorSetLayout::Builder(arxDevice)
+                        .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .addBinding(4, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .build();
+            
+        createCullingPipelineLayout();
+        createCullingPipeline();
     }
 
     OcclusionSystem::~OcclusionSystem() {
-        vkDestroyPipelineLayout(arxDevice.device(), pipelineLayout, nullptr);
+        vkDestroyPipelineLayout(arxDevice.device(), depthPyramidPipelineLayout, nullptr);
+        vkDestroyPipelineLayout(arxDevice.device(), cullingPipelineLayout, nullptr);
     }
     
-    void OcclusionSystem::createPipelineLayout() {
+    void OcclusionSystem::createDepthPyramidPipelineLayout() {
         
         VkPushConstantRange pushConstantRange{};
         pushConstantRange.stageFlags    = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -48,21 +60,42 @@ namespace arx {
         pipelineLayoutInfo.pushConstantRangeCount   = 1;
         pipelineLayoutInfo.pPushConstantRanges      = &pushConstantRange;
         
-        if (vkCreatePipelineLayout(arxDevice.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+        if (vkCreatePipelineLayout(arxDevice.device(), &pipelineLayoutInfo, nullptr, &depthPyramidPipelineLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create pipeline layout!");
         }
     }
 
-    void OcclusionSystem::createPipeline() {
-        assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
+    void OcclusionSystem::createDepthPyramidPipeline() {
+        assert(depthPyramidPipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
         
         PipelineConfigInfo pipelineConfig{};
-        ArxPipeline::defaultComputePipelineConfigInfo(pipelineConfig);
-        pipelineConfig.pipelineLayout   = pipelineLayout;
-        arxPipeline = std::make_unique<ArxPipeline>(arxDevice,
+        depthPyramidPipeline = std::make_unique<ArxPipeline>(arxDevice,
                                                     "shaders/depth_pyramid.spv",
-                                                    pipelineConfig);
+                                                    depthPyramidPipelineLayout);
     }
 
+    void OcclusionSystem::createCullingPipelineLayout() {
+        std::vector<VkDescriptorSetLayout> descriptorSetLayouts{cullingDescriptorLayout->getDescriptorSetLayout()};
+        
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.sType                    = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount           = static_cast<uint32_t>(descriptorSetLayouts.size());
+        pipelineLayoutInfo.pSetLayouts              = descriptorSetLayouts.data();
+        pipelineLayoutInfo.pushConstantRangeCount   = 0;
+        
+        if (vkCreatePipelineLayout(arxDevice.device(), &pipelineLayoutInfo, nullptr, &cullingPipelineLayout) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create pipeline layout!");
+        }
+    }
+
+    void OcclusionSystem::createCullingPipeline() {
+        assert(cullingPipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
+        
+        PipelineConfigInfo pipelineConfig{};
+        cullingPipeline = std::make_unique<ArxPipeline>(arxDevice,
+                                                        "shaders/occlusion_culling.spv",
+                                                        cullingPipelineLayout);
+    }
 }
+
 

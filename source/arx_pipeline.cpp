@@ -19,8 +19,8 @@ namespace arx {
 
     ArxPipeline::ArxPipeline(ArxDevice& device,
                              const std::string& compFilepath,
-                             const PipelineConfigInfo& config) : arxDevice{device} {
-        createComputePipeline(compFilepath, config);
+                             VkPipelineLayout& pipelineLayout) : arxDevice{device} {
+        createComputePipeline(compFilepath, pipelineLayout);
     }
 
     ArxPipeline::~ArxPipeline() {
@@ -217,13 +217,7 @@ namespace arx {
         configInfo.colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
     }
 
-    void ArxPipeline::defaultComputePipelineConfigInfo(PipelineConfigInfo& configInfo) {
-        configInfo.computeShaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        configInfo.computeShaderStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-        configInfo.computeShaderStage.pName = "main";
-    }
-
-    void ArxPipeline::createComputePipeline(const std::string &compFilepath, const PipelineConfigInfo& config) {
+    void ArxPipeline::createComputePipeline(const std::string &compFilepath, VkPipelineLayout& pipelineLayout) {
         auto compCode = readFile(compFilepath);
 
         createShaderModule(compCode, &computeShaderModule);
@@ -237,7 +231,7 @@ namespace arx {
         VkComputePipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
         pipelineInfo.stage = compShaderStageInfo;
-        pipelineInfo.layout = config.pipelineLayout;
+        pipelineInfo.layout = pipelineLayout;
 
         if (vkCreateComputePipelines(arxDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &computePipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create compute pipeline!");

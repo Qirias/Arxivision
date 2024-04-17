@@ -32,15 +32,20 @@ namespace arx {
         void initializeHeightTerrain(ArxGameObject::Map& voxel, const int n);
         std::vector<std::pair<glm::vec3, unsigned int>> GetChunkPositions() { return chunkPositions; }
         void initializeTerrain(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize);
+        void setupAABBForChunk(const glm::vec3& position, const unsigned int chunkId);
+        
+        const std::vector<std::pair<glm::vec3, unsigned int>> getPositions() const { return chunkPositions; }
+        const std::unordered_map<unsigned int, AABB>& getChunkAABBs() const { return chunkAABBs; }
         
     private:
         ArxDevice                                               &arxDevice;
         std::vector<Chunk*>                                     m_vpChunks;
+        std::unordered_map<unsigned int, AABB>                  chunkAABBs;
         ArxModel::Builder                                       builder;
         ArxCamera                                               camera;
         std::vector<std::pair<glm::vec3, unsigned int>>         chunkPositions;
         
-        std::vector<std::vector<float>> heightMap;
+        std::vector<std::vector<float>>                         heightMap;
         
         void diamondSquare(const glm::ivec2& size);
         void setChunkPosition(const std::pair<glm::vec3, unsigned int>& position);

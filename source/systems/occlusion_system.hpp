@@ -6,7 +6,6 @@
 #include "arx_device.h"
 #include "arx_game_object.h"
 #include "arx_frame_info.h"
-#include "chunkManager.h"
 
 // std
 #include <memory>
@@ -23,12 +22,83 @@ namespace arx {
             return result;
         }
         
+        struct alignas(16) GPUCameraData {
+            glm::mat4 viewProj;
+            glm::mat4 invView;
+        };
+        
+        struct alignas(16) GPUCullingGlobalData {
+            uint32_t pyramidWidth = 0;
+            uint32_t pyramidHeight = 0;
+            uint32_t totalInstances;
+            uint32_t padding;
+        };
+        
+        struct GPUObjectDataBuffer {
+            
+            struct alignas(16) GPUObjectData {
+                glm::vec4 aabbMin;
+                glm::vec4 aabbMax;
+            };
+            
+            std::vector<GPUObjectData> data;
+            GPUObjectDataBuffer() = default;
+            explicit GPUObjectDataBuffer(size_t numObjects) : data(numObjects) {}
+            void reset() { std::fill(data.begin(), data.end(), GPUObjectData{}); }
+            size_t size() const { return data.size(); }
+            GPUObjectData* dataPtr() { return data.data(); }
+            size_t bufferSize() const { return data.size() * sizeof(GPUObjectData); }
+        };
+        
+        struct VisibleIndices {
+            VisibleIndices() = default;
+            std::vector<uint32_t> indices;
+            explicit VisibleIndices(size_t numObjects) : indices(numObjects, 0) {}
+            void reset() { std::fill(indices.begin(), indices.end(), 0); }
+            size_t size() const { return indices.size(); }
+            uint32_t* data() { return indices.data(); }
+        };
+        
         OcclusionSystem(ArxDevice &device);
         ~OcclusionSystem();
         
         OcclusionSystem(const OcclusionSystem &) = delete;
         OcclusionSystem &operator=(const OcclusionSystem &) = delete;
         
+        void setViewProj(const glm::mat4 &proj, const glm::mat4 &inv) {
+            cameraData.viewProj = proj;
+            cameraData.invView  = inv;
+        }
+        
+        void setVisibleIndices(const std::vector<uint32_t> &rhs) {
+            visibleIndices.reset();
+            visibleIndices.indices = rhs;
+        }
+    
+        void setObjectDataFromAABBs(const std::unordered_map<unsigned int, AABB>& chunkAABBs) {
+            objectData.data.clear();
+            objectData.data.reserve(chunkAABBs.size());
+            std::vector<uint32_t> indices;
+            indices.reserve(chunkAABBs.size());
+
+            for (const auto& c : chunkAABBs) {
+                GPUObjectDataBuffer::GPUObjectData gpuObjectData;
+                gpuObjectData.aabbMin = glm::vec4(c.second.min, 1.0f);
+                gpuObjectData.aabbMax = glm::vec4(c.second.max, 1.0f);
+                objectData.data.push_back(gpuObjectData);
+                indices.push_back(c.first);
+            }
+            std::cout << "Indices: " << indices.size() << "\n";
+            setVisibleIndices(indices);
+        }
+        
+        void setGlobalData(const uint32_t& width, const uint32_t& height, const uint32_t& instances) {
+            cullingData.pyramidWidth = width;
+            cullingData.pyramidHeight = height;
+            cullingData.totalInstances = instances;
+        }
+
+    
         std::unique_ptr<ArxDescriptorPool>          depthDescriptorPool;
         std::unique_ptr<ArxDescriptorSetLayout>     depthDescriptorLayout;
         std::vector<VkDescriptorSet>                depthDescriptorSets;
@@ -45,11 +115,31 @@ namespace arx {
         VkImageMemoryBarrier                        framebufferDepthWriteBarrier = {};
         VkImageMemoryBarrier                        framebufferDepthReadBarrier = {};
         
-        void createPipelineLayout();
-        void createPipeline();
+        void createDepthPyramidPipelineLayout();
+        void createDepthPyramidPipeline();
                 
-        std::unique_ptr<ArxPipeline>    arxPipeline;
-        VkPipelineLayout                pipelineLayout;
+        std::unique_ptr<ArxPipeline>                depthPyramidPipeline;
+        VkPipelineLayout                            depthPyramidPipelineLayout;
+        
+        // Culling variables
+        std::unique_ptr<ArxPipeline>                cullingPipeline;
+        VkPipelineLayout                            cullingPipelineLayout;
+        std::unique_ptr<ArxDescriptorSetLayout>     cullingDescriptorLayout;
+        std::unique_ptr<ArxDescriptorPool>          cullingDescriptorPool;
+        VkDescriptorSet                             cullingDescriptorSet;
+        
+        std::unique_ptr<ArxBuffer>                  cameraBuffer;
+        std::unique_ptr<ArxBuffer>                  objectsDataBuffer;
+        std::unique_ptr<ArxBuffer>                  visibilityBuffer;
+        std::unique_ptr<ArxBuffer>                  globalDataBuffer;
+        
+        void createCullingPipelineLayout();
+        void createCullingPipeline();
+        
+        GPUCameraData                               cameraData;
+        GPUObjectDataBuffer                         objectData;
+        GPUCullingGlobalData                        cullingData;
+        VisibleIndices                              visibleIndices;
         
     private:
         ArxDevice&                      arxDevice;

@@ -43,7 +43,7 @@ namespace arx {
         activateVoxelsFromHeightmap(heightMap, globalOffset);
         smoothTerrain();
         colorVoxels();
-        //        deactivateHiddenVoxels();
+//        deactivateHiddenVoxels();
         tmpInstance.resize(instances);
         
         uint32_t index = 0;
@@ -90,7 +90,7 @@ namespace arx {
             }
         }
 
-        std::cout << "Instances drawn: " << instances << std::endl;
+//        std::cout << "Instances drawn: " << instances << std::endl;
         if (instances > 0)
         {
             std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
