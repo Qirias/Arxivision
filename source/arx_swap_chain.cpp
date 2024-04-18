@@ -859,7 +859,7 @@ namespace arx {
 
     void ArxSwapChain::loadGeometryToDevice() {
 
-        VkMemoryPropertyFlags memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        VkMemoryPropertyFlags memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         
         // ObjectBuffer
         cull.objectsDataBuffer = std::make_unique<ArxBuffer>(
@@ -884,7 +884,6 @@ namespace arx {
         cull.visibilityBuffer->writeToBuffer(cull.visibleIndices.data());
         
         // Global data
-        cull.setGlobalData(cull.depthPyramidWidth, cull.depthPyramidHeight, static_cast<uint32_t>(cull.visibleIndices.indices.size()));
         cull.globalDataBuffer = std::make_unique<ArxBuffer>(
             device,
             sizeof(OcclusionSystem::GPUCullingGlobalData),

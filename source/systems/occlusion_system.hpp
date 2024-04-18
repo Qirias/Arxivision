@@ -23,15 +23,22 @@ namespace arx {
         }
         
         struct alignas(16) GPUCameraData {
+            glm::mat4 view;
+            glm::mat4 proj;
             glm::mat4 viewProj;
             glm::mat4 invView;
         };
         
         struct alignas(16) GPUCullingGlobalData {
+            glm::vec4 frustum[6] = { glm::vec4(0) };
+            float zNear = 0;
+            float zFar = 10000.f;
+            float P00 = 0;
+            float P11 = 0;
             uint32_t pyramidWidth = 0;
             uint32_t pyramidHeight = 0;
             uint32_t totalInstances;
-            uint32_t padding;
+            glm::vec4 _padding;
         };
         
         struct GPUObjectDataBuffer {
@@ -65,8 +72,10 @@ namespace arx {
         OcclusionSystem(const OcclusionSystem &) = delete;
         OcclusionSystem &operator=(const OcclusionSystem &) = delete;
         
-        void setViewProj(const glm::mat4 &proj, const glm::mat4 &inv) {
-            cameraData.viewProj = proj;
+        void setViewProj(const glm::mat4 &proj, const glm::mat4 &view, const glm::mat4 &inv) {
+            cameraData.view = view;
+            cameraData.proj = proj;
+            cameraData.viewProj = proj * view;
             cameraData.invView  = inv;
         }
         
@@ -92,7 +101,16 @@ namespace arx {
             setVisibleIndices(indices);
         }
         
-        void setGlobalData(const uint32_t& width, const uint32_t& height, const uint32_t& instances) {
+        void setGlobalData(const glm::mat4& projectionMatrix, const uint32_t& width, const uint32_t& height, const uint32_t& instances) {
+            glm::mat4 projectionT = glm::transpose(projectionMatrix);
+            cullingData.frustum[0] = projectionT[3] + projectionT[0];
+            cullingData.frustum[1] = projectionT[3] - projectionT[0];
+            cullingData.frustum[2] = projectionT[3] + projectionT[1];
+            cullingData.frustum[3] = projectionT[3] - projectionT[1];
+            cullingData.zNear = 0.1f;
+            cullingData.zFar = 1024.f;
+            cullingData.P00 = projectionT[0][0];
+            cullingData.P11 = projectionT[1][1];
             cullingData.pyramidWidth = width;
             cullingData.pyramidHeight = height;
             cullingData.totalInstances = instances;

@@ -85,8 +85,8 @@ namespace arx {
         uint32_t instances = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
         
         arxRenderer.getSwapChain()->cull.setObjectDataFromAABBs(chunkManager.getChunkAABBs());
-        arxRenderer.getSwapChain()->cull.setViewProj(camera.getVP(), camera.getInverseView());
-        arxRenderer.getSwapChain()->cull.setGlobalData(arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, instances);
+        arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+        arxRenderer.getSwapChain()->cull.setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, instances);
         arxRenderer.getSwapChain()->loadGeometryToDevice();
         
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -118,7 +118,7 @@ namespace arx {
 //                camera.cull_chunks_against_frustum(chunkManager.GetChunkPositions(), visibleChunksIndices, CHUNK_SIZE);
                 
                 // Update Dynamic Data
-                arxRenderer.getSwapChain()->cull.setViewProj(camera.getVP(), camera.getInverseView());
+                arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
                 arxRenderer.getSwapChain()->updateDynamicData();
 
                 std::vector<uint32_t> visibleChunksIndices;

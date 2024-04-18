@@ -8,6 +8,8 @@ struct ObjectData {
 };
 
 layout (set = 0, binding = 0) uniform CameraData {
+    mat4 view;
+    mat4 proj;
     mat4 viewProj;
     mat4 invView;
 } camera;
@@ -22,11 +24,17 @@ layout (set = 0, binding = 3) buffer VisibilityBuffer {
     uint visibleIndices[];
 } visibilityBuffer;
 
+// Might need frustum planes in the future
 layout (set = 0, binding = 4) uniform GlobalData {
+    vec4 frustum[6];  // Left/right/top/bottom frustum planes
+    float zNear;
+    float zFar;
+    float P00;
+    float P11;
     uint pyramidWidth;
     uint pyramidHeight;
     uint instances;
-    uint padding;
+    vec4 _padding;
 } globalData;
 
 
@@ -71,37 +79,44 @@ bool isVisibleAABB(vec3 aabbMin, vec3 aabbMax) {
     if (!isFrustumVisible(aabbMin, aabbMax, camera.viewProj)) {
         return false;  // Cull early if not within frustum
     }
-    else
-        return true;
-        
-    vec3 boxHalfExtents = 0.5 * (aabbMax - aabbMin);
+    
+    vec3 boxCorners[8] = {
+        vec3(aabbMin.x, aabbMin.y, aabbMin.z),
+        vec3(aabbMax.x, aabbMin.y, aabbMin.z),
+        vec3(aabbMin.x, aabbMax.y, aabbMin.z),
+        vec3(aabbMax.x, aabbMax.y, aabbMin.z),
+        vec3(aabbMin.x, aabbMin.y, aabbMax.z),
+        vec3(aabbMax.x, aabbMin.y, aabbMax.z),
+        vec3(aabbMin.x, aabbMax.y, aabbMax.z),
+        vec3(aabbMax.x, aabbMax.y, aabbMax.z)
+    };
+    float minDepth = 1.0;
+    float maxDepth = 0.0;
 
-    vec4 clipMin = camera.viewProj * vec4(boxCenter - boxHalfExtents, 1.0);
-    vec4 clipMax = camera.viewProj * vec4(boxCenter + boxHalfExtents, 1.0);
+    for (int i = 0; i < 8; i++) {
+        vec4 clipCoord = camera.viewProj * vec4(boxCorners[i], 1.0);
+        vec3 ndc = clipCoord.xyz / clipCoord.w;
+        vec2 uv = ndc.xy * 0.5 + 0.5;
+        uv = clamp(uv, vec2(0.0), vec2(1.0));
 
-    vec3 clipMinNDC = clipMin.xyz / clipMin.w;
-    vec3 clipMaxNDC = clipMax.xyz / clipMax.w;
+        float lod = max(floor(log2(max(width, height))) - 1, 0.0);
+        // Sample the depth pyramid
+        float depth = textureLod(depthPyramid, uv, lod).r;
 
-    vec2 uvMin = clipMinNDC.xy * 0.5 + 0.5;
-    vec2 uvMax = clipMaxNDC.xy * 0.5 + 0.5;
-
-    uvMin = clamp(uvMin, vec2(0.0, 0.0), vec2(1.0, 1.0));
-    uvMax = clamp(uvMax, vec2(0.0, 0.0), vec2(1.0, 1.0));
-
-    float width = (uvMax.x - uvMin.x) * float(globalData.pyramidWidth);
-    float height = (uvMax.y - uvMin.y) * float(globalData.pyramidHeight);
-    float lod = max(floor(log2(max(width, height))), 0.0);
-
-    float minDepth = MAX_DEPTH;
-    for (float u = uvMin.x; u <= uvMax.x; u += SAMPLE_STEP) {
-        for (float v = uvMin.y; v <= uvMax.y; v += SAMPLE_STEP) {
-            float depth = textureLod(depthPyramid, vec2(u, v), lod).r;
-            minDepth = min(minDepth, depth);
-        }
+        // Keep track of the minimum and maximum depth found
+        minDepth = min(minDepth, depth);
+        maxDepth = max(maxDepth, depth);
     }
 
-    return (clipMax.z / clipMax.w) <= minDepth;
+    // Compare the nearest and furthest Z-values in clip space
+    vec4 clipMin = camera.viewProj * vec4(aabbMin, 1.0);
+    vec4 clipMax = camera.viewProj * vec4(aabbMax, 1.0);
+    float nearestZ = min(clipMin.z / clipMin.w, clipMax.z / clipMax.w);
+    float furthestZ = max(clipMin.z / clipMin.w, clipMax.z / clipMax.w);
+
+    return nearestZ <= maxDepth && furthestZ >= minDepth;
 }
+
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
