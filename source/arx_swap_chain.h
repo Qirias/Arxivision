@@ -23,8 +23,11 @@ class ArxSwapChain {
         ArxSwapChain& operator=(const ArxSwapChain &) = delete;
 
         VkFramebuffer getFrameBuffer(int index) { return swapChainFramebuffers[index]; }
+        VkFramebuffer getLateFrameBuffer(int index) { return lateSwapChainFramebuffers[index]; }
         VkRenderPass getRenderPass() { return renderPass; }
+        VkRenderPass getLateRenderPass() { return lateRenderPass; }
         VkImageView getImageView(int index) { return swapChainImageViews[index]; }
+        VkImage getDepthImage() { return depthImage; }
         size_t imageCount() { return swapChainImages.size(); }
         VkFormat getSwapChainImageFormat() { return swapChainImageFormat; }
         VkExtent2D getSwapChainExtent() { return swapChainExtent; }
@@ -49,8 +52,8 @@ class ArxSwapChain {
         void createSwapChain();
         void createImageViews();
         void createDepthResources();
-        void createRenderPass();
-        void createFramebuffers();
+        void createRenderPass(bool latePass = false);
+        void createFramebuffers(bool latePass = false);
         void createSyncObjects();
         void createColorResources();
         VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, uint32_t baseMipLevel = 0);
@@ -74,6 +77,9 @@ class ArxSwapChain {
 
         std::vector<VkFramebuffer>  swapChainFramebuffers;
         VkRenderPass                renderPass;
+    
+        std::vector<VkFramebuffer>  lateSwapChainFramebuffers;
+        VkRenderPass                lateRenderPass;
 
         
         std::vector<VkImage>        depthImages; // Multisampled

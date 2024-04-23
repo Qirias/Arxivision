@@ -112,7 +112,6 @@ namespace arx {
                     gameObjects
                 };
                 
-                
                 // Frustum culling
 //                camera.setPerspectiveProjection(glm::radians(40.f), aspect, .1f, 1024.f);
 //                camera.cull_chunks_against_frustum(chunkManager.GetChunkPositions(), visibleChunksIndices, CHUNK_SIZE);
@@ -141,9 +140,20 @@ namespace arx {
                 simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
                 
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
+                
+                // Calculate the depth pyramid
                 arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
+                
+//                arxRenderer.beginLateRenderPass(frameInfo, commandBuffer);
+//                arxRenderer.endLateRenderPass(commandBuffer);
+                
                 arxRenderer.endFrame();
                 visibleChunksIndices.clear();
+                // Use for profiling
+//                auto startProgram = std::chrono::high_resolution_clock::now();
+//                auto endProgram = std::chrono::high_resolution_clock::now();
+//                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endProgram - startProgram).count();
+//                std::cout << "Time: " << duration << " ms" << std::endl;
             }
         }
         vkDeviceWaitIdle(arxDevice.device());

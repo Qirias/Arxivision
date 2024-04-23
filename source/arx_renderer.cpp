@@ -139,12 +139,32 @@ namespace arx {
         VkRect2D scissor{{0, 0}, arxSwapChain->getSwapChainExtent()};
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-        
-        
     }
 
     void ArxRenderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {
         assert(isFrameStarted && "Can't endSwapChainRenderPass if frame is not in progress");
+        assert(commandBuffer == getCurrentCommandBuffer() && "Can't end render pass on command buffer from a different frame");
+        
+        vkCmdEndRenderPass(commandBuffer);
+    }
+
+    void ArxRenderer::beginLateRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer) {
+        assert(isFrameStarted && "Can't beginLateRenderPass if frame is not in progress");
+        assert(commandBuffer == getCurrentCommandBuffer() && "Can't begin render pass on command buffer from a different frame");
+        
+        VkRenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType        = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass   = arxSwapChain->getLateRenderPass();
+        renderPassInfo.framebuffer  = arxSwapChain->getLateFrameBuffer(currentImageIndex);
+        
+        renderPassInfo.renderArea.offset = {0, 0};
+        renderPassInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
+        
+        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    }
+
+    void ArxRenderer::endLateRenderPass(VkCommandBuffer commandBuffer) {
+        assert(isFrameStarted && "Can't endLateRenderPass if frame is not in progress");
         assert(commandBuffer == getCurrentCommandBuffer() && "Can't end render pass on command buffer from a different frame");
         
         vkCmdEndRenderPass(commandBuffer);

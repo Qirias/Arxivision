@@ -21,6 +21,14 @@ namespace arx {
         glm::vec3 color{};
     };
 
+    struct VkDrawIndexedIndirectCommand {
+        uint32_t indexCount;
+        uint32_t instanceCount;
+        uint32_t firstIndex;
+        int32_t vertexOffset;
+        uint32_t firstInstance;
+    };
+
     class ArxModel {
     public:
         
@@ -58,6 +66,7 @@ namespace arx {
         
         void bind(VkCommandBuffer commandBuffer);
         void draw(VkCommandBuffer commandBuffer);
+        void drawIndirect(VkCommandBuffer commandBuffer);
         uint32_t getIndexCount() { return indexCount; }
 
         
@@ -78,5 +87,7 @@ namespace arx {
         bool                        hasIndexBuffer = false;
         std::unique_ptr<ArxBuffer>  indexBuffer;
         uint32_t                    indexCount;
+        
+        std::unique_ptr<ArxBuffer>  drawIndirectBuffer;
     };
 }

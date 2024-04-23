@@ -42,6 +42,9 @@ namespace arx {
         void endFrame();
         void beginSwapChainRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer);
         void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
+
+        void beginLateRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer);
+        void endLateRenderPass(VkCommandBuffer commandBuffer);
         
     private:
         void createCommandBuffers();

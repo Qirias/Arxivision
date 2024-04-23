@@ -29,9 +29,11 @@ namespace arx {
         createSwapChain();
         createImageViews();
         createRenderPass();
+        createRenderPass(true);
         createColorResources();
         createDepthResources();
         createFramebuffers();
+        createFramebuffers(true);
         createSyncObjects();
         
         createDepthSampler();
@@ -66,14 +68,13 @@ namespace arx {
         
         vkDestroySampler(device.device(), depthSampler, nullptr);
         depthSampler = VK_NULL_HANDLE;
-        
-        
 
         for (auto framebuffer : swapChainFramebuffers) {
             vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
         }
 
         vkDestroyRenderPass(device.device(), renderPass, nullptr);
+        vkDestroyRenderPass(device.device(), lateRenderPass, nullptr);
 
         // cleanup synchronization objects
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -259,16 +260,16 @@ namespace arx {
       }
     }
 
-    void ArxSwapChain::createRenderPass() {
+    void ArxSwapChain::createRenderPass(bool latePass) {
         VkAttachmentDescription2 depthAttachment{};
         depthAttachment.sType             = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
         depthAttachment.format            = findDepthFormat();
         depthAttachment.samples           = device.msaaSamples;
-        depthAttachment.loadOp            = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp           = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.loadOp            = latePass ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp           = latePass ? VK_ATTACHMENT_STORE_OP_DONT_CARE: VK_ATTACHMENT_STORE_OP_STORE;
         depthAttachment.stencilLoadOp     = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthAttachment.stencilStoreOp    = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.initialLayout     = latePass ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
         depthAttachment.finalLayout       = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
         VkAttachmentReference2 depthAttachmentRef{};
@@ -298,11 +299,11 @@ namespace arx {
         colorAttachment.sType             = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
         colorAttachment.format            = getSwapChainImageFormat();
         colorAttachment.samples           = device.msaaSamples;
-        colorAttachment.loadOp            = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachment.loadOp            = latePass ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachment.storeOp           = VK_ATTACHMENT_STORE_OP_STORE;
         colorAttachment.stencilStoreOp    = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachment.stencilLoadOp     = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachment.initialLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.initialLayout     = latePass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
         colorAttachment.finalLayout       = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
         VkAttachmentReference2 colorAttachmentRef = {};
@@ -360,34 +361,38 @@ namespace arx {
         renderPassInfo.dependencyCount    = 1;
         renderPassInfo.pDependencies      = &dependency;
 
-        if (vkCreateRenderPass2(device.device(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
+        if (vkCreateRenderPass2(device.device(), &renderPassInfo, nullptr, latePass ? &lateRenderPass : &renderPass) != VK_SUCCESS) {
             throw std::runtime_error("failed to create render pass!");
         }
     }
 
-    void ArxSwapChain::createFramebuffers() {
-      swapChainFramebuffers.resize(imageCount());
-      for (size_t i = 0; i < imageCount(); i++) {
-        std::array<VkImageView, 4> attachments = {colorImageView, depthImageViews[i], swapChainImageViews[i], depthImageView};
+    void ArxSwapChain::createFramebuffers(bool latePass) {
+        if (latePass)
+            lateSwapChainFramebuffers.resize(imageCount());
+        else
+            swapChainFramebuffers.resize(imageCount());
 
-        VkExtent2D swapChainExtent = getSwapChainExtent();
-        VkFramebufferCreateInfo framebufferInfo = {};
-        framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass      = renderPass;
-        framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-        framebufferInfo.pAttachments    = attachments.data();
-        framebufferInfo.width           = swapChainExtent.width;
-        framebufferInfo.height          = swapChainExtent.height;
-        framebufferInfo.layers          = 1;
+        for (size_t i = 0; i < imageCount(); i++) {
+            std::array<VkImageView, 4> attachments = {colorImageView, depthImageViews[i], swapChainImageViews[i], depthImageView};
 
-        if (vkCreateFramebuffer(
-                device.device(),
-                &framebufferInfo,
-                nullptr,
-                &swapChainFramebuffers[i]) != VK_SUCCESS) {
-          throw std::runtime_error("failed to create framebuffer!");
+            VkExtent2D swapChainExtent = getSwapChainExtent();
+            VkFramebufferCreateInfo framebufferInfo = {};
+            framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass      = renderPass;
+            framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+            framebufferInfo.pAttachments    = attachments.data();
+            framebufferInfo.width           = swapChainExtent.width;
+            framebufferInfo.height          = swapChainExtent.height;
+            framebufferInfo.layers          = 1;
+
+            if (vkCreateFramebuffer(
+                    device.device(),
+                    &framebufferInfo,
+                    nullptr,
+                    latePass ? &lateSwapChainFramebuffers[i] : &swapChainFramebuffers[i]) != VK_SUCCESS) {
+              throw std::runtime_error("failed to create framebuffer!");
+            }
         }
-      }
     }
 
     void ArxSwapChain::createColorResources() {
@@ -675,7 +680,7 @@ namespace arx {
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f)
             .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f)
             .build();
-        
+    
         VkDescriptorBufferInfo cameraBufferInfo{};
         cameraBufferInfo.buffer = cull.cameraBuffer->getBuffer();
         cameraBufferInfo.offset = 0;
@@ -909,12 +914,9 @@ namespace arx {
     }
 
     void ArxSwapChain::updateDynamicData() {
-//        cull.cameraBuffer->map();
         cull.cameraBuffer->writeToBuffer(&cull.cameraData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCameraData)));
-//        cull.cameraBuffer->unmap();
-//        cull.visibilityBuffer->writeToBuffer(cull.visibleIndices.data(), static_cast<uint64_t>(sizeof(cull.visibleIndices.size()) * sizeof(uint32_t)));
+//        cull.visibilityBuffer->writeToBuffer(cull.visibleIndices.data(), static_cast<uint64_t>(cull.visibleIndices.size() * sizeof(uint32_t)));
 //        cull.globalDataBuffer->writeToBuffer(&cull.cullingData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCullingGlobalData)));
 //        cull.objectsDataBuffer->writeToBuffer(cull.objectData.dataPtr(), static_cast<uint64_t>(cull.objectData.bufferSize()));
-
     }
 }

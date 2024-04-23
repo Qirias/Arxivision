@@ -79,9 +79,13 @@ namespace arx {
             cameraData.invView  = inv;
         }
         
-        void setVisibleIndices(const std::vector<uint32_t> &rhs) {
+        void setVisibleIndices(const std::vector<uint32_t> rhs) {
             visibleIndices.reset();
             visibleIndices.indices = rhs;
+        }
+        
+        void resetIndices() {
+            visibleIndices.reset();
         }
     
         void setObjectDataFromAABBs(const std::unordered_map<unsigned int, AABB>& chunkAABBs) {
@@ -97,7 +101,6 @@ namespace arx {
                 objectData.data.push_back(gpuObjectData);
                 indices.push_back(c.first);
             }
-            std::cout << "Indices: " << indices.size() << "\n";
             setVisibleIndices(indices);
         }
         

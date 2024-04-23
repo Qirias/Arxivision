@@ -144,6 +144,12 @@ namespace arx {
             vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
         }
     }
+    
+    void ArxModel::drawIndirect(VkCommandBuffer commandBuffer) {
+        if (hasIndexBuffer) {
+            vkCmdDrawIndexedIndirect(commandBuffer, drawIndirectBuffer->getBuffer(), 0, instanceCount, sizeof(VkDrawIndexedIndirectCommand));
+        }
+    }
 
     void ArxModel::bind(VkCommandBuffer commandBuffer) {
         VkBuffer buffers[]      = {vertexBuffer->getBuffer(), instanceBuffer->getBuffer()};
