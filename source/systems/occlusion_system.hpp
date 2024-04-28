@@ -57,11 +57,20 @@ namespace arx {
             size_t bufferSize() const { return data.size() * sizeof(GPUObjectData); }
         };
         
-        struct VisibleIndices {
-            VisibleIndices() = default;
+        struct GPUVisibleIndices {
+            GPUVisibleIndices() = default;
             std::vector<uint32_t> indices;
-            explicit VisibleIndices(size_t numObjects) : indices(numObjects, 0) {}
+            explicit GPUVisibleIndices(size_t numObjects) : indices(numObjects, 0) {}
             void reset() { std::fill(indices.begin(), indices.end(), 0); }
+            size_t size() const { return indices.size(); }
+            uint32_t* data() { return indices.data(); }
+        };
+        
+        struct GPUDrawVisibility {
+            GPUDrawVisibility() = default;
+            std::vector<uint32_t> indices;
+            explicit GPUDrawVisibility(size_t numObjects) : indices(numObjects, 0) {}
+            void reset() { std::fill(indices.begin(), indices.end(), 1); }
             size_t size() const { return indices.size(); }
             uint32_t* data() { return indices.data(); }
         };
@@ -84,15 +93,12 @@ namespace arx {
             visibleIndices.indices = rhs;
         }
         
-        void resetIndices() {
-            visibleIndices.reset();
-        }
-    
         void setObjectDataFromAABBs(const std::unordered_map<unsigned int, AABB>& chunkAABBs) {
             objectData.data.clear();
             objectData.data.reserve(chunkAABBs.size());
             std::vector<uint32_t> indices;
             indices.reserve(chunkAABBs.size());
+            drawVisibility.indices.reserve(chunkAABBs.size());
 
             for (const auto& c : chunkAABBs) {
                 GPUObjectDataBuffer::GPUObjectData gpuObjectData;
@@ -100,6 +106,7 @@ namespace arx {
                 gpuObjectData.aabbMax = glm::vec4(c.second.max, 1.0f);
                 objectData.data.push_back(gpuObjectData);
                 indices.push_back(c.first);
+                drawVisibility.indices.push_back(1);
             }
             setVisibleIndices(indices);
         }
@@ -120,6 +127,7 @@ namespace arx {
         }
 
     
+        // Depth pyramid
         std::unique_ptr<ArxDescriptorPool>          depthDescriptorPool;
         std::unique_ptr<ArxDescriptorSetLayout>     depthDescriptorLayout;
         std::vector<VkDescriptorSet>                depthDescriptorSets;
@@ -138,29 +146,40 @@ namespace arx {
         
         void createDepthPyramidPipelineLayout();
         void createDepthPyramidPipeline();
-                
+        
         std::unique_ptr<ArxPipeline>                depthPyramidPipeline;
         VkPipelineLayout                            depthPyramidPipelineLayout;
         
-        // Culling variables
+        // Culling stuff
         std::unique_ptr<ArxPipeline>                cullingPipeline;
         VkPipelineLayout                            cullingPipelineLayout;
         std::unique_ptr<ArxDescriptorSetLayout>     cullingDescriptorLayout;
         std::unique_ptr<ArxDescriptorPool>          cullingDescriptorPool;
         VkDescriptorSet                             cullingDescriptorSet;
         
+        void createCullingPipelineLayout();
+        void createCullingPipeline();
+        
+        // Late culling stuff, will reuse the same descriptors as the culling. Will only need new pipeline
+        std::unique_ptr<ArxPipeline>                lateCullingPipeline;
+        VkPipelineLayout                            lateCullingPipelineLayout;
+        
+        void createLateCullingPipelineLayout();
+        void createLateCullingPipeline();
+        
+        // Buffers for the compute shaders
         std::unique_ptr<ArxBuffer>                  cameraBuffer;
         std::unique_ptr<ArxBuffer>                  objectsDataBuffer;
         std::unique_ptr<ArxBuffer>                  visibilityBuffer;
         std::unique_ptr<ArxBuffer>                  globalDataBuffer;
+        std::unique_ptr<ArxBuffer>                  drawVisibilityBuffer;
         
-        void createCullingPipelineLayout();
-        void createCullingPipeline();
-        
+        // Buffers data
         GPUCameraData                               cameraData;
         GPUObjectDataBuffer                         objectData;
         GPUCullingGlobalData                        cullingData;
-        VisibleIndices                              visibleIndices;
+        GPUVisibleIndices                           visibleIndices;
+        GPUDrawVisibility                           drawVisibility;
         
     private:
         ArxDevice&                      arxDevice;

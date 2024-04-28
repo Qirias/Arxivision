@@ -29,11 +29,11 @@ namespace arx {
         createSwapChain();
         createImageViews();
         createRenderPass();
-        createRenderPass(true);
+        createRenderPass(true); // late
         createColorResources();
         createDepthResources();
         createFramebuffers();
-        createFramebuffers(true);
+        createFramebuffers(true); // late
         createSyncObjects();
         
         createDepthSampler();
@@ -100,7 +100,7 @@ namespace arx {
         
         cull.depthDescriptorSets.clear();
         
-        // Culling
+        // culling
         cull.cullingDescriptorSet = VK_NULL_HANDLE;
         cull.cullingDescriptorLayout = VK_NULL_HANDLE;
         
@@ -108,6 +108,12 @@ namespace arx {
         cull.cullingPipeline->computePipeline = VK_NULL_HANDLE;
         vkDestroyPipelineLayout(device.device(), cull.cullingPipelineLayout, nullptr);
         cull.cullingPipelineLayout = VK_NULL_HANDLE;
+        
+        // late culling
+        vkDestroyPipeline(device.device(), cull.lateCullingPipeline->computePipeline, nullptr);
+        cull.lateCullingPipeline->computePipeline = VK_NULL_HANDLE;
+        vkDestroyPipelineLayout(device.device(), cull.lateCullingPipelineLayout, nullptr);
+        cull.lateCullingPipelineLayout = VK_NULL_HANDLE;
     }
 
     
@@ -678,7 +684,7 @@ namespace arx {
             .setMaxSets(cull.depthPyramidLevels)
             .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3.f)
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3.f)
             .build();
     
         VkDescriptorBufferInfo cameraBufferInfo{};
@@ -706,12 +712,18 @@ namespace arx {
         globalDataBufferInfo.offset = 0;
         globalDataBufferInfo.range = VK_WHOLE_SIZE;
         
+        VkDescriptorBufferInfo drawVisibilityBufferInfo{};
+        drawVisibilityBufferInfo.buffer = cull.drawVisibilityBuffer->getBuffer();
+        drawVisibilityBufferInfo.offset = 0;
+        drawVisibilityBufferInfo.range = VK_WHOLE_SIZE;
+        
         ArxDescriptorWriter(*cull.cullingDescriptorLayout, *cull.cullingDescriptorPool)
                             .writeBuffer(0, &cameraBufferInfo)
                             .writeBuffer(1, &objectsDataBufferInfo)
                             .writeImage(2, &depthPyramidInfo)
                             .writeBuffer(3, &visibilityInfo)
                             .writeBuffer(4, &globalDataBufferInfo)
+                            .writeBuffer(5, &drawVisibilityBufferInfo)
                             .build(cull.cullingDescriptorSet);
     }
 
@@ -821,10 +833,10 @@ namespace arx {
         cull.framebufferDepthReadBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
     }
 
-    std::vector<uint32_t> ArxSwapChain::computeCulling(VkCommandBuffer commandBuffer, const uint32_t instances) {
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cull.cullingPipeline->computePipeline);
+    std::vector<uint32_t> ArxSwapChain::computeCulling(VkCommandBuffer commandBuffer, const uint32_t instances, bool late) {
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, late ? cull.lateCullingPipeline->computePipeline : cull.cullingPipeline->computePipeline);
 
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cull.cullingPipelineLayout, 0, 1, &cull.cullingDescriptorSet, 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, late ? cull.lateCullingPipelineLayout : cull.cullingPipelineLayout, 0, 1, &cull.cullingDescriptorSet, 0, nullptr);
         
         uint32_t groupCountX = static_cast<uint32_t>((instances / 256) + 1);
         vkCmdDispatch(commandBuffer, groupCountX, 1, 1);
@@ -836,6 +848,7 @@ namespace arx {
                 .buffer = cull.visibilityBuffer->getBuffer(),
                 .size = VK_WHOLE_SIZE
             };
+        
             vkCmdPipelineBarrier(
                 commandBuffer,
                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // After compute shader
@@ -845,6 +858,25 @@ namespace arx {
                 1, &barrier,
                 0, nullptr
              );
+        
+        VkBufferMemoryBarrier drawVisibilityBarrier = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT, // After shader writes
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT, // Before shader reads
+            .buffer = cull.drawVisibilityBuffer->getBuffer(),
+            .size = VK_WHOLE_SIZE
+        };
+
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // After compute shader write
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // Before compute shader read
+            0,
+            0, nullptr,
+            1, &drawVisibilityBarrier,
+            0, nullptr
+        );
+        
 
         // Read data directly from the mapped buffer
         uint32_t* ptr = static_cast<uint32_t*>(cull.visibilityBuffer->getMappedMemory());
@@ -910,6 +942,17 @@ namespace arx {
         cull.cameraBuffer->map();
         cull.cameraBuffer->writeToBuffer(&cull.cameraData);
         
+        // GPUDrawVisibilityBuffer
+        cull.drawVisibilityBuffer = std::make_unique<ArxBuffer>(
+                device,
+                sizeof(OcclusionSystem::GPUDrawVisibility),
+                cull.drawVisibility.size(),
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        cull.drawVisibilityBuffer->map();
+        cull.drawVisibilityBuffer->writeToBuffer(cull.drawVisibility.data());
+        
         createCullingDescriptors();
     }
 
@@ -918,5 +961,20 @@ namespace arx {
 //        cull.visibilityBuffer->writeToBuffer(cull.visibleIndices.data(), static_cast<uint64_t>(cull.visibleIndices.size() * sizeof(uint32_t)));
 //        cull.globalDataBuffer->writeToBuffer(&cull.cullingData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCullingGlobalData)));
 //        cull.objectsDataBuffer->writeToBuffer(cull.objectData.dataPtr(), static_cast<uint64_t>(cull.objectData.bufferSize()));
+    }
+
+    VkBufferMemoryBarrier ArxSwapChain::bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask)
+    {
+        VkBufferMemoryBarrier result = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+
+        result.srcAccessMask = srcAccessMask;
+        result.dstAccessMask = dstAccessMask;
+        result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        result.buffer = buffer;
+        result.offset = 0;
+        result.size = VK_WHOLE_SIZE;
+
+        return result;
     }
 }

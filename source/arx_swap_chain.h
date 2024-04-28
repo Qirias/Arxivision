@@ -115,11 +115,12 @@ class ArxSwapChain {
         void computeDepthPyramid(VkCommandBuffer commandBuffer);
         void createBarriers();
         void loadGeometryToDevice();
+        VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
         VkImageMemoryBarrier createImageBarrier(VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, VkImageAspectFlags aspectFlags, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, uint32_t baseMipLevels, uint32_t levelCount);
     
         void createCullingDescriptors();
         void updateDynamicData();
-        std::vector<uint32_t> computeCulling(VkCommandBuffer commandBuffer, const uint32_t instances);
+        std::vector<uint32_t> computeCulling(VkCommandBuffer commandBuffer, const uint32_t instances, bool late = false);
         uint32_t chunkInstances;
     };
 }

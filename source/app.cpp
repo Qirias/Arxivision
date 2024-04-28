@@ -89,6 +89,8 @@ namespace arx {
         arxRenderer.getSwapChain()->cull.setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, instances);
         arxRenderer.getSwapChain()->loadGeometryToDevice();
         
+        std::vector<uint32_t> visibleChunksIndices;
+        
         auto currentTime = std::chrono::high_resolution_clock::now();
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
@@ -112,43 +114,39 @@ namespace arx {
                     gameObjects
                 };
                 
-                // Frustum culling
-//                camera.setPerspectiveProjection(glm::radians(40.f), aspect, .1f, 1024.f);
-//                camera.cull_chunks_against_frustum(chunkManager.GetChunkPositions(), visibleChunksIndices, CHUNK_SIZE);
-                
-                // Update Dynamic Data
+
+                // Update Dynamic Data for culling
                 arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
                 arxRenderer.getSwapChain()->updateDynamicData();
-
-                std::vector<uint32_t> visibleChunksIndices;
-                visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
                 
-//                camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+                // Early: make sure previous visible objects are still visible
+                visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
 
-                // update
+                // Update ubo
                 GlobalUbo ubo{};
                 ubo.projection      = camera.getProjection();
                 ubo.view            = camera.getView();
                 ubo.inverseView     = camera.getInverseView();
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
-                
-                // render
+
+                // Early render, objects that were visible last frame
                 arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
-                
-                // order here matters
                 simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
-                
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
                 
                 // Calculate the depth pyramid
                 arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
                 
-//                arxRenderer.beginLateRenderPass(frameInfo, commandBuffer);
-//                arxRenderer.endLateRenderPass(commandBuffer);
+                // Late: Frustum and occlusion culling on objects that were visible
+                visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances, true);
+                
+                // Late render objects that are visible but not drawn in the early pass
+                arxRenderer.beginLateRenderPass(frameInfo, commandBuffer);
+                simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
+                arxRenderer.endLateRenderPass(commandBuffer);
                 
                 arxRenderer.endFrame();
-                visibleChunksIndices.clear();
                 // Use for profiling
 //                auto startProgram = std::chrono::high_resolution_clock::now();
 //                auto endProgram = std::chrono::high_resolution_clock::now();
