@@ -31,13 +31,13 @@ namespace arx {
         
         struct alignas(16) GPUCullingGlobalData {
             glm::vec4 frustum[6] = { glm::vec4(0) };
-            float zNear = 0;
-            float zFar = 10000.f;
+            float zNear = 0.1;
+            float zFar = 1024.f;
             float P00 = 0;
             float P11 = 0;
             uint32_t pyramidWidth = 0;
             uint32_t pyramidHeight = 0;
-            uint32_t totalInstances;
+            uint32_t totalInstances = 0;
             glm::vec4 _padding;
         };
         
@@ -111,12 +111,17 @@ namespace arx {
             setVisibleIndices(indices);
         }
         
+        glm::vec4 normalizePlane(glm::vec4 p)
+        {
+            return p / length(glm::vec3(p));
+        }
+        
         void setGlobalData(const glm::mat4& projectionMatrix, const uint32_t& width, const uint32_t& height, const uint32_t& instances) {
             glm::mat4 projectionT = glm::transpose(projectionMatrix);
-            cullingData.frustum[0] = projectionT[3] + projectionT[0];
-            cullingData.frustum[1] = projectionT[3] - projectionT[0];
-            cullingData.frustum[2] = projectionT[3] + projectionT[1];
-            cullingData.frustum[3] = projectionT[3] - projectionT[1];
+            cullingData.frustum[0] = normalizePlane(projectionT[3] + projectionT[0]); // x + w < 0
+            cullingData.frustum[1] = normalizePlane(projectionT[3] - projectionT[0]); // x - w > 0
+            cullingData.frustum[2] = normalizePlane(projectionT[3] + projectionT[1]); // y + w < 0
+            cullingData.frustum[3] = normalizePlane(projectionT[3] - projectionT[1]); // y - w > 0
             cullingData.zNear = 0.1f;
             cullingData.zFar = 1024.f;
             cullingData.P00 = projectionT[0][0];

@@ -40,7 +40,6 @@ namespace arx {
 //    }
     
     void App::run() {
-        
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
             uboBuffers[i] = std::make_unique<ArxBuffer>(arxDevice,
@@ -64,11 +63,13 @@ namespace arx {
         }
         
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
-
+        
         ArxCamera camera{};
         
         auto viewerObject = ArxGameObject::createGameObject();
         viewerObject.transform.scale = glm::vec3(0.1);
+        viewerObject.transform.translation = glm::vec3(0.0, 0.0, -10.0f);
+        
         UserInput cameraController{*this};
         
         
@@ -78,7 +79,7 @@ namespace arx {
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         
         chunkManager.setCamera(camera);
-//        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 15);
+//        chunkManager.obj2vox(gameObjects, "models/house.obj", 0.7f);
 //        chunkManager.initializeHeightTerrain(gameObjects, 8);
         chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
         
@@ -89,7 +90,7 @@ namespace arx {
         arxRenderer.getSwapChain()->cull.setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, instances);
         arxRenderer.getSwapChain()->loadGeometryToDevice();
         
-        std::vector<uint32_t> visibleChunksIndices;
+        std::vector<uint32_t> visibleChunksIndices;// = arxRenderer.getSwapChain()->cull.visibleIndices.indices;
         
         auto currentTime = std::chrono::high_resolution_clock::now();
         while (!arxWindow.shouldClose()) {
@@ -114,12 +115,7 @@ namespace arx {
                     gameObjects
                 };
                 
-
-                // Update Dynamic Data for culling
-                arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
-                arxRenderer.getSwapChain()->updateDynamicData();
-                
-                // Early: make sure previous visible objects are still visible
+                // Cull hidden chunks
                 visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
 
                 // Update ubo
@@ -136,16 +132,13 @@ namespace arx {
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
                 
                 // Calculate the depth pyramid
+                // Update Dynamic Data for culling
+                arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+                arxRenderer.getSwapChain()->updateDynamicData();
+//                
                 arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
                 
-                // Late: Frustum and occlusion culling on objects that were visible
-                visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances, true);
-                
-                // Late render objects that are visible but not drawn in the early pass
-                arxRenderer.beginLateRenderPass(frameInfo, commandBuffer);
-                simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
-                arxRenderer.endLateRenderPass(commandBuffer);
-                
+//                
                 arxRenderer.endFrame();
                 // Use for profiling
 //                auto startProgram = std::chrono::high_resolution_clock::now();

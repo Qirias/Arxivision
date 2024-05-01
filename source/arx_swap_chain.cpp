@@ -29,11 +29,11 @@ namespace arx {
         createSwapChain();
         createImageViews();
         createRenderPass();
-        createRenderPass(true); // late
+//        createRenderPass(true); // late
         createColorResources();
         createDepthResources();
         createFramebuffers();
-        createFramebuffers(true); // late
+//        createFramebuffers(true); // late
         createSyncObjects();
         
         createDepthSampler();
@@ -654,7 +654,7 @@ namespace arx {
 //        reductionCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
 //        reductionCreateInfo.reductionMode = VK_SAMPLER_REDUCTION_MODE_MAX;
 //        samplerCreateInfo.pNext = &reductionCreateInfo;
-        
+//        
         if (vkCreateSampler(device.device(), &samplerCreateInfo, 0, &depthSampler) != VK_SUCCESS)
             throw std::runtime_error("Couldn't create depth sampler!");
     }
@@ -881,7 +881,7 @@ namespace arx {
         // Read data directly from the mapped buffer
         uint32_t* ptr = static_cast<uint32_t*>(cull.visibilityBuffer->getMappedMemory());
 //        for (size_t i = 0; i < cull.visibleIndices.size(); ++i) {
-//                std::cout << "Object " << i << " visibility status: " << ptr[i] << std::endl;
+//                std::cout << "Object " << i << " depth: " << ptr[i] << std::endl;
 //        }
 
         std::vector<uint32_t> ret;
@@ -945,7 +945,7 @@ namespace arx {
         // GPUDrawVisibilityBuffer
         cull.drawVisibilityBuffer = std::make_unique<ArxBuffer>(
                 device,
-                sizeof(OcclusionSystem::GPUDrawVisibility),
+                sizeof(uint32_t),
                 cull.drawVisibility.size(),
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -958,6 +958,7 @@ namespace arx {
 
     void ArxSwapChain::updateDynamicData() {
         cull.cameraBuffer->writeToBuffer(&cull.cameraData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCameraData)));
+        cull.cameraBuffer->flush();
 //        cull.visibilityBuffer->writeToBuffer(cull.visibleIndices.data(), static_cast<uint64_t>(cull.visibleIndices.size() * sizeof(uint32_t)));
 //        cull.globalDataBuffer->writeToBuffer(&cull.cullingData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCullingGlobalData)));
 //        cull.objectsDataBuffer->writeToBuffer(cull.objectData.dataPtr(), static_cast<uint64_t>(cull.objectData.bufferSize()));

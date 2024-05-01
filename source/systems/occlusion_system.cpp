@@ -39,8 +39,8 @@ namespace arx {
         createCullingPipeline();
         
         // late
-        createLateCullingPipelineLayout();
-        createLateCullingPipeline();
+//        createLateCullingPipelineLayout();
+//        createLateCullingPipeline();
     }
 
     OcclusionSystem::~OcclusionSystem() {
