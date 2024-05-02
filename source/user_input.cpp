@@ -17,25 +17,28 @@ namespace arx {
     }
 
     void UserInput::processInput(GLFWwindow* window, float dt, ArxGameObject& gameObject) {
-        
-        // Check if rotate is not 0
-        if (glm::dot(rotate, rotate) > std::numeric_limits<float>::epsilon()) {
-            gameObject.transform.rotation += lookSpeed * glm::normalize(rotate);
+        // Toggle ImGui interaction based on key presses
+        if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
+            enableImGuiInteraction();
+        } else if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS) {
+            disableImGuiInteraction();
         }
 
-        gameObject.transform.rotation.x = glm::clamp(gameObject.transform.rotation.x, -1.5f, 1.5f);
-        gameObject.transform.rotation.y = glm::mod(gameObject.transform.rotation.y, glm::two_pi<float>());
-        
-        glm::vec3 moveDir{0.f};
-        if (glfwGetKey(window, keys.moveForward) == GLFW_PRESS)     moveDir -= forwardDir;
-        if (glfwGetKey(window, keys.moveBackward) == GLFW_PRESS)    moveDir += forwardDir;
-        if (glfwGetKey(window, keys.moveLeft) == GLFW_PRESS)        moveDir -= rightDir;
-        if (glfwGetKey(window, keys.moveRight) == GLFW_PRESS)       moveDir += rightDir;
-        if (glfwGetKey(window, keys.moveUp) == GLFW_PRESS)          moveDir += upDir;
-        if (glfwGetKey(window, keys.moveDown) == GLFW_PRESS)        moveDir -= upDir;
-        
-        if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon()) {
-            gameObject.transform.translation += moveSpeed * dt * glm::normalize(moveDir);
+        // Only process camera and movement controls if ImGui is not active
+        if (!isImGuiActive) {
+            // Movement handling
+            glm::vec3 moveDir{0.f};
+            if (glfwGetKey(window, keys.moveForward) == GLFW_PRESS)    moveDir -= forwardDir;
+            if (glfwGetKey(window, keys.moveBackward) == GLFW_PRESS)   moveDir += forwardDir;
+            if (glfwGetKey(window, keys.moveLeft) == GLFW_PRESS)       moveDir -= rightDir;
+            if (glfwGetKey(window, keys.moveRight) == GLFW_PRESS)      moveDir += rightDir;
+            if (glfwGetKey(window, keys.moveUp) == GLFW_PRESS)         moveDir += upDir;
+            if (glfwGetKey(window, keys.moveDown) == GLFW_PRESS)       moveDir -= upDir;
+
+            if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon()) {
+                gameObject.transform.translation += moveSpeed * dt * glm::normalize(moveDir);
+            }
+            processMouseMovement();
         }
     }
 
@@ -49,21 +52,41 @@ namespace arx {
     }
 
     void UserInput::processMouseMovement() {
-        xoffset *= lookSpeed;
-        yoffset *= lookSpeed;
+        if (!isImGuiActive) {
+            xoffset *= lookSpeed;
+            yoffset *= lookSpeed;
 
-        yaw     += xoffset;
-        pitch   += yoffset;
-        
-        updateCameraVectors();
+            yaw     += xoffset;
+            pitch   += yoffset;
+
+            updateCameraVectors();
+        }
     }
 
     void UserInput::mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-        xoffset = xpos - lastX;
-        yoffset = lastY - ypos;
-        lastX = xpos;
-        lastY = ypos;
+        if (instance->isImGuiActive) {
+            // Update ImGui mouse position if ImGui is active
+            ImGui::GetIO().MousePos = ImVec2((float)xpos, (float)ypos);
+        } else {
+            // Process game/application mouse movement
+            xoffset = xpos - lastX;
+            yoffset = lastY - ypos;
+            lastX = xpos;
+            lastY = ypos;
 
-        instance->processMouseMovement();
+            instance->processMouseMovement();
+        }
+    }
+
+    void UserInput::enableImGuiInteraction() {
+        isImGuiActive = true;
+        glfwSetInputMode(app.getWindow().getGLFWwindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        ImGui::GetIO().MouseDrawCursor = true;
+    }
+
+    void UserInput::disableImGuiInteraction() {
+        isImGuiActive = false;
+        glfwSetInputMode(app.getWindow().getGLFWwindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        ImGui::GetIO().MouseDrawCursor = false;
     }
 }

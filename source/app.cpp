@@ -6,6 +6,10 @@
 #include "arx_buffer.h"
 #include "chunkManager.h"
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -92,14 +96,29 @@ namespace arx {
         
         std::vector<uint32_t> visibleChunksIndices;// = arxRenderer.getSwapChain()->cull.visibleIndices.indices;
         
+        initializeImgui();
         auto currentTime = std::chrono::high_resolution_clock::now();
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
+            
+            // Start the ImGui frame
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+            
             
             auto newTime = std::chrono::high_resolution_clock::now();
             float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
             currentTime = newTime;
             
+            
+            ImGui::Begin("Debug");
+            ImGui::Text("Frame time: %.3f ms", frameTime * 1000.0f);
+            ImGui::End();
+
+            // Rendering
+            ImGui::Render();
+
             cameraController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
             camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
 
@@ -129,16 +148,17 @@ namespace arx {
                 // Early render, objects that were visible last frame
                 arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
                 simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
+                ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
                 
                 // Calculate the depth pyramid
                 // Update Dynamic Data for culling
                 arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
                 arxRenderer.getSwapChain()->updateDynamicData();
-//                
+                
                 arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
                 
-//                
+                
                 arxRenderer.endFrame();
                 // Use for profiling
 //                auto startProgram = std::chrono::high_resolution_clock::now();
@@ -148,7 +168,82 @@ namespace arx {
             }
         }
         vkDeviceWaitIdle(arxDevice.device());
+        // Cleanup ImGui when the application is about to close
+        vkDestroyDescriptorPool(arxDevice.device(), imguiPool, nullptr);
+        ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
     }
+
+    void App::initializeImgui() {
+        //1: create descriptor pool for IMGUI
+        // the size of the pool is very oversize, but it's copied from imgui demo itself.
+        VkDescriptorPoolSize pool_sizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+        };
+
+        VkDescriptorPoolCreateInfo pool_info = {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 1000;
+        pool_info.poolSizeCount = std::size(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes;
+
+        if (vkCreateDescriptorPool(arxDevice.device(), &pool_info, nullptr, &imguiPool) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create descriptor pool for imgui!");
+        }
+
+
+        // 2: initialize imgui library
+
+        //this initializes the core structures of imgui
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+        //this initializes imgui for SDL
+        ImGui_ImplGlfw_InitForVulkan(arxWindow.getGLFWwindow(), true);
+
+        //this initializes imgui for Vulkan
+        ImGui_ImplVulkan_InitInfo init_info = {};
+        init_info.Instance = arxDevice.getInstance();
+        init_info.PhysicalDevice = arxDevice.getPhysicalDevice();
+        init_info.Device = arxDevice.device();
+        init_info.Queue = arxDevice.graphicsQueue();
+        init_info.DescriptorPool = imguiPool;
+        init_info.MinImageCount = 2;
+        init_info.ImageCount = static_cast<uint32_t>(arxRenderer.getSwapChain()->imageCount());
+        init_info.MSAASamples = VK_SAMPLE_COUNT_4_BIT;
+        init_info.RenderPass = arxRenderer.getSwapChain()->getRenderPass();
+        ImGui_ImplVulkan_Init(&init_info);
+
+
+        // 3. Load Fonts
+        // You may need to merge fonts or load specific ones
+        io.Fonts->AddFontDefault();
+
+        // Upload Fonts
+        {
+        // Use any command buffer to upload fonts
+        ImGui_ImplVulkan_CreateFontsTexture();
+        ImGui_ImplVulkan_DestroyFontsTexture();
+        }
+
+        // Set clear color for ImGui background
+        ImGui::StyleColorsDark();
+    }
+
 
     void App::loadGameObjects() {
         std::shared_ptr<ArxModel> arxModel = ArxModel::createModelFromFile(arxDevice, "models/smooth_vase.obj");

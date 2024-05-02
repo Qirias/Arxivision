@@ -46,6 +46,7 @@ namespace arx {
         void beginLateRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer);
         void endLateRenderPass(VkCommandBuffer commandBuffer);
         
+        
     private:
         void createCommandBuffers();
         void freeCommandBuffers();

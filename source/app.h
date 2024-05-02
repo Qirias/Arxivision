@@ -30,6 +30,7 @@ namespace arx {
         
     private:
         void loadGameObjects();
+        void initializeImgui();
         
         ArxWindow                           arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
         ArxDevice                           arxDevice{arxWindow};
@@ -37,6 +38,8 @@ namespace arx {
 
         // note: order of declarations matters
         std::unique_ptr<ArxDescriptorPool>  globalPool{};
+        VkDescriptorPool                    imguiPool;
+        
         ArxGameObject::Map                  gameObjects;
         ChunkManager                        chunkManager;
     };

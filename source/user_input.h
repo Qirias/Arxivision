@@ -2,6 +2,9 @@
 
 #include "arx_game_object.h"
 #include "app.h"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
 
 namespace arx {
     class UserInput {
@@ -24,6 +27,8 @@ namespace arx {
         void processInput(GLFWwindow* window, float dt, ArxGameObject& gameObject);
         void updateCameraVectors();
         void processMouseMovement();
+        void enableImGuiInteraction();
+        void disableImGuiInteraction();
         
         KeyMappings keys{};
         float moveSpeed{120.f};
@@ -47,5 +52,6 @@ namespace arx {
         static double lastX;
         static double lastY;
         static void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+        bool isImGuiActive = false;
     };
 }

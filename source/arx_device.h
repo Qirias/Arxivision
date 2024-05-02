@@ -76,7 +76,9 @@ class ArxDevice {
     VkPhysicalDeviceProperties properties;
     VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
-
+    VkInstance getInstance() const { return instance; }
+    VkPhysicalDevice getPhysicalDevice() const { return physicalDevice; }
+    
     private:
     void createInstance();
     void setupDebugMessenger();
