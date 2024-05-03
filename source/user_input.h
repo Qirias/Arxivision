@@ -53,5 +53,6 @@ namespace arx {
         static double lastY;
         static void mouse_callback(GLFWwindow* window, double xpos, double ypos);
         bool isImGuiActive = false;
+        static bool wasImGuiActiveLastFrame;
     };
 }

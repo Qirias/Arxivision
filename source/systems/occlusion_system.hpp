@@ -29,6 +29,11 @@ namespace arx {
             glm::mat4 invView;
         };
         
+        struct alignas(16) GPUMiscData {
+            int occlusionCulling = 1;
+            int frustumCulling = 1;
+        };
+        
         struct alignas(16) GPUCullingGlobalData {
             glm::vec4 frustum[6] = { glm::vec4(0) };
             float zNear = 0.1;
@@ -66,15 +71,6 @@ namespace arx {
             uint32_t* data() { return indices.data(); }
         };
         
-        struct GPUDrawVisibility {
-            GPUDrawVisibility() = default;
-            std::vector<uint32_t> indices;
-            explicit GPUDrawVisibility(size_t numObjects) : indices(numObjects, 0) {}
-            void reset() { std::fill(indices.begin(), indices.end(), 1); }
-            size_t size() const { return indices.size(); }
-            uint32_t* data() { return indices.data(); }
-        };
-        
         OcclusionSystem(ArxDevice &device);
         ~OcclusionSystem();
         
@@ -88,6 +84,11 @@ namespace arx {
             cameraData.invView  = inv;
         }
         
+        void setMisc(const int occlusion, const int frustum) {
+            miscData.occlusionCulling = occlusion;
+            miscData.frustumCulling = frustum;
+        }
+        
         void setVisibleIndices(const std::vector<uint32_t> rhs) {
             visibleIndices.reset();
             visibleIndices.indices = rhs;
@@ -98,7 +99,6 @@ namespace arx {
             objectData.data.reserve(chunkAABBs.size());
             std::vector<uint32_t> indices;
             indices.reserve(chunkAABBs.size());
-            drawVisibility.indices.reserve(chunkAABBs.size());
 
             for (const auto& c : chunkAABBs) {
                 GPUObjectDataBuffer::GPUObjectData gpuObjectData;
@@ -106,7 +106,6 @@ namespace arx {
                 gpuObjectData.aabbMax = glm::vec4(c.second.max, 1.0f);
                 objectData.data.push_back(gpuObjectData);
                 indices.push_back(c.first);
-                drawVisibility.indices.push_back(1);
             }
             setVisibleIndices(indices);
         }
@@ -177,14 +176,15 @@ namespace arx {
         std::unique_ptr<ArxBuffer>                  objectsDataBuffer;
         std::unique_ptr<ArxBuffer>                  visibilityBuffer;
         std::unique_ptr<ArxBuffer>                  globalDataBuffer;
-        std::unique_ptr<ArxBuffer>                  drawVisibilityBuffer;
+        std::unique_ptr<ArxBuffer>                  miscBuffer;
         
         // Buffers data
         GPUCameraData                               cameraData;
         GPUObjectDataBuffer                         objectData;
         GPUCullingGlobalData                        cullingData;
         GPUVisibleIndices                           visibleIndices;
-        GPUDrawVisibility                           drawVisibility;
+        GPUMiscData                                 miscData;
+        
         
     private:
         ArxDevice&                      arxDevice;

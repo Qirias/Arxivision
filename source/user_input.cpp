@@ -3,6 +3,8 @@
 #include <iostream>
 
 namespace arx {
+    bool UserInput::wasImGuiActiveLastFrame = false;
+
     UserInput* UserInput::instance = nullptr;
     double UserInput::xoffset = 0.f;
     double UserInput::yoffset = 0.f;
@@ -26,7 +28,6 @@ namespace arx {
 
         // Only process camera and movement controls if ImGui is not active
         if (!isImGuiActive) {
-            // Movement handling
             glm::vec3 moveDir{0.f};
             if (glfwGetKey(window, keys.moveForward) == GLFW_PRESS)    moveDir -= forwardDir;
             if (glfwGetKey(window, keys.moveBackward) == GLFW_PRESS)   moveDir += forwardDir;
@@ -65,14 +66,18 @@ namespace arx {
 
     void UserInput::mouse_callback(GLFWwindow* window, double xpos, double ypos) {
         if (instance->isImGuiActive) {
-            // Update ImGui mouse position if ImGui is active
             ImGui::GetIO().MousePos = ImVec2((float)xpos, (float)ypos);
         } else {
-            // Process game/application mouse movement
-            xoffset = xpos - lastX;
-            yoffset = lastY - ypos;
-            lastX = xpos;
-            lastY = ypos;
+            // Prevent mouse going nuts when chaning the glfwInputMode
+            if (instance->wasImGuiActiveLastFrame) {
+                instance->lastX = xpos;
+                instance->lastY = ypos;
+                instance->wasImGuiActiveLastFrame = false;
+            }
+            instance->xoffset = xpos - instance->lastX;
+            instance->yoffset = instance->lastY - ypos;
+            instance->lastX = xpos;
+            instance->lastY = ypos;
 
             instance->processMouseMovement();
         }
@@ -80,6 +85,7 @@ namespace arx {
 
     void UserInput::enableImGuiInteraction() {
         isImGuiActive = true;
+        wasImGuiActiveLastFrame = true;
         glfwSetInputMode(app.getWindow().getGLFWwindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         ImGui::GetIO().MouseDrawCursor = true;
     }

@@ -712,10 +712,11 @@ namespace arx {
         globalDataBufferInfo.offset = 0;
         globalDataBufferInfo.range = VK_WHOLE_SIZE;
         
-        VkDescriptorBufferInfo drawVisibilityBufferInfo{};
-        drawVisibilityBufferInfo.buffer = cull.drawVisibilityBuffer->getBuffer();
-        drawVisibilityBufferInfo.offset = 0;
-        drawVisibilityBufferInfo.range = VK_WHOLE_SIZE;
+        VkDescriptorBufferInfo miscBufferInfo{};
+        miscBufferInfo.buffer = cull.miscBuffer->getBuffer();
+        miscBufferInfo.offset = 0;
+        miscBufferInfo.range = VK_WHOLE_SIZE;
+        
         
         ArxDescriptorWriter(*cull.cullingDescriptorLayout, *cull.cullingDescriptorPool)
                             .writeBuffer(0, &cameraBufferInfo)
@@ -723,7 +724,7 @@ namespace arx {
                             .writeImage(2, &depthPyramidInfo)
                             .writeBuffer(3, &visibilityInfo)
                             .writeBuffer(4, &globalDataBufferInfo)
-                            .writeBuffer(5, &drawVisibilityBufferInfo)
+                            .writeBuffer(5, &miscBufferInfo)
                             .build(cull.cullingDescriptorSet);
     }
 
@@ -858,26 +859,7 @@ namespace arx {
                 1, &barrier,
                 0, nullptr
              );
-        
-        VkBufferMemoryBarrier drawVisibilityBarrier = {
-            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT, // After shader writes
-            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT, // Before shader reads
-            .buffer = cull.drawVisibilityBuffer->getBuffer(),
-            .size = VK_WHOLE_SIZE
-        };
-
-        vkCmdPipelineBarrier(
-            commandBuffer,
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // After compute shader write
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // Before compute shader read
-            0,
-            0, nullptr,
-            1, &drawVisibilityBarrier,
-            0, nullptr
-        );
-        
-
+    
         // Read data directly from the mapped buffer
         uint32_t* ptr = static_cast<uint32_t*>(cull.visibilityBuffer->getMappedMemory());
 //        for (size_t i = 0; i < cull.visibleIndices.size(); ++i) {
@@ -942,26 +924,28 @@ namespace arx {
         cull.cameraBuffer->map();
         cull.cameraBuffer->writeToBuffer(&cull.cameraData);
         
-        // GPUDrawVisibilityBuffer
-        cull.drawVisibilityBuffer = std::make_unique<ArxBuffer>(
+        // GPUMiscData
+        cull.miscBuffer = std::make_unique<ArxBuffer>(
                 device,
-                sizeof(uint32_t),
-                cull.drawVisibility.size(),
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        cull.drawVisibilityBuffer->map();
-        cull.drawVisibilityBuffer->writeToBuffer(cull.drawVisibility.data());
+                sizeof(OcclusionSystem::GPUMiscData),
+                1,
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                memoryPropertyFlags);
+        
+        cull.miscBuffer->map();
+        cull.miscBuffer->writeToBuffer(&cull.miscData);
         
         createCullingDescriptors();
     }
 
     void ArxSwapChain::updateDynamicData() {
+        // Update camera
         cull.cameraBuffer->writeToBuffer(&cull.cameraData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCameraData)));
         cull.cameraBuffer->flush();
-//        cull.visibilityBuffer->writeToBuffer(cull.visibleIndices.data(), static_cast<uint64_t>(cull.visibleIndices.size() * sizeof(uint32_t)));
-//        cull.globalDataBuffer->writeToBuffer(&cull.cullingData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCullingGlobalData)));
-//        cull.objectsDataBuffer->writeToBuffer(cull.objectData.dataPtr(), static_cast<uint64_t>(cull.objectData.bufferSize()));
+        
+        // Update misc data
+        cull.miscBuffer->writeToBuffer(&cull.miscData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUMiscData)));
+        cull.miscBuffer->flush();
     }
 
     VkBufferMemoryBarrier ArxSwapChain::bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask)

@@ -15,8 +15,8 @@ namespace arx {
 
     class App {
     public:
-        static constexpr int WIDTH  = 800;
-        static constexpr int HEIGHT = 800;
+        static constexpr int WIDTH  = 1080;
+        static constexpr int HEIGHT = 1080;
         
         App();
         ~App();
@@ -29,7 +29,6 @@ namespace arx {
         void run();
         
     private:
-        void loadGameObjects();
         void initializeImgui();
         
         ArxWindow                           arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};

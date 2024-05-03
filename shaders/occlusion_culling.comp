@@ -36,10 +36,10 @@
      vec4 _padding;
  } globalData;
 
-
- layout (set = 0, binding = 5) buffer drawVisibilityBuffer {
-     uint at[];
- } drawVisibility;
+layout (set = 0, binding = 5) uniform MiscData {
+    int occlusionCulling;
+    int frustumCulling;
+} misc;
 
  const float MAX_DEPTH = 1.0;
  const float SAMPLE_STEP = 0.025; // This is a static sample step, adjust based on profiling
@@ -73,13 +73,14 @@
 
  bool isVisibleAABB(vec3 aabbMin, vec3 aabbMax) {
     vec3 center = 0.5 * (aabbMin + aabbMax);
+    bool visible = true;
 
     // Check if the chunk is too close to the camera to skip frustum culling
     if (distance(vec3(camera.invView[3]), center) < 10.0f) {
         return true;
     }
 
-    if (!isFrustumVisible(aabbMin, aabbMax, camera.viewProj)) {
+    if (!isFrustumVisible(aabbMin, aabbMax, camera.viewProj) && misc.frustumCulling == 1) {
         return false;  // Cull early if not within frustum
     }
 
@@ -120,7 +121,9 @@
     // Sample the depth pyramid
     float depth = textureLod(depthPyramid, (uvMin + uvMax) * 0.5, lod).x;
 
-    return nearestDepth <= depth;
+    visible = visible && nearestDepth <= depth || (misc.occlusionCulling == 0);
+    
+    return visible;
 }
 
  void main() {
@@ -128,8 +131,6 @@
      bool visible;
      if (index < globalData.instances) {
          visible = isVisibleAABB(objectBuffer.objects[index].aabbMin.xyz, objectBuffer.objects[index].aabbMax.xyz);
-         if (visible && drawVisibility.at[index] == 0 || true) {
-             visibilityBuffer.visibleIndices[index] = visible ? 1 : 0;
-         }
+         visibilityBuffer.visibleIndices[index] = visible ? 1 : 0;
      }
  }

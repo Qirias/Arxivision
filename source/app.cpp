@@ -31,17 +31,7 @@ namespace arx {
                     .build();
     }
 
-    App::~App() {
-        
-    }
-
-//    void printMat4(const glm::mat4& mat) {
-//        std::cout << "Mat\n";
-//        std::cout << "[ " << mat[0][0] << " " << mat[0][1] << " " << mat[0][2] << " " << mat[0][3] << " ]" << std::endl;
-//        std::cout << "[ " << mat[1][0] << " " << mat[1][1] << " " << mat[1][2] << " " << mat[1][3] << " ]" << std::endl;
-//        std::cout << "[ " << mat[2][0] << " " << mat[2][1] << " " << mat[2][2] << " " << mat[2][3] << " ]" << std::endl;
-//        std::cout << "[ " << mat[3][0] << " " << mat[3][1] << " " << mat[3][2] << " " << mat[3][3] << " ]" << std::endl;
-//    }
+    App::~App() {}
     
     void App::run() {
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -76,11 +66,10 @@ namespace arx {
         
         UserInput cameraController{*this};
         
-        
         camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
         
         float aspect = arxRenderer.getAspectRation();
-        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 512.f);
         
         chunkManager.setCamera(camera);
 //        chunkManager.obj2vox(gameObjects, "models/house.obj", 0.7f);
@@ -97,6 +86,11 @@ namespace arx {
         std::vector<uint32_t> visibleChunksIndices;// = arxRenderer.getSwapChain()->cull.visibleIndices.indices;
         
         initializeImgui();
+        bool freezeCamera = false;
+        bool cachedCameraDataIsSet = false;
+        
+        static OcclusionSystem::GPUCameraData cachedCameraData;
+        
         auto currentTime = std::chrono::high_resolution_clock::now();
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
@@ -113,7 +107,10 @@ namespace arx {
             
             
             ImGui::Begin("Debug");
-            ImGui::Text("Frame time: %.3f ms", frameTime * 1000.0f);
+            ImGui::Text("Chunks %d", static_cast<uint32_t>(visibleChunksIndices.size()));
+            ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.frustumCulling));
+            ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.occlusionCulling));
+            ImGui::Checkbox("Freeze Camera", &freezeCamera);
             ImGui::End();
 
             // Rendering
@@ -152,11 +149,24 @@ namespace arx {
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
                 
                 // Calculate the depth pyramid
-                // Update Dynamic Data for culling
-                arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
-                arxRenderer.getSwapChain()->updateDynamicData();
+                // Update Dynamic Data for culling if camera is not frozen
+                if (freezeCamera) {
+                    if (!cachedCameraDataIsSet) {
+                        cachedCameraData.view = camera.getView();
+                        cachedCameraData.proj = camera.getProjection();
+                        cachedCameraData.viewProj = camera.getVP();
+                        cachedCameraData.invView = glm::inverse(camera.getView());
+                        cachedCameraDataIsSet = true;
+                    }
+                    arxRenderer.getSwapChain()->cull.cameraBuffer->writeToBuffer(&cachedCameraData);
+                }
+                else {
+                    arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+                    arxRenderer.getSwapChain()->updateDynamicData();
+                    arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
+                    cachedCameraDataIsSet = false;
+                }
                 
-                arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
                 
                 
                 arxRenderer.endFrame();
@@ -176,8 +186,7 @@ namespace arx {
     }
 
     void App::initializeImgui() {
-        //1: create descriptor pool for IMGUI
-        // the size of the pool is very oversize, but it's copied from imgui demo itself.
+        // The size of the pool is very oversize, but it's copied from imgui demo itself.
         VkDescriptorPoolSize pool_sizes[] =
         {
             { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
@@ -204,18 +213,15 @@ namespace arx {
             throw std::runtime_error("Failed to create descriptor pool for imgui!");
         }
 
-
-        // 2: initialize imgui library
-
-        //this initializes the core structures of imgui
+        // Initializes the core structures of imgui
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-        //this initializes imgui for SDL
+        // Initializes imgui for SDL
         ImGui_ImplGlfw_InitForVulkan(arxWindow.getGLFWwindow(), true);
 
-        //this initializes imgui for Vulkan
+        // Initializes imgui for Vulkan
         ImGui_ImplVulkan_InitInfo init_info = {};
         init_info.Instance = arxDevice.getInstance();
         init_info.PhysicalDevice = arxDevice.getPhysicalDevice();
@@ -228,42 +234,18 @@ namespace arx {
         init_info.RenderPass = arxRenderer.getSwapChain()->getRenderPass();
         ImGui_ImplVulkan_Init(&init_info);
 
-
-        // 3. Load Fonts
+        ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
         // You may need to merge fonts or load specific ones
-        io.Fonts->AddFontDefault();
-
-        // Upload Fonts
-        {
-        // Use any command buffer to upload fonts
-        ImGui_ImplVulkan_CreateFontsTexture();
-        ImGui_ImplVulkan_DestroyFontsTexture();
-        }
+//        io.Fonts->AddFontDefault();
+//
+//        // Upload Fonts
+//        {
+//        // Use any command buffer to upload fonts
+//        ImGui_ImplVulkan_CreateFontsTexture();
+//        ImGui_ImplVulkan_DestroyFontsTexture();
+//        }
 
         // Set clear color for ImGui background
         ImGui::StyleColorsDark();
-    }
-
-
-    void App::loadGameObjects() {
-        std::shared_ptr<ArxModel> arxModel = ArxModel::createModelFromFile(arxDevice, "models/smooth_vase.obj");
-        
-        auto gameObj                    = ArxGameObject::createGameObject();
-        gameObj.model                   = arxModel;
-        gameObj.transform.translation   = {.0f, .5f, 0.f};
-        gameObj.transform.scale         = glm::vec3(3.f);
-        gameObjects.emplace(gameObj.getId(), std::move(gameObj));
-        
-        arxModel = ArxModel::createModelFromFile(arxDevice, "models/cube.obj");
-        
-        for (int i = 0; i < 64; i++) {
-            for (int j = 0; j < 64; j++) {
-                auto floor = ArxGameObject::createGameObject();
-                floor.model                   = arxModel;
-                floor.transform.translation   = {i * .2f - 6, .7f, j * .2f - 6};
-                floor.transform.scale         = glm::vec3(.1f);
-                gameObjects.emplace(floor.getId(), std::move(floor));
-            }
-        }
     }
 }
