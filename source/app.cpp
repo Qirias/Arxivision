@@ -69,7 +69,7 @@ namespace arx {
         camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
         
         float aspect = arxRenderer.getAspectRation();
-        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 512.f);
+        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         
         chunkManager.setCamera(camera);
 //        chunkManager.obj2vox(gameObjects, "models/house.obj", 0.7f);
@@ -113,7 +113,6 @@ namespace arx {
             ImGui::Checkbox("Freeze Camera", &freezeCamera);
             ImGui::End();
 
-            // Rendering
             ImGui::Render();
 
             cameraController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
@@ -167,8 +166,6 @@ namespace arx {
                     cachedCameraDataIsSet = false;
                 }
                 
-                
-                
                 arxRenderer.endFrame();
                 // Use for profiling
 //                auto startProgram = std::chrono::high_resolution_clock::now();
@@ -218,7 +215,7 @@ namespace arx {
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-        // Initializes imgui for SDL
+        // Initializes imgui for GLFW
         ImGui_ImplGlfw_InitForVulkan(arxWindow.getGLFWwindow(), true);
 
         // Initializes imgui for Vulkan

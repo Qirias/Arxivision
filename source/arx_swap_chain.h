@@ -120,6 +120,5 @@ class ArxSwapChain {
         void createCullingDescriptors();
         void updateDynamicData();
         std::vector<uint32_t> computeCulling(VkCommandBuffer commandBuffer, const uint32_t instances, bool late = false);
-        uint32_t chunkInstances;
     };
 }

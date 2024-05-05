@@ -62,13 +62,6 @@ namespace arx {
                                                     pipelineConfig);
     }
 
-//    void printMat4(const glm::mat4& mat) {
-//        std::cout << "[ " << mat[0][0] << " " << mat[0][1] << " " << mat[0][2] << " " << mat[0][3] << " ]" << std::endl;
-//        std::cout << "[ " << mat[1][0] << " " << mat[1][1] << " " << mat[1][2] << " " << mat[1][3] << " ]" << std::endl;
-//        std::cout << "[ " << mat[2][0] << " " << mat[2][1] << " " << mat[2][2] << " " << mat[2][3] << " ]" << std::endl;
-//        std::cout << "[ " << mat[3][0] << " " << mat[3][1] << " " << mat[3][2] << " " << mat[3][3] << " ]" << std::endl;
-//    }
-    
     void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo, std::vector<uint32_t> &visibleChunksIndices) {
         arxPipeline->bind(frameInfo.commandBuffer);
         
@@ -79,7 +72,6 @@ namespace arx {
                                 &frameInfo.globalDescriptorSet,
                                 0,
                                 nullptr);
-        std::cout << "Chunks Rendered: " << visibleChunksIndices.size() << "\n";
         
         for (auto i : visibleChunksIndices) {
             if (frameInfo.voxel[i].model == nullptr) continue;

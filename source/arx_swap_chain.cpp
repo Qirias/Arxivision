@@ -767,7 +767,6 @@ namespace arx {
         
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cull.depthPyramidPipeline->computePipeline);
         
-        // Todo: Per-level barriers that would switch between read and write layout for the depth pyramid update.
         for (uint32_t i = 0; i < cull.depthPyramidLevels; ++i)
         {
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cull.depthPyramidPipelineLayout, 0, 1, &cull.depthDescriptorSets[i], 0, nullptr);

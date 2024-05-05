@@ -12,9 +12,6 @@ layout(push_constant) uniform block {
 void main() {
     uvec2 pos = gl_GlobalInvocationID.xy;
 
-    if (pos.x >= imageSize.x || pos.y >= imageSize.y)
-        return;
-
     // Calculate normalized coordinates of the current pixel's center
     vec2 normalizedPos = (vec2(pos) + vec2(0.5)) / imageSize;
 
