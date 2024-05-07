@@ -24,7 +24,7 @@
 
 namespace arx {
 
-    App::App() : chunkManager{arxDevice} {
+    App::App() : chunkManager{arxDevice}, renderPassManager(arxDevice), textureManager(arxDevice) {
         globalPool = ArxDescriptorPool::Builder(arxDevice)
                     .setMaxSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
@@ -68,7 +68,7 @@ namespace arx {
         
         camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
         
-        float aspect = arxRenderer.getAspectRation();
+        float aspect = arxRenderer.getAspectRatio();
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         
         chunkManager.setCamera(camera);

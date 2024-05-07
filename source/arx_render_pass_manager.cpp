@@ -6,16 +6,23 @@ namespace arx {
     }
 
     RenderPassManager::~RenderPassManager() {
-        destroyRenderPasses();
+        for (auto& pair : renderPasses) {
+            vkDestroyRenderPass(device.device(), pair.second, nullptr);
+        }
+        for (auto& fb : framebuffers) {
+            vkDestroyFramebuffer(device.device(), fb.second, nullptr);
+        }
+        
+        renderPasses.clear();
+        framebuffers.clear();
     }
 
-    VkRenderPass RenderPassManager::createRenderPass(const std::string& name, const VkRenderPassCreateInfo& createInfo) {
+    void RenderPassManager::createRenderPass(const std::string& name, const VkRenderPassCreateInfo& createInfo) {
         VkRenderPass renderPass;
         if (vkCreateRenderPass(device.device(), &createInfo, nullptr, &renderPass) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create render pass: " + name);
         }
         renderPasses[name] = renderPass;
-        return renderPass;
     }
 
     VkRenderPass RenderPassManager::getRenderPass(const std::string& name) const {
@@ -26,15 +33,11 @@ namespace arx {
         return it->second;
     }
 
-    void RenderPassManager::destroyRenderPasses() {
-        for (auto& pair : renderPasses) {
-            vkDestroyRenderPass(device.device(), pair.second, nullptr);
+    VkFramebuffer RenderPassManager::getFrameBuffer(const std::string& name) const {
+        auto it = framebuffers.find(name);
+        if (it == framebuffers.end()) {
+            throw std::runtime_error("Framebuffer pass not found: " + name);
         }
-        renderPasses.clear();
+        return it->second;
     }
-
-
-    // Example usage
-//    VkRenderPassCreateInfo ssaoPassInfo = {/* Fill with SSAO-specific setup */};
-//    renderPassManager.createRenderPass("ssao", ssaoPassInfo);
 }

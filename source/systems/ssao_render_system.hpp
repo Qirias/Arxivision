@@ -5,6 +5,7 @@
 #include "arx_descriptors.h"
 #include "arx_buffer.h"
 #include "arx_render_pass_manager.hpp"
+#include "arx_texture_manager.hpp"
 #include "arx_frame_info.h"
 
 // std
@@ -14,12 +15,14 @@
 namespace arx {
     class SSAOSystem {
     public:
-        SSAOSystem(ArxDevice &device, RenderPassManager& renderPassManager, VkExtent2D extent);
+        SSAOSystem(ArxDevice &device, RenderPassManager& rp, TextureManager& textures, VkExtent2D extent);
         ~SSAOSystem();
         
         void renderSSAO(FrameInfo &frameInfo, bool blurPass = false);
     private:
         ArxDevice&                                  device;
+        RenderPassManager&                          rpManager;
+        TextureManager&                             textureManager;
         VkExtent2D                                  extent;
         
         // SSAO
@@ -54,40 +57,6 @@ namespace arx {
             std::unique_ptr<ArxBuffer>                  ssaoParams;
             std::unique_ptr<ArxBuffer>                  ssaoKernel;
         } uniformBuffers;
-        
-        struct FrameBufferAttachment {
-            VkImage         image;
-            VkDeviceMemory  mem;
-            VkImageView     view;
-            VkFormat        format;
-            void destroy(VkDevice device) {
-                vkDestroyImage(device, image, nullptr);
-                vkDestroyImageView(device, view, nullptr);
-                vkFreeMemory(device, mem, nullptr);
-            }
-        };
-
-        struct FrameBuffer {
-            int32_t         width;
-            int32_t         height;
-            VkFramebuffer   frameBuffer;
-            VkRenderPass    renderPass;
-            FrameBuffer(VkRenderPass rp = VK_NULL_HANDLE) : renderPass(rp) {}
-            
-            void setSize(int32_t w, int32_t h) {
-                this->width = w;
-                this->height = h;
-            }
-            void destroy(VkDevice device) {
-                vkDestroyFramebuffer(device, frameBuffer, nullptr);
-                vkDestroyRenderPass(device, renderPass, nullptr);
-            }
-        };
-        
-        struct SSAO : public FrameBuffer {
-            FrameBufferAttachment color;
-            SSAO(VkRenderPass rp = VK_NULL_HANDLE) : FrameBuffer(rp) {}
-        } ssao{}, ssaoBlur{};
         
         VkSampler colorSampler;
         

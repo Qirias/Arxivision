@@ -5,6 +5,9 @@
 #include "arx_renderer.h"
 #include "arx_game_object.h"
 #include "arx_descriptors.h"
+#include "arx_texture_manager.hpp"
+#include "arx_render_pass_manager.hpp"
+
 #include "chunkManager.h"
 
 // std
@@ -33,13 +36,17 @@ namespace arx {
         
         ArxWindow                           arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
         ArxDevice                           arxDevice{arxWindow};
-        ArxRenderer                         arxRenderer{arxWindow, arxDevice};
+        ArxRenderer                         arxRenderer{arxWindow, arxDevice, renderPassManager, textureManager};
 
         // note: order of declarations matters
         std::unique_ptr<ArxDescriptorPool>  globalPool{};
         VkDescriptorPool                    imguiPool;
         
         ArxGameObject::Map                  gameObjects;
+        
+        // Managers
         ChunkManager                        chunkManager;
+        TextureManager                      textureManager;
+        RenderPassManager                   renderPassManager;
     };
 }

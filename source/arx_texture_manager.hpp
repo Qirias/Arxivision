@@ -1,6 +1,9 @@
 #pragma once
 #include "arx_device.h"
 
+// std
+#include <cassert>
+
 namespace arx {
 
     class Texture {
@@ -8,7 +11,25 @@ namespace arx {
         VkImage         image;
         VkDeviceMemory  memory;
         VkImageView     view;
-        VkSampler       sampler;
+        VkFormat        format;
+        VkSampler       sampler = VK_NULL_HANDLE;
+
+        void destroy(VkDevice device) {
+            vkDestroyImageView(device, view, nullptr);
+            vkDestroyImage(device, image, nullptr);
+            vkFreeMemory(device, memory, nullptr);
+            if (sampler != VK_NULL_HANDLE)
+                vkDestroySampler(device, sampler, nullptr);
+        }
+    };
+
+    class FrameBufferAttachment {
+    public:
+        Texture texture;
+
+        void destroy(VkDevice device) {
+            texture.destroy(device);
+        }
     };
 
     class TextureManager {
@@ -27,14 +48,16 @@ namespace arx {
             VkSampleCountFlagBits numSamples = VK_SAMPLE_COUNT_1_BIT,
             VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL,
             VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT);
+        
+        // Used for framebuffer since we don't need a sampler
+        void createAttachment(const std::string& name, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags);
 
         std::shared_ptr<Texture> getTexture(const std::string& name) const;
-        void destroyTextures();
-
 
     private:
         ArxDevice& device;
         std::unordered_map<std::string, std::shared_ptr<Texture>> textures;
+        std::unordered_map<std::string, std::shared_ptr<FrameBufferAttachment>> attachments;
 
         VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
         VkSampler createSampler();

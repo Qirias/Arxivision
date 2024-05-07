@@ -4,6 +4,8 @@
 #include "arx_device.h"
 #include "arx_swap_chain.h"
 #include "arx_frame_info.h"
+#include "arx_render_pass_manager.hpp"
+#include "arx_texture_manager.hpp"
 #include "chunks.h"
 
 // std
@@ -16,14 +18,14 @@ namespace arx {
     class ArxRenderer {
     public:
         
-        ArxRenderer(ArxWindow &window, ArxDevice &device);
+        ArxRenderer(ArxWindow &window, ArxDevice &device, RenderPassManager &rp, TextureManager &textures);
         ~ArxRenderer();
         
         ArxRenderer(const ArxRenderer &) = delete;
         ArxRenderer &operator=(const ArxRenderer&) = delete;
         
         VkRenderPass getSwapChainRenderPass() const { return arxSwapChain->getRenderPass(); }
-        float getAspectRation() const { return arxSwapChain->extentAspectRatio(); }
+        float getAspectRatio() const { return arxSwapChain->extentAspectRatio(); }
         bool isFrameInProgress() const { return isFrameStarted; }
         
         VkCommandBuffer getCurrentCommandBuffer() const {
@@ -52,10 +54,16 @@ namespace arx {
         void freeCommandBuffers();
         void recreateSwapChain();
         
+        // G-Pass
+        void createGBufferRenderPass();
+        
         ArxWindow&                      arxWindow;
         ArxDevice&                      arxDevice;
+        RenderPassManager&              rpManager;
+        TextureManager&                 textureManager;
+        
         std::unique_ptr<ArxSwapChain>   arxSwapChain;
-        std::vector<VkCommandBuffer>    commandBuffers; 
+        std::vector<VkCommandBuffer>    commandBuffers;
         
         uint32_t                        currentImageIndex;
         int                             currentFrameIndex{0};

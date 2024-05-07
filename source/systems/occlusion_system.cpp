@@ -96,7 +96,6 @@ namespace arx {
     void OcclusionSystem::createCullingPipeline() {
         assert(cullingPipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
         
-        PipelineConfigInfo pipelineConfig{};
         cullingPipeline = std::make_unique<ArxPipeline>(arxDevice,
                                                         "shaders/occlusion_culling.spv",
                                                         cullingPipelineLayout);
@@ -119,7 +118,6 @@ namespace arx {
     void OcclusionSystem::createLateCullingPipeline() {
         assert(lateCullingPipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
         
-        PipelineConfigInfo pipelineConfig{};
         lateCullingPipeline = std::make_unique<ArxPipeline>(arxDevice,
                                                         "shaders/occlusionLate_culling.spv",
                                                         lateCullingPipelineLayout);
