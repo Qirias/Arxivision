@@ -47,7 +47,7 @@ class ArxSwapChain {
                    swapChain.swapChainImageFormat == swapChainImageFormat;
         }
 
-        private:
+    private:
         void init();
         void createSwapChain();
         void createImageViews();
@@ -106,7 +106,7 @@ class ArxSwapChain {
         std::vector<VkFence>            imagesInFlight;
         size_t                          currentFrame = 0;
     
-        public:
+    public:
         OcclusionSystem cull;
         void createDepthPyramid();
         void createDepthSampler();

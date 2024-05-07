@@ -52,6 +52,7 @@ namespace arx {
         void createComputePipeline(const std::string &compFilepath, VkPipelineLayout& pipelineLayout);
         VkPipeline      computePipeline;
         VkShaderModule  computeShaderModule;
+        
     private:
         static std::vector<char> readFile(const std::string& filepath);
         
