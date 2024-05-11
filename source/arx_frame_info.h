@@ -20,8 +20,8 @@ static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
         glm::mat4 projection{1.f};
         glm::mat4 view{1.f};
         glm::mat4 inverseView{1.f};
-        glm::vec4 ambientLightColor{1.f, 1.f, 1.f, .02f};
-        int numLights;
+        float zNear{.1f};
+        float zFar{1024.f};
     };
     
     struct FrameInfo {

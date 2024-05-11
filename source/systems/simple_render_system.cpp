@@ -53,9 +53,12 @@ namespace arx {
         assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
         
         PipelineConfigInfo pipelineConfig{};
-        ArxPipeline::defaultPipelineConfigInfo(arxDevice.msaaSamples, pipelineConfig);
-        pipelineConfig.renderPass       = renderPass;
-        pipelineConfig.pipelineLayout   = pipelineLayout;
+        VkPipelineColorBlendAttachmentState attachment1 = ArxPipeline::createDefaultColorBlendAttachment();
+        pipelineConfig.colorBlendAttachments = {attachment1};
+        ArxPipeline::defaultPipelineConfigInfo(pipelineConfig);
+        pipelineConfig.multisampleInfo.rasterizationSamples = arxDevice.msaaSamples;
+        pipelineConfig.renderPass                           = renderPass;
+        pipelineConfig.pipelineLayout                       = pipelineLayout;
         arxPipeline = std::make_unique<ArxPipeline>(arxDevice,
                                                     "shaders/vert.spv",
                                                     "shaders/frag.spv",

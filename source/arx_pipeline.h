@@ -18,7 +18,8 @@ namespace arx {
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
         VkPipelineRasterizationStateCreateInfo rasterizationInfo;
         VkPipelineMultisampleStateCreateInfo multisampleInfo;
-        VkPipelineColorBlendAttachmentState colorBlendAttachment;
+//        VkPipelineColorBlendAttachmentState colorBlendAttachment;
+        std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;  // This is the new member
         VkPipelineColorBlendStateCreateInfo colorBlendInfo;
         VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
         std::vector<VkDynamicState> dynamicStateEnables;
@@ -47,7 +48,8 @@ namespace arx {
         ArxPipeline& operator=(const ArxPipeline&) = delete;
         
         void bind(VkCommandBuffer commandBuffer);
-        static void defaultPipelineConfigInfo(VkSampleCountFlagBits msaaSamples, PipelineConfigInfo& configInfo);
+        static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
+        static VkPipelineColorBlendAttachmentState createDefaultColorBlendAttachment();
         static void enableAlphaBlending(PipelineConfigInfo& configInfo);
         void createComputePipeline(const std::string &compFilepath, VkPipelineLayout& pipelineLayout);
         VkPipeline      computePipeline;

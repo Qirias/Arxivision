@@ -11,8 +11,6 @@ layout (set = 0, binding = 0) uniform GlobalUbo {
     mat4 projection;
     mat4 view;
     mat4 invView;
-    vec4 ambientLightColor;
-    int numLights;
 } ubo;
 
 layout (push_constant) uniform Push {

@@ -2,8 +2,10 @@
 
 #include "arx_device.h"
 
+// std
 #include <unordered_map>
 #include <string>
+#include <iostream>
 
 namespace arx {
 
@@ -14,10 +16,10 @@ namespace arx {
         
         template <typename T, size_t N>
         void createFramebuffer(const std::string& renderPassName, const std::array<T, N>& attachmentViews, uint32_t width, uint32_t height) {
-            VkRenderPass renderPass = getRenderPass(renderPassName);
+            
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = renderPass;
+            framebufferInfo.renderPass = getRenderPass(renderPassName);
             framebufferInfo.attachmentCount = static_cast<uint32_t>(attachmentViews.size());
             framebufferInfo.pAttachments = attachmentViews.data();
             framebufferInfo.width = width;
@@ -28,7 +30,7 @@ namespace arx {
             if (vkCreateFramebuffer(device.device(), &framebufferInfo, nullptr, &framebuffer) != VK_SUCCESS) {
                 throw std::runtime_error("Failed to create framebuffer for render pass: " + renderPassName);
             }
-            framebuffers[renderPassName] = framebuffer;
+            framebuffers[renderPassName] = std::move(framebuffer);
         }
         void createRenderPass(const std::string& name, const VkRenderPassCreateInfo& createInfo);
         

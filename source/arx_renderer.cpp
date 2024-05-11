@@ -16,6 +16,7 @@ namespace arx {
     }
 
     ArxRenderer::~ArxRenderer() {
+        cleanupResources();
         freeCommandBuffers();
     }
 
@@ -141,119 +142,53 @@ namespace arx {
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     }
 
-    void ArxRenderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {
-        assert(isFrameStarted && "Can't endSwapChainRenderPass if frame is not in progress");
-        assert(commandBuffer == getCurrentCommandBuffer() && "Can't end render pass on command buffer from a different frame");
-        
-        vkCmdEndRenderPass(commandBuffer);
-    }
-
-    void ArxRenderer::beginLateRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer) {
-        assert(isFrameStarted && "Can't beginLateRenderPass if frame is not in progress");
-        assert(commandBuffer == getCurrentCommandBuffer() && "Can't begin render pass on command buffer from a different frame");
+    void ArxRenderer::beginRenderPass(FrameInfo &frameInfo, const std::string& name) {        
+        assert(isFrameStarted && "Can't beginSwapChainRenderPass if frame is not in progress");
+        assert(frameInfo.commandBuffer == getCurrentCommandBuffer() && "Can't begin render pass on command buffer from a different frame");
         
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType        = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass   = arxSwapChain->getLateRenderPass();
-        renderPassInfo.framebuffer  = arxSwapChain->getLateFrameBuffer(currentImageIndex);
+        renderPassInfo.renderPass   = rpManager.getRenderPass(name);
+        renderPassInfo.framebuffer  = rpManager.getFrameBuffer(name);
         
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
         
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        if (name == "GBuffer") {
+            std::vector<VkClearValue> clearValues(4);
+            clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+            clearValues[1].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+            clearValues[2].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+            clearValues[3].depthStencil = { 1.0f, 0 };
+            renderPassInfo.clearValueCount  = static_cast<uint32_t>(clearValues.size());
+            renderPassInfo.pClearValues     = clearValues.data();
+        }
+        else {
+            std::array<VkClearValue, 2> clearValues{};
+            clearValues[0].color            = {0.0f, 0.0f, 0.0f, 1.0f};
+            clearValues[1].depthStencil     = {1.0f, 0};
+            renderPassInfo.clearValueCount  = static_cast<uint32_t>(clearValues.size());
+            renderPassInfo.pClearValues     = clearValues.data();
+        }
+        
+        vkCmdBeginRenderPass(frameInfo.commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        
+        VkViewport viewport{};
+        viewport.x  = 0.0f;
+        viewport.y  = 0.0f;
+        viewport.width  = static_cast<float>(arxSwapChain->getSwapChainExtent().width);
+        viewport.height = static_cast<float>(arxSwapChain->getSwapChainExtent().height);
+        viewport.minDepth   = 0.0f;
+        viewport.maxDepth   = 1.0f;
+        VkRect2D scissor{{0, 0}, arxSwapChain->getSwapChainExtent()};
+        vkCmdSetViewport(frameInfo.commandBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(frameInfo.commandBuffer, 0, 1, &scissor);
     }
 
-    void ArxRenderer::endLateRenderPass(VkCommandBuffer commandBuffer) {
-        assert(isFrameStarted && "Can't endLateRenderPass if frame is not in progress");
+    void ArxRenderer::endRenderPass(VkCommandBuffer commandBuffer) {
+        assert(isFrameStarted && "Can't endSwapChainRenderPass if frame is not in progress");
         assert(commandBuffer == getCurrentCommandBuffer() && "Can't end render pass on command buffer from a different frame");
         
         vkCmdEndRenderPass(commandBuffer);
-    }
-
-    void ArxRenderer::createGBufferRenderPass() {
-        // attachments
-        VkFormat depthFormat = arxSwapChain->findDepthFormat();
-        
-        textureManager.createAttachment("gPosDepth", arxSwapChain->width(), arxSwapChain->height(), 
-                                        VK_FORMAT_R32G32B32A32_SFLOAT,
-                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("gNormals", arxSwapChain->width(), arxSwapChain->height(), 
-                                        VK_FORMAT_R8G8B8A8_UNORM,
-                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("gAlbedo", arxSwapChain->width(), arxSwapChain->height(),
-                                        VK_FORMAT_R8G8B8A8_UNORM,
-                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("gDepth", arxSwapChain->width(), arxSwapChain->height(), 
-                                        depthFormat,
-                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
-        
-        std::array<VkAttachmentDescription, 4> attachmentDescs = {};
-        for (uint32_t i = 0; i < static_cast<uint32_t>(attachmentDescs.size()); i++) {
-            attachmentDescs[i].samples = VK_SAMPLE_COUNT_1_BIT;
-            attachmentDescs[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            attachmentDescs[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            attachmentDescs[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            attachmentDescs[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            attachmentDescs[i].finalLayout = (i == 3) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        }
-
-        // Formats
-        attachmentDescs[0].format = textureManager.getTexture("gPosDepth")->format;
-        attachmentDescs[1].format = textureManager.getTexture("gNormals")->format;
-        attachmentDescs[2].format = textureManager.getTexture("gAlbedo")->format;
-        attachmentDescs[3].format = textureManager.getTexture("gDepth")->format;
-        
-        std::vector<VkAttachmentReference> colorReferences;
-        colorReferences.push_back({ 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
-        colorReferences.push_back({ 1, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
-        colorReferences.push_back({ 2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
-
-        VkAttachmentReference depthReference = {};
-        depthReference.attachment = 3;
-        depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        VkSubpassDescription subpass = {};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.pColorAttachments = colorReferences.data();
-        subpass.colorAttachmentCount = static_cast<uint32_t>(colorReferences.size());
-        subpass.pDepthStencilAttachment = &depthReference;
-
-        // Use subpass dependencies for attachment layout transitions
-        std::array<VkSubpassDependency, 2> dependencies;
-
-        dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependencies[0].dstSubpass = 0;
-        dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-        dependencies[1].srcSubpass = 0;
-        dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-        dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-        VkRenderPassCreateInfo renderPassInfo = {};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.pAttachments = attachmentDescs.data();
-        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescs.size());
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-        renderPassInfo.dependencyCount = 2;
-        renderPassInfo.pDependencies = dependencies.data();
-        
-        rpManager.createRenderPass("GBuffer", renderPassInfo);
-
-        std::array<VkImageView, 4> attachments;
-        attachments[0] = textureManager.getTexture("gPosDepth")->view;
-        attachments[1] = textureManager.getTexture("gNormals")->view;
-        attachments[2] = textureManager.getTexture("gAlbedo")->view;
-        attachments[3] = textureManager.getTexture("gDepth")->view;
-
-        rpManager.createFramebuffer("GBuffer", attachments, arxSwapChain->width(), arxSwapChain->height());
     }
 }

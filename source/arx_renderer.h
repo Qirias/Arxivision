@@ -42,23 +42,34 @@ namespace arx {
         
         VkCommandBuffer beginFrame();
         void endFrame();
+        
         void beginSwapChainRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer);
-        void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
+        void beginRenderPass(FrameInfo &frameInfo, const std::string& name);
+        
+        void endRenderPass(VkCommandBuffer commandBuffer);
 
-        void beginLateRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer);
-        void endLateRenderPass(VkCommandBuffer commandBuffer);
         
+        // Passes
+        void Pass_GBuffer(FrameInfo &frameInfo, std::vector<uint32_t> &visibleChunksIndices);
+        void init_Passes();
         
+        void updateMisc(const GlobalUbo &rhs);
+        void cleanupResources();
     private:
         void createCommandBuffers();
         void freeCommandBuffers();
         void recreateSwapChain();
         
-        // G-Pass
-        void createGBufferRenderPass();
+        // Resources
+        void createRenderPasses();
+        void createDescriptorSetLayouts();
+        void createPipelineLayouts();
+        void createPipelines();
+        void createUniformBuffers();
         
         ArxWindow&                      arxWindow;
         ArxDevice&                      arxDevice;
+        
         RenderPassManager&              rpManager;
         TextureManager&                 textureManager;
         
@@ -68,5 +79,7 @@ namespace arx {
         uint32_t                        currentImageIndex;
         int                             currentFrameIndex{0};
         bool                            isFrameStarted = false;
+        
+        GlobalUbo                       ubo{};
     };
 }

@@ -24,7 +24,7 @@
 
 namespace arx {
 
-    App::App() : chunkManager{arxDevice}, renderPassManager(arxDevice), textureManager(arxDevice) {
+    App::App() {
         globalPool = ArxDescriptorPool::Builder(arxDevice)
                     .setMaxSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
@@ -50,13 +50,15 @@ namespace arx {
 
         std::vector<VkDescriptorSet> globalDescriptorSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < globalDescriptorSets.size(); i++) {
-            auto bufferInfo = uboBuffers[i]->descriptorInfo();
+            VkDescriptorBufferInfo bufferInfo = uboBuffers[i]->descriptorInfo();
             ArxDescriptorWriter(*globalSetLayout, *globalPool)
                 .writeBuffer(0, &bufferInfo)
                 .build(globalDescriptorSets[i]);
         }
         
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
+        
+        arxRenderer.init_Passes();
         
         ArxCamera camera{};
         
@@ -72,7 +74,7 @@ namespace arx {
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         
         chunkManager.setCamera(camera);
-//        chunkManager.obj2vox(gameObjects, "models/house.obj", 0.7f);
+//        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 15.f);
 //        chunkManager.initializeHeightTerrain(gameObjects, 8);
         chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
         
@@ -83,7 +85,7 @@ namespace arx {
         arxRenderer.getSwapChain()->cull.setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, instances);
         arxRenderer.getSwapChain()->loadGeometryToDevice();
         
-        std::vector<uint32_t> visibleChunksIndices;// = arxRenderer.getSwapChain()->cull.visibleIndices.indices;
+        std::vector<uint32_t> visibleChunksIndices;
         
         initializeImgui();
         bool freezeCamera = false;
@@ -100,11 +102,9 @@ namespace arx {
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
             
-            
             auto newTime = std::chrono::high_resolution_clock::now();
             float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
             currentTime = newTime;
-            
             
             ImGui::Begin("Debug");
             ImGui::Text("Chunks %d", static_cast<uint32_t>(visibleChunksIndices.size()));
@@ -130,6 +130,7 @@ namespace arx {
                     gameObjects
                 };
                 
+                
                 // Cull hidden chunks
                 visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
 
@@ -138,14 +139,21 @@ namespace arx {
                 ubo.projection      = camera.getProjection();
                 ubo.view            = camera.getView();
                 ubo.inverseView     = camera.getInverseView();
+                ubo.zNear           = .1f;
+                ubo.zFar            = 1024.f;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
+                
+                // Passes Misc
+                arxRenderer.updateMisc(ubo);
+                // GPass
+                arxRenderer.Pass_GBuffer(frameInfo, visibleChunksIndices);
 
-                // Early render, objects that were visible last frame
+                // Early render
                 arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
                 simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
                 ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
-                arxRenderer.endSwapChainRenderPass(commandBuffer);
+                arxRenderer.endRenderPass(commandBuffer);
                 
                 // Calculate the depth pyramid
                 // Update Dynamic Data for culling if camera is not frozen

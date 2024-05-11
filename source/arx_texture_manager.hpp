@@ -18,7 +18,7 @@ namespace arx {
             vkDestroyImageView(device, view, nullptr);
             vkDestroyImage(device, image, nullptr);
             vkFreeMemory(device, memory, nullptr);
-            if (sampler != VK_NULL_HANDLE)
+            if (sampler)
                 vkDestroySampler(device, sampler, nullptr);
         }
     };
@@ -51,8 +51,10 @@ namespace arx {
         
         // Used for framebuffer since we don't need a sampler
         void createAttachment(const std::string& name, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags);
-
+        void transitionImageLayout(VkCommandBuffer commandPool, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+        
         std::shared_ptr<Texture> getTexture(const std::string& name) const;
+        std::shared_ptr<Texture> getAttachment(const std::string& name) const;
 
     private:
         ArxDevice& device;

@@ -9,8 +9,8 @@ namespace arx {
         for (auto& pair : renderPasses) {
             vkDestroyRenderPass(device.device(), pair.second, nullptr);
         }
-        for (auto& fb : framebuffers) {
-            vkDestroyFramebuffer(device.device(), fb.second, nullptr);
+        for (auto& pair : framebuffers) {
+            vkDestroyFramebuffer(device.device(), pair.second, nullptr);
         }
         
         renderPasses.clear();

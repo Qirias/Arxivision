@@ -103,17 +103,6 @@ namespace arx {
         // culling
         cull.cullingDescriptorSet = VK_NULL_HANDLE;
         cull.cullingDescriptorLayout = VK_NULL_HANDLE;
-        
-        vkDestroyPipeline(device.device(), cull.cullingPipeline->computePipeline, nullptr);
-        cull.cullingPipeline->computePipeline = VK_NULL_HANDLE;
-        vkDestroyPipelineLayout(device.device(), cull.cullingPipelineLayout, nullptr);
-        cull.cullingPipelineLayout = VK_NULL_HANDLE;
-        
-        // late culling
-        vkDestroyPipeline(device.device(), cull.lateCullingPipeline->computePipeline, nullptr);
-        cull.lateCullingPipeline->computePipeline = VK_NULL_HANDLE;
-        vkDestroyPipelineLayout(device.device(), cull.lateCullingPipelineLayout, nullptr);
-        cull.lateCullingPipelineLayout = VK_NULL_HANDLE;
     }
 
     
@@ -681,7 +670,7 @@ namespace arx {
 
     void ArxSwapChain::createCullingDescriptors() {
         cull.cullingDescriptorPool = ArxDescriptorPool::Builder(device)
-            .setMaxSets(cull.depthPyramidLevels)
+            .setMaxSets(1)
             .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3.f)
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f)
             .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3.f)

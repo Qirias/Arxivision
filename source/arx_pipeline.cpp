@@ -53,7 +53,6 @@ namespace arx {
         
         assert(configInfo.renderPass != VK_NULL_HANDLE && "Cannot create graphics pipeline: no renderPass provided in configInfo");
 
-        
         auto vertCode = readFile(vertFilepath);
         auto fragCode = readFile(fragFilepath);
         
@@ -99,7 +98,7 @@ namespace arx {
         pipelineInfo.pColorBlendState       = &configInfo.colorBlendInfo;
         pipelineInfo.pDepthStencilState     = &configInfo.depthStencilInfo;
         pipelineInfo.pDynamicState          = &configInfo.dynamicStateInfo;
-        
+    
         pipelineInfo.layout                 = configInfo.pipelineLayout;
         pipelineInfo.renderPass             = configInfo.renderPass;
         pipelineInfo.subpass                = configInfo.subpass;
@@ -128,8 +127,7 @@ namespace arx {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
     }
 
-    void ArxPipeline::defaultPipelineConfigInfo(VkSampleCountFlagBits msaaSamples, PipelineConfigInfo& configInfo) {
-
+    void ArxPipeline::defaultPipelineConfigInfo(PipelineConfigInfo& configInfo) {
         configInfo.inputAssemblyInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         configInfo.inputAssemblyInfo.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         configInfo.inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
@@ -145,7 +143,7 @@ namespace arx {
         configInfo.rasterizationInfo.rasterizerDiscardEnable    = VK_FALSE;
         configInfo.rasterizationInfo.polygonMode                = VK_POLYGON_MODE_FILL;
         configInfo.rasterizationInfo.lineWidth                  = 1.0f;
-        configInfo.rasterizationInfo.cullMode                   = VK_CULL_MODE_NONE;
+        configInfo.rasterizationInfo.cullMode                   = VK_CULL_MODE_BACK_BIT;
         configInfo.rasterizationInfo.frontFace                  = VK_FRONT_FACE_CLOCKWISE;
         configInfo.rasterizationInfo.depthBiasEnable            = VK_FALSE;
         configInfo.rasterizationInfo.depthBiasConstantFactor    = 0.0f; // Optional
@@ -154,29 +152,17 @@ namespace arx {
 
         configInfo.multisampleInfo.sType                    = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         configInfo.multisampleInfo.sampleShadingEnable      = VK_FALSE;
-        configInfo.multisampleInfo.rasterizationSamples     = msaaSamples;
+        configInfo.multisampleInfo.rasterizationSamples     = VK_SAMPLE_COUNT_1_BIT;
         configInfo.multisampleInfo.minSampleShading         = 1.0f;     // Optional
         configInfo.multisampleInfo.pSampleMask              = nullptr;  // Optional
         configInfo.multisampleInfo.alphaToCoverageEnable    = VK_FALSE; // Optional
         configInfo.multisampleInfo.alphaToOneEnable         = VK_FALSE; // Optional
 
-        configInfo.colorBlendAttachment.colorWriteMask      =   VK_COLOR_COMPONENT_R_BIT |
-                                                                VK_COLOR_COMPONENT_G_BIT |
-                                                                VK_COLOR_COMPONENT_B_BIT |
-                                                                VK_COLOR_COMPONENT_A_BIT;
-        configInfo.colorBlendAttachment.blendEnable         = VK_FALSE;
-        configInfo.colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;   // Optional
-        configInfo.colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;  // Optional
-        configInfo.colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;       // Optional
-        configInfo.colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;   // Optional
-        configInfo.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;  // Optional
-        configInfo.colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;       // Optional
-
         configInfo.colorBlendInfo.sType             = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
         configInfo.colorBlendInfo.logicOpEnable     = VK_FALSE;
         configInfo.colorBlendInfo.logicOp           = VK_LOGIC_OP_COPY; // Optional
-        configInfo.colorBlendInfo.attachmentCount   = 1;
-        configInfo.colorBlendInfo.pAttachments      = &configInfo.colorBlendAttachment;
+        configInfo.colorBlendInfo.attachmentCount   = static_cast<uint32_t>(configInfo.colorBlendAttachments.size());
+        configInfo.colorBlendInfo.pAttachments      = configInfo.colorBlendAttachments.data();
         configInfo.colorBlendInfo.blendConstants[0] = 0.0f;  // Optional
         configInfo.colorBlendInfo.blendConstants[1] = 0.0f;  // Optional
         configInfo.colorBlendInfo.blendConstants[2] = 0.0f;  // Optional
@@ -191,7 +177,8 @@ namespace arx {
         configInfo.depthStencilInfo.maxDepthBounds          = 1.0f;  // Optional
         configInfo.depthStencilInfo.stencilTestEnable       = VK_FALSE;
         configInfo.depthStencilInfo.front                   = {};  // Optional
-        configInfo.depthStencilInfo.back                    = {};   // Optional
+        configInfo.depthStencilInfo.back                    = {};  // Optional
+        
 
         configInfo.dynamicStateEnables                  = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
         configInfo.dynamicStateInfo.sType               = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -203,18 +190,26 @@ namespace arx {
         configInfo.attributeDescriptions    = ArxModel::Vertex::getAttributeDescriptions();
     }
 
+    VkPipelineColorBlendAttachmentState ArxPipeline::createDefaultColorBlendAttachment() {
+        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+        colorBlendAttachment.colorWriteMask         = 0xf;
+        colorBlendAttachment.blendEnable            = VK_FALSE;
+
+        return colorBlendAttachment;
+    }
+
     void ArxPipeline::enableAlphaBlending(PipelineConfigInfo &configInfo) {
-        configInfo.colorBlendAttachment.blendEnable         = VK_TRUE;
-        configInfo.colorBlendAttachment.colorWriteMask      =   VK_COLOR_COMPONENT_R_BIT |
+        configInfo.colorBlendAttachments[0].blendEnable         = VK_TRUE;
+        configInfo.colorBlendAttachments[0].colorWriteMask      =   VK_COLOR_COMPONENT_R_BIT |
                                                                 VK_COLOR_COMPONENT_G_BIT |
                                                                 VK_COLOR_COMPONENT_B_BIT |
                                                                 VK_COLOR_COMPONENT_A_BIT;
-        configInfo.colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        configInfo.colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        configInfo.colorBlendAttachment.colorBlendOp        = VK_BLEND_OP_ADD;
-        configInfo.colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        configInfo.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        configInfo.colorBlendAttachment.alphaBlendOp        = VK_BLEND_OP_ADD;
+        configInfo.colorBlendAttachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        configInfo.colorBlendAttachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        configInfo.colorBlendAttachments[0].colorBlendOp        = VK_BLEND_OP_ADD;
+        configInfo.colorBlendAttachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        configInfo.colorBlendAttachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        configInfo.colorBlendAttachments[0].alphaBlendOp        = VK_BLEND_OP_ADD;
     }
 
     void ArxPipeline::createComputePipeline(const std::string &compFilepath, VkPipelineLayout& pipelineLayout) {
@@ -236,7 +231,5 @@ namespace arx {
         if (vkCreateComputePipelines(arxDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &computePipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create compute pipeline!");
         }
-
-        vkDestroyShaderModule(arxDevice.device(), computeShaderModule, nullptr);
     }
 }

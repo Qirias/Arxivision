@@ -130,7 +130,6 @@ namespace arx {
             cullingData.totalInstances = instances;
         }
 
-    
         // Depth pyramid
         std::unique_ptr<ArxDescriptorPool>          depthDescriptorPool;
         std::unique_ptr<ArxDescriptorSetLayout>     depthDescriptorLayout;
