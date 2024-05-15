@@ -74,7 +74,7 @@ namespace arx {
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         
         chunkManager.setCamera(camera);
-//        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 15.f);
+//        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
 //        chunkManager.initializeHeightTerrain(gameObjects, 8);
         chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
         
@@ -117,7 +117,7 @@ namespace arx {
 
             cameraController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
             camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
-
+            
             // beginFrame() will return nullptr if the swapchain need to be recreated
             if (auto commandBuffer = arxRenderer.beginFrame()) {
                 int frameIndex = arxRenderer.getFrameIndex();
@@ -130,10 +130,6 @@ namespace arx {
                     gameObjects
                 };
                 
-                
-                // Cull hidden chunks
-                visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
-
                 // Update ubo
                 GlobalUbo ubo{};
                 ubo.projection      = camera.getProjection();
@@ -143,17 +139,19 @@ namespace arx {
                 ubo.zFar            = 1024.f;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
-                
-                // Passes Misc
                 arxRenderer.updateMisc(ubo);
+            
+                // Cull hidden chunks
+                visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
+                
                 // GPass
                 arxRenderer.Pass_GBuffer(frameInfo, visibleChunksIndices);
-
+                
                 // Early render
                 arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
                 simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
                 ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
-                arxRenderer.endRenderPass(commandBuffer);
+                arxRenderer.endSwapChainRenderPass(commandBuffer);
                 
                 // Calculate the depth pyramid
                 // Update Dynamic Data for culling if camera is not frozen
@@ -162,7 +160,7 @@ namespace arx {
                         cachedCameraData.view = camera.getView();
                         cachedCameraData.proj = camera.getProjection();
                         cachedCameraData.viewProj = camera.getVP();
-                        cachedCameraData.invView = glm::inverse(camera.getView());
+                        cachedCameraData.invView = camera.getInverseView();
                         cachedCameraDataIsSet = true;
                     }
                     arxRenderer.getSwapChain()->cull.cameraBuffer->writeToBuffer(&cachedCameraData);

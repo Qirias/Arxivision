@@ -276,18 +276,18 @@ namespace arx {
         VkAttachmentDescription2 depthResolveAttachment = {};
         depthResolveAttachment.sType  = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
         depthResolveAttachment.format = findDepthFormat();
-        depthResolveAttachment.samples = VK_SAMPLE_COUNT_1_BIT; // Single-sampled
+        depthResolveAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         depthResolveAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthResolveAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // Ensure it's stored if needed later
+        depthResolveAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         depthResolveAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthResolveAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthResolveAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthResolveAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // or any layout suitable for later use
+        depthResolveAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         
         VkAttachmentReference2 depthResolveAttachmentRef = {};
         depthResolveAttachmentRef.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
         depthResolveAttachmentRef.attachment = 3; // index of single-sampled resolve depth attachment
-        depthResolveAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // Layout during the subpass
+        depthResolveAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         depthResolveAttachmentRef.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
         VkAttachmentDescription2 colorAttachment = {};

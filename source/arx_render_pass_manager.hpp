@@ -16,7 +16,6 @@ namespace arx {
         
         template <typename T, size_t N>
         void createFramebuffer(const std::string& renderPassName, const std::array<T, N>& attachmentViews, uint32_t width, uint32_t height) {
-            
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferInfo.renderPass = getRenderPass(renderPassName);

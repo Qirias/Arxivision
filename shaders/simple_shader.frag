@@ -11,6 +11,8 @@ layout (set = 0, binding = 0) uniform GlobalUbo {
     mat4 projection;
     mat4 view;
     mat4 invView;
+    float nearPlane;
+    float farPlane;
 } ubo;
 
 layout (push_constant) uniform Push {
@@ -32,5 +34,7 @@ void main() {
     vec3 diffuse = diff * lightColor;
 
     vec3 result = (ambient + diffuse) * fragColor;
+//    float linearDepth = (2.0 * ubo.nearPlane) / (ubo.farPlane + ubo.nearPlane - gl_FragCoord.z * (ubo.farPlane - ubo.nearPlane));
+//    outColor = vec4(vec3(linearDepth), 1.0);
     outColor = vec4(result, 1.0);
 }

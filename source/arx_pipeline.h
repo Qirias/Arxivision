@@ -18,8 +18,7 @@ namespace arx {
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
         VkPipelineRasterizationStateCreateInfo rasterizationInfo;
         VkPipelineMultisampleStateCreateInfo multisampleInfo;
-//        VkPipelineColorBlendAttachmentState colorBlendAttachment;
-        std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;  // This is the new member
+        std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
         VkPipelineColorBlendStateCreateInfo colorBlendInfo;
         VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
         std::vector<VkDynamicState> dynamicStateEnables;

@@ -142,10 +142,7 @@ namespace arx {
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     }
 
-    void ArxRenderer::beginRenderPass(FrameInfo &frameInfo, const std::string& name) {        
-        assert(isFrameStarted && "Can't beginSwapChainRenderPass if frame is not in progress");
-        assert(frameInfo.commandBuffer == getCurrentCommandBuffer() && "Can't begin render pass on command buffer from a different frame");
-        
+    void ArxRenderer::beginRenderPass(FrameInfo &frameInfo, const std::string& name) {
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType        = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass   = rpManager.getRenderPass(name);
@@ -154,8 +151,10 @@ namespace arx {
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
         
+        std::vector<VkClearValue> clearValues;
+        
         if (name == "GBuffer") {
-            std::vector<VkClearValue> clearValues(4);
+            clearValues.resize(4);
             clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
             clearValues[1].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
             clearValues[2].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
@@ -164,13 +163,13 @@ namespace arx {
             renderPassInfo.pClearValues     = clearValues.data();
         }
         else {
-            std::array<VkClearValue, 2> clearValues{};
+            clearValues.resize(2);
             clearValues[0].color            = {0.0f, 0.0f, 0.0f, 1.0f};
             clearValues[1].depthStencil     = {1.0f, 0};
             renderPassInfo.clearValueCount  = static_cast<uint32_t>(clearValues.size());
             renderPassInfo.pClearValues     = clearValues.data();
         }
-        
+
         vkCmdBeginRenderPass(frameInfo.commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         
         VkViewport viewport{};
@@ -185,7 +184,7 @@ namespace arx {
         vkCmdSetScissor(frameInfo.commandBuffer, 0, 1, &scissor);
     }
 
-    void ArxRenderer::endRenderPass(VkCommandBuffer commandBuffer) {
+    void ArxRenderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {
         assert(isFrameStarted && "Can't endSwapChainRenderPass if frame is not in progress");
         assert(commandBuffer == getCurrentCommandBuffer() && "Can't end render pass on command buffer from a different frame");
         

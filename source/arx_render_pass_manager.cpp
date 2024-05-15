@@ -1,5 +1,6 @@
 #include "arx_render_pass_manager.hpp"
 
+
 namespace arx {
     RenderPassManager::RenderPassManager(ArxDevice& device) : device(device) {
         
@@ -36,7 +37,7 @@ namespace arx {
     VkFramebuffer RenderPassManager::getFrameBuffer(const std::string& name) const {
         auto it = framebuffers.find(name);
         if (it == framebuffers.end()) {
-            throw std::runtime_error("Framebuffer pass not found: " + name);
+            throw std::runtime_error("Framebuffer not found: " + name);
         }
         return it->second;
     }

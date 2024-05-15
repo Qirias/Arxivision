@@ -35,6 +35,7 @@ namespace arx {
             if (glfwGetKey(window, keys.moveRight) == GLFW_PRESS)      moveDir += rightDir;
             if (glfwGetKey(window, keys.moveUp) == GLFW_PRESS)         moveDir += upDir;
             if (glfwGetKey(window, keys.moveDown) == GLFW_PRESS)       moveDir -= upDir;
+//            if (glfwGetKey(window, keys.esc) == GLFW_PRESS)            glfwSetWindowShouldClose(window, true);
 
             if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon()) {
                 gameObject.transform.translation += moveSpeed * dt * glm::normalize(moveDir);

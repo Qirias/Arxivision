@@ -46,7 +46,7 @@ namespace arx {
         void beginSwapChainRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer);
         void beginRenderPass(FrameInfo &frameInfo, const std::string& name);
         
-        void endRenderPass(VkCommandBuffer commandBuffer);
+        void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
 
         
         // Passes

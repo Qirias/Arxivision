@@ -104,8 +104,8 @@ namespace arx {
         pipelineInfo.subpass                = configInfo.subpass;
         
         // For optimizing performance by deriving an existing pipeline
-        pipelineInfo.basePipelineIndex      = -1;
-        pipelineInfo.basePipelineHandle     = VK_NULL_HANDLE;
+//        pipelineInfo.basePipelineIndex      = -1;
+//        pipelineInfo.basePipelineHandle     = VK_NULL_HANDLE;
         
         if (vkCreateGraphicsPipelines(arxDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline!");
@@ -171,14 +171,13 @@ namespace arx {
         configInfo.depthStencilInfo.sType                   = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
         configInfo.depthStencilInfo.depthTestEnable         = VK_TRUE;
         configInfo.depthStencilInfo.depthWriteEnable        = VK_TRUE;
-        configInfo.depthStencilInfo.depthCompareOp          = VK_COMPARE_OP_LESS;
+        configInfo.depthStencilInfo.depthCompareOp          = VK_COMPARE_OP_LESS_OR_EQUAL;
         configInfo.depthStencilInfo.depthBoundsTestEnable   = VK_FALSE;
         configInfo.depthStencilInfo.minDepthBounds          = 0.0f;  // Optional
         configInfo.depthStencilInfo.maxDepthBounds          = 1.0f;  // Optional
         configInfo.depthStencilInfo.stencilTestEnable       = VK_FALSE;
         configInfo.depthStencilInfo.front                   = {};  // Optional
         configInfo.depthStencilInfo.back                    = {};  // Optional
-        
 
         configInfo.dynamicStateEnables                  = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
         configInfo.dynamicStateInfo.sType               = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -199,17 +198,19 @@ namespace arx {
     }
 
     void ArxPipeline::enableAlphaBlending(PipelineConfigInfo &configInfo) {
-        configInfo.colorBlendAttachments[0].blendEnable         = VK_TRUE;
-        configInfo.colorBlendAttachments[0].colorWriteMask      =   VK_COLOR_COMPONENT_R_BIT |
-                                                                VK_COLOR_COMPONENT_G_BIT |
-                                                                VK_COLOR_COMPONENT_B_BIT |
-                                                                VK_COLOR_COMPONENT_A_BIT;
-        configInfo.colorBlendAttachments[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-        configInfo.colorBlendAttachments[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        configInfo.colorBlendAttachments[0].colorBlendOp        = VK_BLEND_OP_ADD;
-        configInfo.colorBlendAttachments[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        configInfo.colorBlendAttachments[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        configInfo.colorBlendAttachments[0].alphaBlendOp        = VK_BLEND_OP_ADD;
+        for (size_t i = 0; i < configInfo.colorBlendAttachments.size(); i++) {
+            configInfo.colorBlendAttachments[i].blendEnable         = VK_TRUE;
+            configInfo.colorBlendAttachments[i].colorWriteMask      = VK_COLOR_COMPONENT_R_BIT |
+                                                                      VK_COLOR_COMPONENT_G_BIT |
+                                                                      VK_COLOR_COMPONENT_B_BIT |
+                                                                      VK_COLOR_COMPONENT_A_BIT;
+            configInfo.colorBlendAttachments[i].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+            configInfo.colorBlendAttachments[i].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            configInfo.colorBlendAttachments[i].colorBlendOp        = VK_BLEND_OP_ADD;
+            configInfo.colorBlendAttachments[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            configInfo.colorBlendAttachments[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+            configInfo.colorBlendAttachments[i].alphaBlendOp        = VK_BLEND_OP_ADD;
+        }
     }
 
     void ArxPipeline::createComputePipeline(const std::string &compFilepath, VkPipelineLayout& pipelineLayout) {

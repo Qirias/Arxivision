@@ -22,6 +22,7 @@ namespace arx {
             int lookRight    = GLFW_KEY_RIGHT;
             int lookUp       = GLFW_KEY_UP;
             int lookDown     = GLFW_KEY_DOWN;
+            int esc          = GLFW_KEY_ESCAPE;
         };
 
         void processInput(GLFWwindow* window, float dt, ArxGameObject& gameObject);

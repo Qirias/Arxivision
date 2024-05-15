@@ -37,7 +37,7 @@ namespace arx {
         TextureManager(ArxDevice& device);
         ~TextureManager();
 
-        std::shared_ptr<Texture> createTexture2D(
+        void createTexture2D(
             const std::string& name,
             uint32_t width,
             uint32_t height,

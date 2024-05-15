@@ -17,7 +17,7 @@ namespace arx {
         attachments.clear();
     }
 
-    std::shared_ptr<Texture> TextureManager::createTexture2D(
+    void TextureManager::createTexture2D(
         const std::string& name,
         uint32_t width,
         uint32_t height,
@@ -35,8 +35,7 @@ namespace arx {
         texture->view = createImageView(texture->image, format, aspectFlags, mipLevels);
         texture->sampler = createSampler();
 
-        textures[name] = texture;
-        return texture;
+        textures[name] = std::move(texture);
     }
 
     std::shared_ptr<Texture> TextureManager::getTexture(const std::string& name) const {
@@ -52,6 +51,7 @@ namespace arx {
         if (it == attachments.end()) {
             throw std::runtime_error("Attachment not found: " + name);
         }
+
         return std::make_shared<Texture>(it->second->texture);
     }
 
@@ -131,7 +131,7 @@ namespace arx {
 
         VkImageView imageView = createImageView(image, format, aspectMask, 1);
 
-        auto attachment = std::make_shared<FrameBufferAttachment>();
+        std::shared_ptr<FrameBufferAttachment> attachment = std::make_shared<FrameBufferAttachment>();
         attachment->texture.image = image;
         attachment->texture.memory = imageMemory;
         attachment->texture.view = imageView;

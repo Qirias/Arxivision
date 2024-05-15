@@ -33,11 +33,7 @@ namespace arx {
     void ArxRenderer::createDescriptorSetLayouts() {
         // G-Buffer
         descriptorLayouts[static_cast<uint8_t>(PassName::GPass)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
-                                            .build());
-        
-        descriptorLayouts[static_cast<uint8_t>(PassName::GPass)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                                            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
                                             .build());
         
         // TODO: continue with the ssao pass
@@ -65,38 +61,34 @@ namespace arx {
         if (vkCreatePipelineLayout(arxDevice.device(), &pipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::GPass)]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create gpass pipeline layout!");
         }
-        
-        
     }
 
     void ArxRenderer::createPipelines() {
         // G-Buffer
         assert(pipelineLayouts[static_cast<uint8_t>(PassName::GPass)] != nullptr && "Cannot create pipeline before pipeline layout");
         
-        PipelineConfigInfo pipelineConfig{};
+        PipelineConfigInfo configInfo{};
         VkPipelineColorBlendAttachmentState attachment1 = ArxPipeline::createDefaultColorBlendAttachment();
         VkPipelineColorBlendAttachmentState attachment2 = ArxPipeline::createDefaultColorBlendAttachment();
         VkPipelineColorBlendAttachmentState attachment3 = ArxPipeline::createDefaultColorBlendAttachment();
-        pipelineConfig.colorBlendAttachments = {attachment1, attachment2, attachment3};
+        configInfo.colorBlendAttachments = {attachment1, attachment2, attachment3};
         
-        ArxPipeline::defaultPipelineConfigInfo(pipelineConfig);
-        pipelineConfig.depthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-        pipelineConfig.renderPass       = rpManager.getRenderPass("GBuffer");
-        pipelineConfig.pipelineLayout   = pipelineLayouts[static_cast<uint8_t>(PassName::GPass)];
+        ArxPipeline::defaultPipelineConfigInfo(configInfo);
+        configInfo.renderPass       = rpManager.getRenderPass("GBuffer");
+        configInfo.pipelineLayout   = pipelineLayouts[static_cast<uint8_t>(PassName::GPass)];
         
         pipelines[static_cast<uint8_t>(PassName::GPass)] = std::make_shared<ArxPipeline>(arxDevice,
-                                                            "shaders/gbuffer_vert.spv",
-                                                            "shaders/gbuffer_frag.spv",
-                                                            pipelineConfig);
+                                                                                        "shaders/gbuffer_vert.spv",
+                                                                                        "shaders/gbuffer_frag.spv",
+                                                                                         configInfo);
     }
 
     void ArxRenderer::createUniformBuffers() {
         // G-Buffer
         // UBO
         descriptorPools[static_cast<uint8_t>(PassName::GPass)] = ArxDescriptorPool::Builder(arxDevice)
-                                                                .setMaxSets(2)
+                                                                .setMaxSets(1)
                                                                 .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.f)
-                                                                .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f)
                                                                 .build();
         
         passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(std::make_shared<ArxBuffer>(
@@ -104,31 +96,19 @@ namespace arx {
                                                                       sizeof(GlobalUbo),
                                                                       1,
                                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                                      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+                                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
         
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->writeToBuffer(&ubo);
         
-        descriptorSets[static_cast<uint8_t>(PassName::GPass)].resize(2);
+        descriptorSets[static_cast<uint8_t>(PassName::GPass)].resize(1);
         
-        // Sampler
         for (size_t i = 0; i < passBuffers[static_cast<uint8_t>(PassName::GPass)].size(); ++i) {
             auto bufferInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][i]->descriptorInfo();
             ArxDescriptorWriter(*descriptorLayouts[static_cast<uint8_t>(PassName::GPass)][0],
                                 *descriptorPools[static_cast<uint8_t>(PassName::GPass)])
                                 .writeBuffer(0, &bufferInfo)
                                 .build(descriptorSets[static_cast<uint8_t>(PassName::GPass)][0]);
-        
-        VkDescriptorImageInfo imageInfo{};
-        textureManager.createTexture2D("GSampler", arxSwapChain->width(), arxSwapChain->height(), VK_FORMAT_R8G8B8A8_UNORM);
-        imageInfo.sampler = textureManager.getTexture("GSampler")->sampler;
-        imageInfo.imageView = textureManager.getTexture("GSampler")->view;
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        ArxDescriptorWriter(*descriptorLayouts[static_cast<uint8_t>(PassName::GPass)][1],
-                            *descriptorPools[static_cast<uint8_t>(PassName::GPass)])
-                            .writeImage(0, &imageInfo)
-                            .build(descriptorSets[static_cast<uint8_t>(PassName::GPass)][1]);
         }
     }
 
@@ -141,31 +121,30 @@ namespace arx {
     }
 
     void ArxRenderer::createRenderPasses() {
+        VkFormat depthFormat = arxSwapChain->findDepthFormat();
+        
+        // attachments
+        textureManager.createAttachment("gPosDepth", arxSwapChain->width(), arxSwapChain->height(),
+                                        VK_FORMAT_R32G32B32A32_SFLOAT,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        textureManager.createAttachment("gNormals", arxSwapChain->width(), arxSwapChain->height(),
+                                        VK_FORMAT_R8G8B8A8_UNORM,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        textureManager.createAttachment("gAlbedo", arxSwapChain->width(), arxSwapChain->height(),
+                                        VK_FORMAT_R8G8B8A8_UNORM,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        textureManager.createAttachment("gDepth", arxSwapChain->width(), arxSwapChain->height(),
+                                        depthFormat,
+                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        
+        textureManager.createAttachment("ssaoColor", arxSwapChain->width(), arxSwapChain->height(),
+                                        VK_FORMAT_R8_UNORM,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        textureManager.createAttachment("ssaoBlurColor", arxSwapChain->width(), arxSwapChain->height(),
+                                        VK_FORMAT_R8_UNORM,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
         // G-Pass
         {
-            VkFormat depthFormat = arxSwapChain->findDepthFormat();
-            
-            // attachments
-            textureManager.createAttachment("gPosDepth", arxSwapChain->width(), arxSwapChain->height(),
-                                            VK_FORMAT_R32G32B32A32_SFLOAT,
-                                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-            textureManager.createAttachment("gNormals", arxSwapChain->width(), arxSwapChain->height(),
-                                            VK_FORMAT_R8G8B8A8_UNORM,
-                                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-            textureManager.createAttachment("gAlbedo", arxSwapChain->width(), arxSwapChain->height(),
-                                            VK_FORMAT_R8G8B8A8_UNORM,
-                                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-            textureManager.createAttachment("gDepth", arxSwapChain->width(), arxSwapChain->height(),
-                                            depthFormat,
-                                            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
-            textureManager.createAttachment("ssaoColor", arxSwapChain->width(), arxSwapChain->height(),
-                                            VK_FORMAT_R8_UNORM,
-                                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-            
-            textureManager.createAttachment("ssaoBlurColor", arxSwapChain->width(), arxSwapChain->height(),
-                                            VK_FORMAT_R8_UNORM,
-                                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-            
             std::array<VkAttachmentDescription, 4> attachmentDescs = {};
             for (uint32_t i = 0; i < static_cast<uint32_t>(attachmentDescs.size()); i++) {
                 attachmentDescs[i].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -174,20 +153,21 @@ namespace arx {
                 attachmentDescs[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 attachmentDescs[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
                 attachmentDescs[i].finalLayout = (i == 3) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                attachmentDescs[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             }
             
             // Formats
             attachmentDescs[0].format = textureManager.getAttachment("gPosDepth")->format;
             attachmentDescs[1].format = textureManager.getAttachment("gNormals")->format;
             attachmentDescs[2].format = textureManager.getAttachment("gAlbedo")->format;
-            attachmentDescs[3].format = textureManager.getAttachment("gDepth")->format;
+            attachmentDescs[3].format = depthFormat;
             
             
             std::vector<VkAttachmentReference> colorReferences;
             colorReferences.push_back({ 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
             colorReferences.push_back({ 1, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
             colorReferences.push_back({ 2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
-            
+        
             VkAttachmentReference depthReference = {};
             depthReference.attachment = 3;
             depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -199,7 +179,7 @@ namespace arx {
             subpass.pDepthStencilAttachment = &depthReference;
             
             // Use subpass dependencies for attachment layout transitions
-            std::array<VkSubpassDependency, 3> dependencies;
+            std::array<VkSubpassDependency, 2> dependencies;
             
             dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
             dependencies[0].dstSubpass = 0;
@@ -217,14 +197,6 @@ namespace arx {
             dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
             dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
             
-            // Self-dependency
-            dependencies[2].srcSubpass = 0;
-            dependencies[2].dstSubpass = 0;
-            dependencies[2].srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            dependencies[2].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            dependencies[2].srcAccessMask = 0;  // No specific access needed before the barrier
-            dependencies[2].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            dependencies[2].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
             
             VkRenderPassCreateInfo renderPassInfo = {};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -357,27 +329,17 @@ namespace arx {
     }
 
     void ArxRenderer::Pass_GBuffer(FrameInfo &frameInfo, std::vector<uint32_t> &visibleChunksIndices) {
-        textureManager.transitionImageLayout(frameInfo.commandBuffer,
-                                             textureManager.getTexture("GSampler")->image,
-                                             textureManager.getTexture("GSampler")->format,
-                                             VK_IMAGE_LAYOUT_UNDEFINED,
-                                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         
         beginRenderPass(frameInfo, "GBuffer");
         
         pipelines[static_cast<uint8_t>(PassName::GPass)]->bind(frameInfo.commandBuffer);
-        
-        std::array<VkDescriptorSet, 2> sets = {
-            descriptorSets[static_cast<uint8_t>(PassName::GPass)][0],
-            descriptorSets[static_cast<uint8_t>(PassName::GPass)][1]
-        };
     
         vkCmdBindDescriptorSets(frameInfo.commandBuffer,
                                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 pipelineLayouts[static_cast<uint8_t>(PassName::GPass)],
                                 0,
-                                static_cast<uint32_t>(sets.size()),
-                                sets.data(),
+                                1,
+                                &descriptorSets[static_cast<uint8_t>(PassName::GPass)][0],
                                 0,
                                 nullptr);
         
@@ -401,7 +363,7 @@ namespace arx {
             frameInfo.voxel[i].model->draw(frameInfo.commandBuffer);
         }
         
-        endRenderPass(frameInfo.commandBuffer);
+        vkCmdEndRenderPass(frameInfo.commandBuffer);
     }
 
     void ArxRenderer::updateMisc(const GlobalUbo &rhs) {
