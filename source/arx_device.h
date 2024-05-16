@@ -85,6 +85,7 @@ class ArxDevice {
     void createSurface();
     void pickPhysicalDevice();
     void setImagelessFramebufferFeature();
+    void setBufferDeviceAddressFeature();
     void createLogicalDevice();
     void createCommandPool();
 
@@ -105,6 +106,9 @@ class ArxDevice {
     ArxWindow                                       &window;
     VkCommandPool                                   commandPool;
     VkPhysicalDeviceImagelessFramebufferFeatures    imagelessFramebufferFeatures;
+    VkPhysicalDeviceBufferDeviceAddressFeatures     bufferDeviceAddressFeatures;
+    bool                                            supportsBufferDeviceAddress;
+    
     uint32_t                                        numThreads{0};
 
     VkDevice      _device;

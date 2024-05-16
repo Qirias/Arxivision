@@ -34,6 +34,6 @@ void main() {
 
     outNormalWorld = normalize(mat3(push.normalMatrix) * inNormal);
     outPosWorld = positionWorld.xyz;
-    outColor = inInstanceColor * inColor;
+    outColor = inInstanceColor;
     outUV = inUV;
 }

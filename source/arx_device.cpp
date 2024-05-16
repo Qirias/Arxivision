@@ -160,6 +160,9 @@ namespace arx {
             deviceFeatures.fillModeNonSolid     = VK_TRUE;
             
             setImagelessFramebufferFeature();
+            setBufferDeviceAddressFeature();
+            
+            bufferDeviceAddressFeatures.pNext = &imagelessFramebufferFeatures;
 
             VkDeviceCreateInfo createInfo = {};
             createInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -170,7 +173,7 @@ namespace arx {
             createInfo.pEnabledFeatures        = &deviceFeatures;
             createInfo.enabledExtensionCount   = static_cast<uint32_t>(deviceExtensions.size());
             createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-            createInfo.pNext                   = &imagelessFramebufferFeatures;
+            createInfo.pNext                   = &bufferDeviceAddressFeatures;
 
             // might not really be necessary anymore because device specific validation layers
             // have been deprecated
@@ -221,8 +224,7 @@ namespace arx {
             return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
         }
 
-        void ArxDevice::setImagelessFramebufferFeature()
-        {
+        void ArxDevice::setImagelessFramebufferFeature() {
             imagelessFramebufferFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGELESS_FRAMEBUFFER_FEATURES;
             imagelessFramebufferFeatures.pNext = nullptr;
             
@@ -232,6 +234,7 @@ namespace arx {
             deviceFeatures2.pNext = &imagelessFramebufferFeatures;
             vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeatures2);
             
+            
             // Check if the feature is supported and enabled
             if (imagelessFramebufferFeatures.imagelessFramebuffer == VK_TRUE) {
                 // Set the feature to VK_TRUE
@@ -239,6 +242,25 @@ namespace arx {
             }
             else
                 throw std::runtime_error("failed to set imagelessFramebuffer!");
+        }
+
+        void ArxDevice::setBufferDeviceAddressFeature() {
+            bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+            bufferDeviceAddressFeatures.pNext = nullptr;
+
+            VkPhysicalDeviceFeatures2 deviceFeatures2{};
+            deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+            deviceFeatures2.pNext = &bufferDeviceAddressFeatures;
+
+            vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeatures2);
+
+            // Check if the feature is supported and enabled
+            if (bufferDeviceAddressFeatures.bufferDeviceAddress == VK_TRUE) {
+                // Set the feature to VK_TRUE
+                bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+            }
+            else
+                std::cout << "BufferDebiveAddress feature is not supported!\n";
         }
 
         void ArxDevice::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
