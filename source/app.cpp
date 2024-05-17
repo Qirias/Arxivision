@@ -21,6 +21,7 @@
 #include <cassert>
 #include <chrono>
 #include <iostream>
+#include <numeric>
 
 namespace arx {
 
@@ -29,6 +30,8 @@ namespace arx {
                     .setMaxSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .build();
+        createQueryPool();
+        initializeImgui();
     }
 
     App::~App() {}
@@ -74,8 +77,6 @@ namespace arx {
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         
         chunkManager.setCamera(camera);
-//        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-//        chunkManager.initializeHeightTerrain(gameObjects, 8);
         chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
         
         uint32_t instances = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
@@ -86,13 +87,18 @@ namespace arx {
         arxRenderer.getSwapChain()->loadGeometryToDevice();
         
         std::vector<uint32_t> visibleChunksIndices;
-        
-        initializeImgui();
+        std::vector<uint32_t> defaultChunkIndices = arxRenderer.getSwapChain()->cull.visibleIndices.indices;
+
         bool freezeCamera = false;
         bool cachedCameraDataIsSet = false;
-        
+        bool enableCulling = true;
+        uint32_t sampleFreq = 50;
+
         static OcclusionSystem::GPUCameraData cachedCameraData;
         
+        // Vectors to store timings
+        std::vector<uint64_t> cullingTimes, renderTimes, depthPyramidTimes;
+
         auto currentTime = std::chrono::high_resolution_clock::now();
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
@@ -107,12 +113,25 @@ namespace arx {
             currentTime = newTime;
             
             ImGui::Begin("Debug");
+            ImGui::Text("Press I for ImGui, O for game");
             ImGui::Text("Chunks %d", static_cast<uint32_t>(visibleChunksIndices.size()));
             ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.frustumCulling));
             ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.occlusionCulling));
             ImGui::Checkbox("Freeze Camera", &freezeCamera);
-            ImGui::End();
+            ImGui::Checkbox("Enable Culling", &enableCulling);
 
+            // Display timings
+            if (renderTimes.size() >= sampleFreq) {
+                auto avgCullingTime = cullingTimes.empty() ? 0 : std::accumulate(cullingTimes.begin(), cullingTimes.end(), 0.0) / cullingTimes.size();
+                auto avgRenderTime = std::accumulate(renderTimes.begin(), renderTimes.end(), 0.0) / renderTimes.size();
+                auto avgDepthPyramidTime = depthPyramidTimes.empty() ? 0 : std::accumulate(depthPyramidTimes.begin(), depthPyramidTimes.end(), 0.0) / depthPyramidTimes.size();
+
+                ImGui::Text("Culling Time: %.3f ms", avgCullingTime / 1e6); // Convert ns to ms
+                ImGui::Text("Render Time: %.3f ms", avgRenderTime / 1e6);
+                ImGui::Text("Depth Pyramid Time: %.3f ms", avgDepthPyramidTime / 1e6);
+            }
+
+            ImGui::End();
             ImGui::Render();
 
             cameraController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
@@ -129,6 +148,9 @@ namespace arx {
                     globalDescriptorSets[frameIndex],
                     gameObjects
                 };
+
+                vkCmdResetQueryPool(commandBuffer, queryPool, 0, 6);
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 0);
                 
                 // Update ubo
                 GlobalUbo ubo{};
@@ -140,49 +162,95 @@ namespace arx {
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
                 arxRenderer.updateMisc(ubo);
-            
-                // Cull hidden chunks
-                visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
-                
-                // GPass
-                arxRenderer.Pass_GBuffer(frameInfo, visibleChunksIndices);
-                
+
+                if (enableCulling) {
+                    // Cull hidden chunks
+                    visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 1);
+                } else {
+                    // Use default chunk indices when culling is disabled
+                    visibleChunksIndices = defaultChunkIndices;
+                }
+
                 // Early render
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 2);
                 arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
                 simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
                 ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
-                
-                // Calculate the depth pyramid
-                // Update Dynamic Data for culling if camera is not frozen
-                if (freezeCamera) {
-                    if (!cachedCameraDataIsSet) {
-                        cachedCameraData.view = camera.getView();
-                        cachedCameraData.proj = camera.getProjection();
-                        cachedCameraData.viewProj = camera.getVP();
-                        cachedCameraData.invView = camera.getInverseView();
-                        cachedCameraDataIsSet = true;
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 3);
+
+                if (enableCulling) {
+                    // Calculate the depth pyramid
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 4);
+                    if (freezeCamera) {
+                        if (!cachedCameraDataIsSet) {
+                            cachedCameraData.view = camera.getView();
+                            cachedCameraData.proj = camera.getProjection();
+                            cachedCameraData.viewProj = camera.getVP();
+                            cachedCameraData.invView = camera.getInverseView();
+                            cachedCameraDataIsSet = true;
+                        }
+                        arxRenderer.getSwapChain()->cull.cameraBuffer->writeToBuffer(&cachedCameraData);
+                    } else {
+                        arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+                        arxRenderer.getSwapChain()->updateDynamicData();
+                        arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
+                        cachedCameraDataIsSet = false;
                     }
-                    arxRenderer.getSwapChain()->cull.cameraBuffer->writeToBuffer(&cachedCameraData);
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 5);
                 }
-                else {
-                    arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
-                    arxRenderer.getSwapChain()->updateDynamicData();
-                    arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
-                    cachedCameraDataIsSet = false;
-                }
-                
+
                 arxRenderer.endFrame();
-                // Use for profiling
-//                auto startProgram = std::chrono::high_resolution_clock::now();
-//                auto endProgram = std::chrono::high_resolution_clock::now();
-//                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endProgram - startProgram).count();
-//                std::cout << "Time: " << duration << " ms" << std::endl;
+
+                // Retrieve timestamp data
+                uint64_t timestamps[6];
+                vkGetQueryPoolResults(arxDevice.device(), queryPool, 0, 6, sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+
+                if (enableCulling) {
+                    // Calculate the elapsed time in nanoseconds
+                    uint64_t cullingTime = timestamps[1] - timestamps[0];
+                    uint64_t renderTime = timestamps[3] - timestamps[2];
+                    uint64_t depthPyramidTime = timestamps[5] - timestamps[4];
+
+                    // Store the timings for averaging
+                    if (cullingTimes.size() < sampleFreq) {
+                        cullingTimes.push_back(cullingTime);
+                    } else {
+                        std::rotate(cullingTimes.begin(), cullingTimes.begin() + 1, cullingTimes.end());
+                        cullingTimes.back() = cullingTime;
+                    }
+
+                    if (renderTimes.size() < sampleFreq) {
+                        renderTimes.push_back(renderTime);
+                    } else {
+                        std::rotate(renderTimes.begin(), renderTimes.begin() + 1, renderTimes.end());
+                        renderTimes.back() = renderTime;
+                    }
+
+                    if (depthPyramidTimes.size() < sampleFreq) {
+                        depthPyramidTimes.push_back(depthPyramidTime);
+                    } else {
+                        std::rotate(depthPyramidTimes.begin(), depthPyramidTimes.begin() + 1, depthPyramidTimes.end());
+                        depthPyramidTimes.back() = depthPyramidTime;
+                    }
+                } else {
+                    uint64_t renderTime = timestamps[3] - timestamps[2];
+
+                    // Store the timings for averaging
+                    if (renderTimes.size() < sampleFreq) {
+                        renderTimes.push_back(renderTime);
+                    } else {
+                        std::rotate(renderTimes.begin(), renderTimes.begin() + 1, renderTimes.end());
+                        renderTimes.back() = renderTime;
+                    }
+                }
             }
         }
         vkDeviceWaitIdle(arxDevice.device());
         // Cleanup ImGui when the application is about to close
         vkDestroyDescriptorPool(arxDevice.device(), imguiPool, nullptr);
+        vkDestroyQueryPool(arxDevice.device(), queryPool, nullptr);
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
@@ -238,17 +306,17 @@ namespace arx {
         ImGui_ImplVulkan_Init(&init_info);
 
         ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
-        // You may need to merge fonts or load specific ones
-//        io.Fonts->AddFontDefault();
-//
-//        // Upload Fonts
-//        {
-//        // Use any command buffer to upload fonts
-//        ImGui_ImplVulkan_CreateFontsTexture();
-//        ImGui_ImplVulkan_DestroyFontsTexture();
-//        }
-
-        // Set clear color for ImGui background
         ImGui::StyleColorsDark();
+    }
+
+    void App::createQueryPool() {
+        VkQueryPoolCreateInfo queryPoolInfo = {};
+        queryPoolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+        queryPoolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+        queryPoolInfo.queryCount = 6;
+
+        if (vkCreateQueryPool(arxDevice.device(), &queryPoolInfo, nullptr, &queryPool) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create query pool!");
+        }
     }
 }
