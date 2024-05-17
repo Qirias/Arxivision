@@ -31,6 +31,27 @@ namespace arx {
     : arxDevice{device} {
         createVertexBuffers(builder);
         createIndexBuffers(builder.indices);
+        
+        // Calculate offsets based on buffer sizes
+        VkDeviceSize vertexBufferOffset = 0;
+        for (const auto& buffer : BufferManager::vertexBuffers) {
+            vertexBufferOffset += buffer->getBufferSize();
+        }
+
+        VkDeviceSize indexBufferOffset = 0;
+        for (const auto& buffer : BufferManager::indexBuffers) {
+            indexBufferOffset += buffer->getBufferSize();
+        }
+
+        VkDeviceSize instanceBufferOffset = 0;
+        for (const auto& buffer : BufferManager::instanceBuffers) {
+            instanceBufferOffset += buffer->getBufferSize();
+        }
+
+        // Register buffers with BufferManager using calculated offsets
+        BufferManager::addVertexBuffer(vertexBuffer, vertexBufferOffset);
+        BufferManager::addIndexBuffer(indexBuffer, indexBufferOffset);
+        BufferManager::addInstanceBuffer(instanceBuffer, instanceBufferOffset);
     }
 
     ArxModel::~ArxModel() {}
@@ -64,7 +85,7 @@ namespace arx {
         stagingBuffer.writeToBuffer((void *)builder.vertices.data());
         
         
-        vertexBuffer = std::make_unique<ArxBuffer>(
+        vertexBuffer = std::make_shared<ArxBuffer>(
                                                    arxDevice,
                                                    vertexSize,
                                                    vertexCount,
@@ -92,7 +113,7 @@ namespace arx {
         instanceStagingBuffer.map();
         instanceStagingBuffer.writeToBuffer((void*)builder.instanceData.data());
         
-        instanceBuffer = std::make_unique<ArxBuffer>(arxDevice,
+        instanceBuffer = std::make_shared<ArxBuffer>(arxDevice,
                                                      instanceSize,
                                                      instanceCount,
                                                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
@@ -125,7 +146,7 @@ namespace arx {
         stagingBuffer.map();
         stagingBuffer.writeToBuffer((void *)indices.data());
         
-        indexBuffer = std::make_unique<ArxBuffer>(
+        indexBuffer = std::make_shared<ArxBuffer>(
                                                  arxDevice,
                                                  indexSize,
                                                  indexCount,
@@ -142,12 +163,6 @@ namespace arx {
         }
         else {
             vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
-        }
-    }
-    
-    void ArxModel::drawIndirect(VkCommandBuffer commandBuffer) {
-        if (hasIndexBuffer) {
-            vkCmdDrawIndexedIndirect(commandBuffer, drawIndirectBuffer->getBuffer(), 0, instanceCount, sizeof(VkDrawIndexedIndirectCommand));
         }
     }
 

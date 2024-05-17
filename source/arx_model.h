@@ -2,8 +2,7 @@
 
 #include "arx_device.h"
 #include "arx_buffer.h"
-//#include "arx_frame_info.h"
-//#include "chunks.h"
+#include "arx_buffer_manager.hpp"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -14,6 +13,8 @@
 #include <memory>
 
 namespace arx {
+    
+    class OcclusionSystem;
 
     // Per-instance data block
     struct InstanceData {
@@ -66,7 +67,7 @@ namespace arx {
         
         void bind(VkCommandBuffer commandBuffer);
         void draw(VkCommandBuffer commandBuffer);
-        void drawIndirect(VkCommandBuffer commandBuffer);
+        
         uint32_t getIndexCount() { return indexCount; }
 
         
@@ -74,20 +75,16 @@ namespace arx {
         void createVertexBuffers(const ArxModel::Builder &builder);
         void createIndexBuffers(const std::vector<uint32_t> &indices);
         
-        
         ArxDevice       &arxDevice;
         
-        std::unique_ptr<ArxBuffer>  vertexBuffer;
+        std::shared_ptr<ArxBuffer>  vertexBuffer;
         uint32_t                    vertexCount;
         
-        std::unique_ptr<ArxBuffer>  instanceBuffer;
+        std::shared_ptr<ArxBuffer>  instanceBuffer;
         uint32_t                    instanceCount;
-
         
         bool                        hasIndexBuffer = false;
-        std::unique_ptr<ArxBuffer>  indexBuffer;
+        std::shared_ptr<ArxBuffer>  indexBuffer;
         uint32_t                    indexCount;
-        
-        std::unique_ptr<ArxBuffer>  drawIndirectBuffer;
     };
 }

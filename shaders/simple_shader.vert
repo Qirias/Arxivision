@@ -35,3 +35,4 @@ void main() {
     fragPosWorld            = positionWorld.xyz;
     fragColor               = instanceColor;
 }
+

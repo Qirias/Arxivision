@@ -154,15 +154,17 @@ namespace arx {
                 queueCreateInfo.pQueuePriorities    = &queuePriority;
                 queueCreateInfos.push_back(queueCreateInfo);
             }
-
-            VkPhysicalDeviceFeatures deviceFeatures = {};
-            deviceFeatures.samplerAnisotropy    = VK_TRUE;
-            deviceFeatures.fillModeNonSolid     = VK_TRUE;
+            
+            VkPhysicalDeviceFeatures2 deviceFeatures2{};
+            deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+            deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
+            deviceFeatures2.features.fillModeNonSolid  = VK_TRUE;
             
             setImagelessFramebufferFeature();
             setBufferDeviceAddressFeature();
             
             bufferDeviceAddressFeatures.pNext = &imagelessFramebufferFeatures;
+            deviceFeatures2.pNext = &bufferDeviceAddressFeatures;
 
             VkDeviceCreateInfo createInfo = {};
             createInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -170,10 +172,10 @@ namespace arx {
             createInfo.queueCreateInfoCount    = static_cast<uint32_t>(queueCreateInfos.size());
             createInfo.pQueueCreateInfos       = queueCreateInfos.data();
 
-            createInfo.pEnabledFeatures        = &deviceFeatures;
+            createInfo.pEnabledFeatures        = VK_NULL_HANDLE;
             createInfo.enabledExtensionCount   = static_cast<uint32_t>(deviceExtensions.size());
             createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-            createInfo.pNext                   = &bufferDeviceAddressFeatures;
+            createInfo.pNext                   = &deviceFeatures2;
 
             // might not really be necessary anymore because device specific validation layers
             // have been deprecated

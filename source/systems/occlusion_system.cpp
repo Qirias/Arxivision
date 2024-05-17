@@ -11,7 +11,7 @@
 #include <cassert>
 
 namespace arx {
-    
+
     struct DepthReduceData {
         glm::vec2 dimensions;
     };
@@ -123,5 +123,3 @@ namespace arx {
                                                         lateCullingPipelineLayout);
     }
 }
-
-
