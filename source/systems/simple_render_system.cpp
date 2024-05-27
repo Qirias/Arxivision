@@ -95,8 +95,9 @@ namespace arx {
             frameInfo.voxel[i].model->bind(frameInfo.commandBuffer);
             frameInfo.voxel[i].model->draw(frameInfo.commandBuffer);
         }
+
 //        arxPipeline->bind(frameInfo.commandBuffer);
-//
+//            
 //        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
 //                                VK_PIPELINE_BIND_POINT_GRAPHICS,
 //                                pipelineLayout,
@@ -105,10 +106,12 @@ namespace arx {
 //                                0,
 //                                nullptr);
 //
-//        // Bind all buffers using the static helper function
-//        arx::BufferManager::bindBuffers(frameInfo.commandBuffer);
+//        BufferManager::bindBuffers(frameInfo.commandBuffer);
 //
-//        // Perform indirect drawing
-//        vkCmdDrawIndexedIndirect(frameInfo.commandBuffer, arx::BufferManager::drawIndirectBuffer->getBuffer(), 0, static_cast<uint32_t>(visibleChunksIndices.size()), sizeof(VkDrawIndexedIndirectCommand));
+//        vkCmdDrawIndexedIndirect(frameInfo.commandBuffer,
+//                                 BufferManager::getIndirectDrawBuffer(),
+//                                 0,
+//                                 frameInfo.voxel.size(), // Number of draw commands
+//                                 sizeof(VkDrawIndexedIndirectCommand));
     }
 }
