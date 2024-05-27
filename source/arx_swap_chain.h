@@ -114,7 +114,6 @@ class ArxSwapChain {
         void computeDepthPyramid(VkCommandBuffer commandBuffer);
         void createBarriers();
         void loadGeometryToDevice();
-        VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
         VkImageMemoryBarrier createImageBarrier(VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, VkImageAspectFlags aspectFlags, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, uint32_t baseMipLevels, uint32_t levelCount);
     
         void createCullingDescriptors();

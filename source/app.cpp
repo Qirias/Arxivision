@@ -77,6 +77,7 @@ namespace arx {
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         
         chunkManager.setCamera(camera);
+//                chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
         chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
         
         uint32_t instances = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
@@ -171,6 +172,9 @@ namespace arx {
                     // Use default chunk indices when culling is disabled
                     visibleChunksIndices = defaultChunkIndices;
                 }
+                
+                // G-Pass
+//                arxRenderer.Pass_GBuffer(frameInfo, visibleChunksIndices);
 
                 // Early render
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 2);

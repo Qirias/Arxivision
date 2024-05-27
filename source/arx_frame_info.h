@@ -5,8 +5,6 @@
 
 namespace arx {
     
-#define MAX_LIGHTS 10
-
 static const int CHUNK_SIZE = 9;
 static const float VOXEL_SIZE = 1;
 static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
