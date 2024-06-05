@@ -65,53 +65,40 @@ namespace arx {
                                                     pipelineConfig);
     }
 
-    void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo, std::vector<uint32_t> &visibleChunksIndices) {
+    void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo) {
         arxPipeline->bind(frameInfo.commandBuffer);
-        
+
         vkCmdBindDescriptorSets(frameInfo.commandBuffer,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipelineLayout,
-                                0, 1,
-                                &frameInfo.globalDescriptorSet,
-                                0,
-                                nullptr);
-        
-        for (auto i : visibleChunksIndices) {
-            if (frameInfo.voxel[i].model == nullptr) continue;
-            SimplePushConstantData push{};
-            frameInfo.voxel[i].transform.scale = glm::vec3(VOXEL_SIZE/2);
-            push.modelMatrix    = frameInfo.voxel[i].transform.mat4();
-            push.normalMatrix   = frameInfo.voxel[i].transform.normalMatrix();
-
-
-            vkCmdPushConstants(frameInfo.commandBuffer,
+                               VK_PIPELINE_BIND_POINT_GRAPHICS,
                                pipelineLayout,
-                               VK_SHADER_STAGE_VERTEX_BIT |
-                               VK_SHADER_STAGE_FRAGMENT_BIT,
+                               0, 1,
+                               &frameInfo.globalDescriptorSet,
                                0,
-                               sizeof(SimplePushConstantData),
-                               &push);
-            
-            frameInfo.voxel[i].model->bind(frameInfo.commandBuffer);
-            frameInfo.voxel[i].model->draw(frameInfo.commandBuffer);
-        }
+                               nullptr);
+        
+        frameInfo.voxel[0].model->bind(frameInfo.commandBuffer);
 
-//        arxPipeline->bind(frameInfo.commandBuffer);
-//            
-//        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
-//                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-//                                pipelineLayout,
-//                                0, 1,
-//                                &frameInfo.globalDescriptorSet,
-//                                0,
-//                                nullptr);
-//
-//        BufferManager::bindBuffers(frameInfo.commandBuffer);
-//
-//        vkCmdDrawIndexedIndirect(frameInfo.commandBuffer,
-//                                 BufferManager::getIndirectDrawBuffer(),
-//                                 0,
-//                                 frameInfo.voxel.size(), // Number of draw commands
-//                                 sizeof(VkDrawIndexedIndirectCommand));
+        SimplePushConstantData push{};
+        frameInfo.voxel[0].transform.scale = glm::vec3(VOXEL_SIZE/2);
+        push.modelMatrix    = frameInfo.voxel[0].transform.mat4();
+        push.normalMatrix   = frameInfo.voxel[0].transform.normalMatrix();
+
+        vkCmdPushConstants(frameInfo.commandBuffer,
+                           pipelineLayout,
+                           VK_SHADER_STAGE_VERTEX_BIT |
+                           VK_SHADER_STAGE_FRAGMENT_BIT,
+                           0,
+                           sizeof(SimplePushConstantData),
+                           &push);
+        
+        uint32_t drawCount = BufferManager::readDrawCommandCount();
+        
+        if (drawCount > 0) {
+            vkCmdDrawIndexedIndirect(frameInfo.commandBuffer,
+                                     BufferManager::drawIndirectBuffer->getBuffer(),
+                                     0,
+                                     drawCount,
+                                     sizeof(GPUIndirectDrawCommand));
+        }
     }
 }

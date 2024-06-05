@@ -673,7 +673,7 @@ namespace arx {
             .setMaxSets(1)
             .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3.f)
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3.f)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5.f)
             .build();
     
         VkDescriptorBufferInfo cameraBufferInfo{};
@@ -706,6 +706,20 @@ namespace arx {
         miscBufferInfo.offset = 0;
         miscBufferInfo.range = VK_WHOLE_SIZE;
         
+        VkDescriptorBufferInfo indirectBufferInfo{};
+        indirectBufferInfo.buffer = BufferManager::drawIndirectBuffer->getBuffer();
+        indirectBufferInfo.offset = 0;
+        indirectBufferInfo.range = VK_WHOLE_SIZE;
+        
+        VkDescriptorBufferInfo instanceOffsetsInfo{};
+        instanceOffsetsInfo.buffer = BufferManager::instanceOffsetBuffer->getBuffer();
+        instanceOffsetsInfo.offset = 0;
+        instanceOffsetsInfo.range = VK_WHOLE_SIZE;
+        
+        VkDescriptorBufferInfo drawCommandCountBufferInfo{};
+        drawCommandCountBufferInfo.buffer = BufferManager::drawCommandCountBuffer->getBuffer();
+        drawCommandCountBufferInfo.offset = 0;
+        drawCommandCountBufferInfo.range = VK_WHOLE_SIZE;
         
         ArxDescriptorWriter(*cull.cullingDescriptorLayout, *cull.cullingDescriptorPool)
                             .writeBuffer(0, &cameraBufferInfo)
@@ -714,6 +728,9 @@ namespace arx {
                             .writeBuffer(3, &visibilityInfo)
                             .writeBuffer(4, &globalDataBufferInfo)
                             .writeBuffer(5, &miscBufferInfo)
+                            .writeBuffer(6, &indirectBufferInfo)
+                            .writeBuffer(7, &instanceOffsetsInfo)
+                            .writeBuffer(8, &drawCommandCountBufferInfo)
                             .build(cull.cullingDescriptorSet);
     }
 
@@ -822,46 +839,13 @@ namespace arx {
         cull.framebufferDepthReadBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
     }
 
-    std::vector<uint32_t> ArxSwapChain::computeCulling(VkCommandBuffer commandBuffer, const uint32_t instances, bool late) {
+    void ArxSwapChain::computeCulling(VkCommandBuffer commandBuffer, const uint32_t instances, bool late) {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, late ? cull.lateCullingPipeline->computePipeline : cull.cullingPipeline->computePipeline);
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, late ? cull.lateCullingPipelineLayout : cull.cullingPipelineLayout, 0, 1, &cull.cullingDescriptorSet, 0, nullptr);
         
         uint32_t groupCountX = static_cast<uint32_t>((instances / 256) + 1);
         vkCmdDispatch(commandBuffer, groupCountX, 1, 1);
-        
-        VkBufferMemoryBarrier barrier = {
-                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT, // From compute shader
-                .dstAccessMask = VK_ACCESS_HOST_READ_BIT, // To CPU read
-                .buffer = cull.visibilityBuffer->getBuffer(),
-                .size = VK_WHOLE_SIZE
-            };
-        
-            vkCmdPipelineBarrier(
-                commandBuffer,
-                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // After compute shader
-                VK_PIPELINE_STAGE_HOST_BIT, // Before host read
-                0,
-                0, nullptr,
-                1, &barrier,
-                0, nullptr
-             );
-    
-        // Read data directly from the mapped buffer
-        uint32_t* ptr = static_cast<uint32_t*>(cull.visibilityBuffer->getMappedMemory());
-//        for (size_t i = 0; i < cull.visibleIndices.size(); ++i) {
-//                std::cout << "Object " << i << " depth: " << ptr[i] << std::endl;
-//        }
-
-        std::vector<uint32_t> ret;
-        for (size_t i = 0; i < cull.visibleIndices.size(); ++i) {
-            if (ptr[i] == 1) {
-                ret.push_back(cull.visibleIndices.indices[i]);
-            }
-        }
-        
-        return ret;
     }
 
     void ArxSwapChain::loadGeometryToDevice() {
@@ -869,59 +853,94 @@ namespace arx {
         VkMemoryPropertyFlags memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         
         // ObjectBuffer
-        cull.objectsDataBuffer = std::make_unique<ArxBuffer>(
-            device,
-            sizeof(OcclusionSystem::GPUObjectDataBuffer::GPUObjectData),
-            cull.objectData.size(),
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            memoryPropertyFlags);
+        cull.objectsDataBuffer = std::make_unique<ArxBuffer>(device,
+                                                             sizeof(OcclusionSystem::GPUObjectDataBuffer::GPUObjectData),
+                                                             cull.objectData.size(),
+                                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                             memoryPropertyFlags);
 
         cull.objectsDataBuffer->map();
         cull.objectsDataBuffer->writeToBuffer(cull.objectData.dataPtr(), cull.objectData.bufferSize());
         
         // VisibleIndices
-        cull.visibilityBuffer = std::make_unique<ArxBuffer>(
-            device,
-            sizeof(uint32_t),
-            cull.visibleIndices.size(),
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        cull.visibilityBuffer = std::make_unique<ArxBuffer>(device,
+                                                            sizeof(uint32_t),
+                                                            cull.visibleIndices.size(),
+                                                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         cull.visibilityBuffer->map();
         cull.visibilityBuffer->writeToBuffer(cull.visibleIndices.data());
         
         // Global data
-        cull.globalDataBuffer = std::make_unique<ArxBuffer>(
-            device,
-            sizeof(OcclusionSystem::GPUCullingGlobalData),
-            1,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            memoryPropertyFlags);
+        cull.globalDataBuffer = std::make_unique<ArxBuffer>(device,
+                                                            sizeof(OcclusionSystem::GPUCullingGlobalData),
+                                                            1,
+                                                            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                            memoryPropertyFlags);
         
         cull.globalDataBuffer->map();
         cull.globalDataBuffer->writeToBuffer(&cull.cullingData);
                 
         // GPUCameraData
-        cull.cameraBuffer = std::make_unique<ArxBuffer>(
-                device,
-                sizeof(OcclusionSystem::GPUCameraData),
-                1,
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                memoryPropertyFlags);
+        cull.cameraBuffer = std::make_unique<ArxBuffer>(device,
+                                                        sizeof(OcclusionSystem::GPUCameraData),
+                                                        1,
+                                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                        memoryPropertyFlags);
         
         cull.cameraBuffer->map();
         cull.cameraBuffer->writeToBuffer(&cull.cameraData);
         
         // GPUMiscData
-        cull.miscBuffer = std::make_unique<ArxBuffer>(
-                device,
-                sizeof(OcclusionSystem::GPUMiscData),
-                1,
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                memoryPropertyFlags);
+        cull.miscBuffer = std::make_unique<ArxBuffer>(device,
+                                                      sizeof(OcclusionSystem::GPUMiscData),
+                                                      1,
+                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                      memoryPropertyFlags);
         
         cull.miscBuffer->map();
         cull.miscBuffer->writeToBuffer(&cull.miscData);
+        
+        // Draw Indirect Buffer
+        // indirectDrawData is initialized in the App.cpp
+        BufferManager::drawIndirectBuffer = std::make_unique<ArxBuffer>(device,
+                                                                        sizeof(GPUIndirectDrawCommand),
+                                                                        BufferManager::indirectDrawData.size(),
+                                                                        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        );
+        
+        BufferManager::drawIndirectBuffer->map();
+        BufferManager::drawIndirectBuffer->writeToBuffer(BufferManager::indirectDrawData.data());
+        
+        // Instance Offset Buffer
+        BufferManager::instanceOffsetBuffer = std::make_unique<ArxBuffer>(device,
+                                                                          sizeof(uint64_t),
+                                                                          static_cast<uint32_t>(BufferManager::instanceOffsets.size()),
+                                                                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+                                                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        
+        BufferManager::instanceOffsetBuffer->map();
+        BufferManager::instanceOffsetBuffer->writeToBuffer(BufferManager::instanceOffsets.data());
+        
+        // Draw Command Count Buffer
+        BufferManager::drawCommandCountBuffer = std::make_unique<ArxBuffer>(device,
+                                                                            sizeof(uint32_t),
+                                                                            1,
+                                                                            VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                                                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+                                                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                                            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        
+        uint32_t zero = 0;
+        BufferManager::drawCommandCountBuffer->map();
+        BufferManager::drawCommandCountBuffer->writeToBuffer(&zero, sizeof(uint32_t));
         
         createCullingDescriptors();
     }

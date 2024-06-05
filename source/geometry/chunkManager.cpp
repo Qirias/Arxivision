@@ -68,7 +68,7 @@ namespace arx {
                     Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, chunkVertices);
                     m_vpChunks.push_back(newChunk);
                     setChunkPosition({chunkPosition, newChunk->getID()});
-                    setupAABBForChunk(newChunk->getPosition(), newChunk->getID());
+                    setChunkAABB(newChunk->getPosition(), newChunk->getID());
                 }
             }
         }
@@ -88,7 +88,7 @@ namespace arx {
                     m_vpChunks.push_back(newChunk);
                     if (newChunk->getID() != -1) {
                         setChunkPosition({newChunk->getPosition(), newChunk->getID()});
-                        setupAABBForChunk(newChunk->getPosition(), newChunk->getID());
+                        setChunkAABB(newChunk->getPosition(), newChunk->getID());
                     }
                 }
             }
@@ -99,7 +99,7 @@ namespace arx {
             chunkPositions.push_back({position.first, position.second});
     }
 
-    void ChunkManager::setupAABBForChunk(const glm::vec3& position, const unsigned int chunkId) {
+    void ChunkManager::setChunkAABB(const glm::vec3& position, const unsigned int chunkId) {
         
         AABB aabb;
         aabb.min = position;

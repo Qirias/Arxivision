@@ -17,10 +17,10 @@ namespace arx {
                 for (int z = 0; z < ADJUSTED_CHUNK; z++) {
                     if (!blocks[x][y][z].isActive()) continue;
                     glm::vec3 translation = glm::vec3(x*VOXEL_SIZE, y*VOXEL_SIZE, z*VOXEL_SIZE) + position;
-                    tmpInstance[index].color = glm::vec3(x / static_cast<float>(ADJUSTED_CHUNK),
+                    tmpInstance[index].color = glm::vec4(x / static_cast<float>(ADJUSTED_CHUNK),
                                                          y / static_cast<float>(ADJUSTED_CHUNK),
-                                                         z / static_cast<float>(ADJUSTED_CHUNK));
-                    tmpInstance[index].translation = translation;
+                                                         z / static_cast<float>(ADJUSTED_CHUNK), 1.0f);
+                    tmpInstance[index].translation = glm::vec4(translation, 1.0f);
                     index++;
                 }
             }
@@ -50,8 +50,8 @@ namespace arx {
                 for (int z = 0; z < ADJUSTED_CHUNK; z++) {
                     if (!blocks[x][y][z].isActive()) continue;
                     glm::vec3 translation = glm::vec3(x*VOXEL_SIZE, y*VOXEL_SIZE, z*VOXEL_SIZE) + position;
-                    tmpInstance[instances].color = colors[x][y][z];
-                    tmpInstance[instances].translation = translation;
+                    tmpInstance[instances].color = glm::vec4(colors[x][y][z], 1.0f);
+                    tmpInstance[instances].translation = glm::vec4(translation, 1.0f);
                     instances++;
                 }
             }

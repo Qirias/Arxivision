@@ -157,8 +157,11 @@ namespace arx {
             
             VkPhysicalDeviceFeatures2 deviceFeatures2{};
             deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-            deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
-            deviceFeatures2.features.fillModeNonSolid  = VK_TRUE;
+            deviceFeatures2.features.samplerAnisotropy          = VK_TRUE;
+            deviceFeatures2.features.fillModeNonSolid           = VK_TRUE;
+            deviceFeatures2.features.drawIndirectFirstInstance  = VK_TRUE;
+            deviceFeatures2.features.multiDrawIndirect          = VK_TRUE;
+            deviceFeatures2.features.shaderInt64                = VK_TRUE;
             
             setImagelessFramebufferFeature();
             setBufferDeviceAddressFeature();
@@ -262,7 +265,7 @@ namespace arx {
                 bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
             }
             else
-                std::cout << "BufferDebiveAddress feature is not supported!\n";
+                std::cout << "BufferDeviceAddress feature is not supported!\n";
         }
 
         void ArxDevice::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
@@ -532,17 +535,18 @@ namespace arx {
             vkFreeCommandBuffers(_device, commandPool, 1, &commandBuffer);
         }
 
-        void ArxDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+        void ArxDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset, VkDeviceSize dstOffset) {
             VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
             VkBufferCopy copyRegion{};
-            copyRegion.srcOffset = 0;  // Optional
-            copyRegion.dstOffset = 0;  // Optional
+            copyRegion.srcOffset = srcOffset;
+            copyRegion.dstOffset = dstOffset;
             copyRegion.size = size;
             vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
             endSingleTimeCommands(commandBuffer);
         }
+
 
         void ArxDevice::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands();

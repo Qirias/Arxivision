@@ -1,87 +1,111 @@
 #version 450
- 
- layout (local_size_x = 256) in;
 
- struct ObjectData {
-     vec4 aabbMin;
-     vec4 aabbMax;
- };
+#extension GL_ARB_gpu_shader_int64 : enable
 
- layout (set = 0, binding = 0) uniform CameraData {
-     mat4 view;
-     mat4 proj;
-     mat4 viewProj;
-     mat4 invView;
- } camera;
+layout(local_size_x = 256) in;
 
- layout (set = 0, binding = 1) readonly buffer ObjectBuffer {
-     ObjectData objects[];
- } objectBuffer;
+struct ObjectData {
+    vec4 aabbMin;
+    vec4 aabbMax;
+    uint instanceCount;
+    uint _padding[3];
+};
 
- layout (set = 0, binding = 2) uniform sampler2D depthPyramid;
+struct IndirectDrawCommand
+{
+    uint    indexCount;
+    uint    instanceCount;
+    uint    firstIndex;
+    int     vertexOffset;
+    uint    firstInstance;
+};
 
- layout (set = 0, binding = 3) buffer VisibilityBuffer {
-     uint visibleIndices[];
- } visibilityBuffer;
+layout(set = 0, binding = 0) uniform CameraData {
+    mat4 view;
+    mat4 proj;
+    mat4 viewProj;
+    mat4 invView;
+} camera;
 
- layout (set = 0, binding = 4) uniform GlobalData {
-     vec4 frustum[6];  // Left/right/top/bottom frustum planes
-     float zNear;
-     float zFar;
-     float P00;
-     float P11;
-     uint pyramidWidth;
-     uint pyramidHeight;
-     uint instances;
-     vec4 _padding;
- } globalData;
+layout(set = 0, binding = 1) readonly buffer ObjectBuffer {
+    ObjectData objects[];
+} objectBuffer;
 
-layout (set = 0, binding = 5) uniform MiscData {
+layout(set = 0, binding = 2) uniform sampler2D depthPyramid;
+
+layout(set = 0, binding = 3) buffer VisibilityBuffer {
+    uint visibleIndices[];
+} visibilityBuffer;
+
+layout(set = 0, binding = 4) uniform GlobalData {
+    vec4 frustum[6];  // Left/right/top/bottom frustum planes
+    float zNear;
+    float zFar;
+    float P00;
+    float P11;
+    uint pyramidWidth;
+    uint pyramidHeight;
+    uint instances;
+    uint _padding;
+} globalData;
+
+layout(set = 0, binding = 5) uniform MiscData {
     int occlusionCulling;
     int frustumCulling;
 } misc;
 
- const float MAX_DEPTH = 1.0;
- const float SAMPLE_STEP = 0.025; // This is a static sample step, adjust based on profiling
+layout(set = 0, binding = 6) buffer DrawCommands {
+    IndirectDrawCommand drawCommands[];
+};
 
- bool within(float lower, float value, float upper) {
-     return value >= lower && value <= upper;
- }
+layout(set = 0, binding = 7) readonly buffer InstanceOffsets {
+    uint64_t instanceOffsets[];
+};
 
- bool isFrustumVisible(vec3 aabbMin, vec3 aabbMax, mat4 VP) {
-     vec3 corners[8] = {
-         vec3(aabbMin.x, aabbMin.y, aabbMin.z),
-         vec3(aabbMax.x, aabbMin.y, aabbMin.z),
-         vec3(aabbMin.x, aabbMax.y, aabbMin.z),
-         vec3(aabbMax.x, aabbMax.y, aabbMin.z),
-         vec3(aabbMin.x, aabbMin.y, aabbMax.z),
-         vec3(aabbMax.x, aabbMin.y, aabbMax.z),
-         vec3(aabbMin.x, aabbMax.y, aabbMax.z),
-         vec3(aabbMax.x, aabbMax.y, aabbMax.z)
-     };
-     
-     bool inside = false;
-     for (int i = 0; i < 8; ++i) {
-         vec4 clipCoord = VP * vec4(corners[i], 1.0);
-         inside = inside || (within(-clipCoord.w, clipCoord.x, clipCoord.w) &&
-                             within(-clipCoord.w, clipCoord.y, clipCoord.w) &&
-                             within(0.0, clipCoord.z, clipCoord.w));
-     }
-     
-     return inside;
- }
+layout(set = 0, binding = 8) buffer DrawCommandCount {
+    uint drawCommandCount;
+};
 
- bool isVisibleAABB(vec3 aabbMin, vec3 aabbMax) {
+const float MAX_DEPTH = 1.0;
+const float SAMPLE_STEP = 0.025; // This is a static sample step, adjust based on profiling
+
+bool within(float lower, float value, float upper) {
+    return value >= lower && value <= upper;
+}
+
+bool isFrustumVisible(vec3 aabbMin, vec3 aabbMax, mat4 VP) {
+    vec3 corners[8] = {
+        vec3(aabbMin.x, aabbMin.y, aabbMin.z),
+        vec3(aabbMax.x, aabbMin.y, aabbMin.z),
+        vec3(aabbMin.x, aabbMax.y, aabbMin.z),
+        vec3(aabbMax.x, aabbMax.y, aabbMin.z),
+        vec3(aabbMin.x, aabbMin.y, aabbMax.z),
+        vec3(aabbMax.x, aabbMin.y, aabbMax.z),
+        vec3(aabbMin.x, aabbMax.y, aabbMax.z),
+        vec3(aabbMax.x, aabbMax.y, aabbMax.z)
+    };
+    
+    bool inside = false;
+    for (int i = 0; i < 8; ++i) {
+        vec4 clipCoord = VP * vec4(corners[i], 1.0);
+        inside = inside || (within(-clipCoord.w, clipCoord.x, clipCoord.w) &&
+                            within(-clipCoord.w, clipCoord.y, clipCoord.w) &&
+                            within(0.0, clipCoord.z, clipCoord.w));
+    }
+    
+    return inside;
+}
+
+bool isVisibleAABB(vec3 aabbMin, vec3 aabbMax) {
     vec3 center = 0.5 * (aabbMin + aabbMax);
     bool visible = true;
 
-    // Check if the chunk is too close to the camera to skip frustum culling
     if (distance(vec3(camera.invView[3]), center) < 10.0f) {
         return true;
     }
 
     if (!isFrustumVisible(aabbMin, aabbMax, camera.viewProj) && misc.frustumCulling == 1) {
-        return false;  // Cull early if not within frustum
+        return false;
     }
 
     vec3 corners[8] = {
@@ -118,7 +142,6 @@ layout (set = 0, binding = 5) uniform MiscData {
     float height = (uvMax.y - uvMin.y) * float(globalData.pyramidHeight);
     float lod = max(floor(log2(max(width, height))), 0.0);
 
-    // Sample the depth pyramid
     float depth = textureLod(depthPyramid, (uvMin + uvMax) * 0.5, lod).x;
 
     visible = visible && nearestDepth <= depth || (misc.occlusionCulling == 0);
@@ -126,11 +149,20 @@ layout (set = 0, binding = 5) uniform MiscData {
     return visible;
 }
 
- void main() {
-     uint index = gl_GlobalInvocationID.x;
-     bool visible;
-     if (index < globalData.instances) {
-         visible = isVisibleAABB(objectBuffer.objects[index].aabbMin.xyz, objectBuffer.objects[index].aabbMax.xyz);
-         visibilityBuffer.visibleIndices[index] = visible ? 1 : 0;
-     }
- }
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= globalData.instances) return;
+
+    bool visible = isVisibleAABB(objectBuffer.objects[index].aabbMin.xyz, objectBuffer.objects[index].aabbMax.xyz);
+    visibilityBuffer.visibleIndices[index] = visible ? 1 : 0;
+
+    // Update the draw command
+    if (visible) {
+        uint drawCommandIndex = atomicAdd(drawCommandCount, 1);
+        drawCommands[drawCommandIndex].indexCount = 36;
+        drawCommands[drawCommandIndex].instanceCount = objectBuffer.objects[index].instanceCount;
+        drawCommands[drawCommandIndex].firstIndex = 0;
+        drawCommands[drawCommandIndex].vertexOffset = 0;
+        drawCommands[drawCommandIndex].firstInstance = uint(instanceOffsets[index] / 64); // Instance Data is 32 bytes but VkDeviceSize is 64
+    }
+}

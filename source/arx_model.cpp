@@ -27,31 +27,15 @@ namespace std {
 
 namespace arx {
 
+    uint32_t ArxModel::totalInstances = 0;
+
     ArxModel::ArxModel(ArxDevice &device, const ArxModel::Builder &builder)
     : arxDevice{device} {
         createVertexBuffers(builder);
         createIndexBuffers(builder.indices);
+        createInstanceBuffer(builder);
         
-        // Calculate offsets based on buffer sizes
-        VkDeviceSize vertexBufferOffset = 0;
-        for (const auto& buffer : BufferManager::vertexBuffers) {
-            vertexBufferOffset += buffer->getBufferSize();
-        }
-
-        VkDeviceSize indexBufferOffset = 0;
-        for (const auto& buffer : BufferManager::indexBuffers) {
-            indexBufferOffset += buffer->getBufferSize();
-        }
-
-        VkDeviceSize instanceBufferOffset = 0;
-        for (const auto& buffer : BufferManager::instanceBuffers) {
-            instanceBufferOffset += buffer->getBufferSize();
-        }
-
-        // Register buffers with BufferManager using calculated offsets
-        BufferManager::addVertexBuffer(vertexBuffer, vertexBufferOffset);
-        BufferManager::addIndexBuffer(indexBuffer, indexBufferOffset);
-        BufferManager::addInstanceBuffer(instanceBuffer, instanceBufferOffset);
+        totalInstances += instanceCount;
     }
 
     ArxModel::~ArxModel() {}
@@ -72,17 +56,17 @@ namespace arx {
         VkDeviceSize bufferSize = sizeof(builder.vertices[0]) * vertexCount;
         uint32_t vertexSize = sizeof(builder.vertices[0]);
         
-        ArxBuffer stagingBuffer{
-            arxDevice,
-            vertexSize,
-            vertexCount,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        };
+        auto stagingBuffer = std::make_shared<ArxBuffer>(
+                   arxDevice,
+                   vertexSize,
+                   vertexCount,
+                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+               );
         
-        stagingBuffer.map();
-        stagingBuffer.writeToBuffer((void *)builder.vertices.data());
+        stagingBuffer->map();
+        stagingBuffer->writeToBuffer((void *)builder.vertices.data());
         
         
         vertexBuffer = std::make_shared<ArxBuffer>(
@@ -93,70 +77,99 @@ namespace arx {
                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         
-        arxDevice.copyBuffer(stagingBuffer.getBuffer(), vertexBuffer->getBuffer(), bufferSize);
+        arxDevice.copyBuffer(stagingBuffer->getBuffer(), vertexBuffer->getBuffer(), bufferSize);
         
-        // Create voxel instance buffer for each chunk
+        // Calculate and register offset
+        VkDeviceSize vertexBufferOffset = 0;
+        for (const auto& buffer : BufferManager::vertexBuffers) {
+           vertexBufferOffset += buffer->getBufferSize();
+        }
+        BufferManager::addVertexBuffer(stagingBuffer, vertexBufferOffset);
+    }
+
+    void ArxModel::createIndexBuffers(const std::vector<uint32_t> &indices) {
+        indexCount = static_cast<uint32_t>(indices.size());
+        hasIndexBuffer = indexCount > 0;
+
+        if (!hasIndexBuffer)
+            return;
+
+        VkDeviceSize bufferSize = sizeof(indices[0]) * indexCount;
+        uint32_t indexSize = sizeof(indices[0]);
+
+        auto stagingBuffer = std::make_shared<ArxBuffer>(
+                 arxDevice,
+                 indexSize,
+                 indexCount,
+                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+             );
+
+        stagingBuffer->map();
+        stagingBuffer->writeToBuffer((void *)indices.data());
+
+        indexBuffer = std::make_shared<ArxBuffer>(
+            arxDevice,
+            indexSize,
+            indexCount,
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        );
+
+        arxDevice.copyBuffer(stagingBuffer->getBuffer(), indexBuffer->getBuffer(), bufferSize);
+
+        // Calculate and register offset
+        VkDeviceSize indexBufferOffset = 0;
+        for (const auto& buffer : BufferManager::indexBuffers) {
+            indexBufferOffset += buffer->getBufferSize();
+        }
+        BufferManager::addIndexBuffer(stagingBuffer, indexBufferOffset);
+    }
+
+
+    void ArxModel::createInstanceBuffer(const ArxModel::Builder &builder) {
         VkDeviceSize instanceBufferSize = builder.instanceCount * sizeof(InstanceData);
+        
         uint64_t instanceSize = sizeof(InstanceData);
         instanceCount = builder.instanceCount;
-//        assert(instanceCount >= 2 && "Instance count must be at least 2");
-        
-        ArxBuffer instanceStagingBuffer{
+
+        auto instanceStagingBuffer = std::make_shared<ArxBuffer>(
             arxDevice,
             instanceSize,
             instanceCount,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        };
-        
-        instanceStagingBuffer.map();
-        instanceStagingBuffer.writeToBuffer((void*)builder.instanceData.data());
-        
-        instanceBuffer = std::make_shared<ArxBuffer>(arxDevice,
-                                                     instanceSize,
-                                                     instanceCount,
-                                                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                                                     VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        
-        arxDevice.copyBuffer(instanceStagingBuffer.getBuffer(), instanceBuffer->getBuffer(), instanceBufferSize);
-    }
+        );
 
-    void ArxModel::createIndexBuffers(const std::vector<uint32_t> &indices) {
-        indexCount = static_cast<uint32_t>(indices.size());
-        hasIndexBuffer = indexCount > 0;
-        
-        if (!hasIndexBuffer)
-            return;
-        
-        VkDeviceSize bufferSize = sizeof(indices[0]) * indexCount;
-        uint32_t indexSize = sizeof(indices[0]);
-        
-        ArxBuffer stagingBuffer{
+        instanceStagingBuffer->map();
+        instanceStagingBuffer->writeToBuffer((void*)builder.instanceData.data());
+
+        instanceBuffer = std::make_shared<ArxBuffer>(
             arxDevice,
-            indexSize,
-            indexCount,
+            instanceSize,
+            instanceCount,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        };
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        );
+
+        arxDevice.copyBuffer(instanceStagingBuffer->getBuffer(), instanceBuffer->getBuffer(), instanceBufferSize);
+
+        // Calculate and register offset
+        uint32_t instanceBufferOffset = 0;
+        for (const auto& buffer : BufferManager::instanceBuffers) {
+            instanceBufferOffset += buffer->getBufferSize();
+        }
         
-        stagingBuffer.map();
-        stagingBuffer.writeToBuffer((void *)indices.data());
-        
-        indexBuffer = std::make_shared<ArxBuffer>(
-                                                 arxDevice,
-                                                 indexSize,
-                                                 indexCount,
-                                                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        
-        arxDevice.copyBuffer(stagingBuffer.getBuffer(), indexBuffer->getBuffer(), bufferSize);
+        BufferManager::addInstanceBuffer(instanceStagingBuffer, instanceBufferOffset);
     }
 
+    // Not using it anymore, used it for instanced rendering
     void ArxModel::draw(VkCommandBuffer commandBuffer) {
         if (hasIndexBuffer) {
             vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, 0, 0, 0);
@@ -165,11 +178,11 @@ namespace arx {
             vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
         }
     }
-
+    
     void ArxModel::bind(VkCommandBuffer commandBuffer) {
-        VkBuffer buffers[]      = {vertexBuffer->getBuffer(), instanceBuffer->getBuffer()};
-        VkDeviceSize offsets[]  = {0, 0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 2, buffers, offsets);
+        VkBuffer buffers[]      = {vertexBuffer->getBuffer()};
+        VkDeviceSize offsets[]  = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
         
         if (hasIndexBuffer) {
             vkCmdBindIndexBuffer(commandBuffer, indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
@@ -177,30 +190,20 @@ namespace arx {
     }
 
     std::vector<VkVertexInputBindingDescription> ArxModel::Vertex::getBindingDescriptions() {
-        std::vector<VkVertexInputBindingDescription> bindingDescription(2);
-        bindingDescription[0].binding   = 0;
-        bindingDescription[0].stride    = sizeof(Vertex);
-        bindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-        
-        bindingDescription[1].binding   = 1;
-        bindingDescription[1].stride    = sizeof(InstanceData);
-        bindingDescription[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
-        
-        return bindingDescription;
+        return {
+           {0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX}
+       };
     }
 
     std::vector<VkVertexInputAttributeDescription> ArxModel::Vertex::getAttributeDescriptions() {
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        
+
+        // Binding 0: Vertex attributes
         attributeDescriptions.push_back({0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position)});
         attributeDescriptions.push_back({1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)});
         attributeDescriptions.push_back({2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)});
         attributeDescriptions.push_back({3, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv)});
 
-        attributeDescriptions.push_back({4, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(InstanceData, translation)});
-        attributeDescriptions.push_back({5, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(InstanceData, color)});
-        
-    
         return attributeDescriptions;
     }
 

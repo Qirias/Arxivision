@@ -62,7 +62,7 @@ class ArxDevice {
         VkDeviceMemory &bufferMemory);
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0, VkDeviceSize dstOffset = 0);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount);
     void destroyBuffer(VkBuffer buffer);
     void freeMemory(VkDeviceMemory memory);
@@ -118,10 +118,11 @@ class ArxDevice {
 
     const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
     const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                                                     "VK_KHR_portability_subset",
-                                                     "VK_KHR_imageless_framebuffer",
-                                                     "VK_KHR_maintenance2",
-                                                     "VK_KHR_image_format_list"};
+                                                        VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+                                                        "VK_KHR_portability_subset",
+                                                        "VK_KHR_imageless_framebuffer",
+                                                        "VK_KHR_maintenance2",
+                                                        "VK_KHR_image_format_list"};
         
     public:
         ThreadPool                                      threadPool;

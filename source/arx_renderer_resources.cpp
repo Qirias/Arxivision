@@ -34,6 +34,7 @@ namespace arx {
         // G-Buffer
         descriptorLayouts[static_cast<uint8_t>(PassName::GPass)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
                                             .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
+                                            .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
                                             .build());
         
         // TODO: continue with the ssao pass
@@ -89,6 +90,7 @@ namespace arx {
         descriptorPools[static_cast<uint8_t>(PassName::GPass)] = ArxDescriptorPool::Builder(arxDevice)
                                                                 .setMaxSets(1)
                                                                 .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.f)
+                                                                .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1.f)
                                                                 .build();
         
         passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(std::make_shared<ArxBuffer>(
@@ -98,18 +100,21 @@ namespace arx {
                                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
         
+        passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(BufferManager::largeInstanceBuffer);
+        
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->writeToBuffer(&ubo);
         
         descriptorSets[static_cast<uint8_t>(PassName::GPass)].resize(1);
         
-        for (size_t i = 0; i < passBuffers[static_cast<uint8_t>(PassName::GPass)].size(); ++i) {
-            auto bufferInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][i]->descriptorInfo();
-            ArxDescriptorWriter(*descriptorLayouts[static_cast<uint8_t>(PassName::GPass)][0],
-                                *descriptorPools[static_cast<uint8_t>(PassName::GPass)])
-                                .writeBuffer(0, &bufferInfo)
-                                .build(descriptorSets[static_cast<uint8_t>(PassName::GPass)][0]);
-        }
+        auto bufferInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->descriptorInfo();
+        auto instanceBufferInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][1]->descriptorInfo();
+        
+        ArxDescriptorWriter(*descriptorLayouts[static_cast<uint8_t>(PassName::GPass)][0],
+                            *descriptorPools[static_cast<uint8_t>(PassName::GPass)])
+                            .writeBuffer(0, &bufferInfo)
+                            .writeBuffer(1, &instanceBufferInfo)
+                            .build(descriptorSets[static_cast<uint8_t>(PassName::GPass)][0]);
     }
 
     void ArxRenderer::cleanupResources() {
@@ -269,7 +274,7 @@ namespace arx {
             // attachments
             std::array<VkImageView, 1> attachments;
             attachments[0] = textureManager.getAttachment("ssaoColor")->view;
-                    
+
             rpManager.createFramebuffer("SSAO", attachments, arxSwapChain->width(), arxSwapChain->height());
         }
         
@@ -328,7 +333,7 @@ namespace arx {
         }
     }
 
-    void ArxRenderer::Pass_GBuffer(FrameInfo &frameInfo, std::vector<uint32_t> &visibleChunksIndices) {
+    void ArxRenderer::Pass_GBuffer(FrameInfo &frameInfo) {
         
         beginRenderPass(frameInfo, "GBuffer");
         
@@ -343,24 +348,30 @@ namespace arx {
                                 0,
                                 nullptr);
         
-        for (auto i : visibleChunksIndices) {
-            if (frameInfo.voxel[i].model == nullptr) continue;
-            PushConstantData push{};
-            frameInfo.voxel[i].transform.scale = glm::vec3(VOXEL_SIZE/2);
-            push.modelMatrix    = frameInfo.voxel[i].transform.mat4();
-            push.normalMatrix   = frameInfo.voxel[i].transform.normalMatrix();
+        frameInfo.voxel[0].model->bind(frameInfo.commandBuffer);
+        
+        PushConstantData push{};
 
+        frameInfo.voxel[0].transform.scale = glm::vec3(VOXEL_SIZE/2);
+        push.modelMatrix    = frameInfo.voxel[0].transform.mat4();
+        push.normalMatrix   = frameInfo.voxel[0].transform.normalMatrix();
 
-            vkCmdPushConstants(frameInfo.commandBuffer,
-                               pipelineLayouts[static_cast<uint8_t>(PassName::GPass)],
-                               VK_SHADER_STAGE_VERTEX_BIT |
-                               VK_SHADER_STAGE_FRAGMENT_BIT,
-                               0,
-                               sizeof(PushConstantData),
-                               &push);
-            
-            frameInfo.voxel[i].model->bind(frameInfo.commandBuffer);
-            frameInfo.voxel[i].model->draw(frameInfo.commandBuffer);
+        vkCmdPushConstants(frameInfo.commandBuffer,
+                           pipelineLayouts[static_cast<uint8_t>(PassName::GPass)],
+                           VK_SHADER_STAGE_VERTEX_BIT |
+                           VK_SHADER_STAGE_FRAGMENT_BIT,
+                           0,
+                           sizeof(PushConstantData),
+                           &push);
+        
+        uint32_t drawCount = BufferManager::readDrawCommandCount();
+        
+        if (drawCount > 0) {
+            vkCmdDrawIndexedIndirect(frameInfo.commandBuffer,
+                                     BufferManager::drawIndirectBuffer->getBuffer(),
+                                     0,
+                                     drawCount,
+                                     sizeof(GPUIndirectDrawCommand));
         }
         
         vkCmdEndRenderPass(frameInfo.commandBuffer);

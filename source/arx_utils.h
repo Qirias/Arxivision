@@ -12,7 +12,7 @@ namespace arx {
       seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
       (hashCombine(seed, rest), ...);
     };
-    
+
 
 //    void printMat4(const glm::mat4& mat) {
 //        std::cout << "Mat\n";

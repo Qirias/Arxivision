@@ -6,6 +6,7 @@
 #include "arx_device.h"
 #include "arx_game_object.h"
 #include "arx_frame_info.h"
+#include "chunkManager.h"
 
 // std
 #include <memory>
@@ -43,7 +44,7 @@ namespace arx {
             uint32_t pyramidWidth = 0;
             uint32_t pyramidHeight = 0;
             uint32_t totalInstances = 0;
-            glm::vec4 _padding;
+            uint32_t _padding;
         };
         
         struct GPUObjectDataBuffer {
@@ -51,6 +52,8 @@ namespace arx {
             struct alignas(16) GPUObjectData {
                 glm::vec4 aabbMin;
                 glm::vec4 aabbMax;
+                uint32_t instances;
+                uint32_t padding[3];
             };
             
             std::vector<GPUObjectData> data;
@@ -94,22 +97,28 @@ namespace arx {
             visibleIndices.indices = rhs;
         }
         
-        void setObjectDataFromAABBs(const std::unordered_map<unsigned int, AABB>& chunkAABBs) {
+        void setObjectDataFromAABBs(ChunkManager& chunkManager) {
+            const auto& chunkAABBs = chunkManager.getChunkAABBs();
+            const auto& chunks = chunkManager.GetChunks();
+
             objectData.data.clear();
             objectData.data.reserve(chunkAABBs.size());
             std::vector<uint32_t> indices;
             indices.reserve(chunkAABBs.size());
 
-            for (const auto& c : chunkAABBs) {
+            for (const auto& chunk : chunks) {
                 GPUObjectDataBuffer::GPUObjectData gpuObjectData;
-                gpuObjectData.aabbMin = glm::vec4(c.second.min, 1.0f);
-                gpuObjectData.aabbMax = glm::vec4(c.second.max, 1.0f);
+                if (chunk->getID() == -1) continue;
+                gpuObjectData.aabbMin = glm::vec4(chunkAABBs.at(chunk->getID()).min, 1.0f);
+                gpuObjectData.aabbMax = glm::vec4(chunkAABBs.at(chunk->getID()).max, 1.0f);
+                gpuObjectData.instances = chunk->getInstanceCount();
                 objectData.data.push_back(gpuObjectData);
-                indices.push_back(c.first);
+                indices.push_back(chunk->getID());
             }
+
             setVisibleIndices(indices);
         }
-        
+
         glm::vec4 normalizePlane(glm::vec4 p)
         {
             return p / length(glm::vec3(p));
@@ -186,6 +195,6 @@ namespace arx {
         
         
     private:
-        ArxDevice&                      arxDevice;
+        ArxDevice&                                  arxDevice;
     };
 }

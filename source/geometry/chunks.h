@@ -45,6 +45,7 @@ namespace arx {
         void Render();
         glm::vec3 getPosition() const { return position; }
         unsigned int getID() const { return id; }
+        uint32_t getInstanceCount() const { return instances; }
 
         int Voxelize(const std::vector<arx::ArxModel::Vertex>& vertices);
         bool CheckVoxelIntersection(const std::vector<arx::ArxModel::Vertex>& vertices, const glm::vec3& voxelPosition);

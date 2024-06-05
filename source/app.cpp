@@ -29,14 +29,18 @@ namespace arx {
         globalPool = ArxDescriptorPool::Builder(arxDevice)
                     .setMaxSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
+                    .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .build();
         createQueryPool();
         initializeImgui();
     }
-
     App::~App() {}
 
     void App::run() {
+        
+        // chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
+        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
+        
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
             uboBuffers[i] = std::make_unique<ArxBuffer>(arxDevice,
@@ -46,22 +50,36 @@ namespace arx {
                                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
             uboBuffers[i]->map();
         }
+        
+        // Create large instance buffers that contains all the instance buffers of each chunk
+        BufferManager::createLargeInstanceBuffer(arxDevice);
 
+        // Global descriptor set layout
         auto globalSetLayout = ArxDescriptorSetLayout::Builder(arxDevice)
-                            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
-                            .build();
+                                .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
+                                .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                                .build();
 
+        // Create global descriptor sets
         std::vector<VkDescriptorSet> globalDescriptorSets(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < globalDescriptorSets.size(); i++) {
-            VkDescriptorBufferInfo bufferInfo = uboBuffers[i]->descriptorInfo();
+            VkDescriptorBufferInfo uboBufferInfo = uboBuffers[i]->descriptorInfo();
+            VkDescriptorBufferInfo instanceBufferInfo = BufferManager::largeInstanceBuffer->descriptorInfo();
+
             ArxDescriptorWriter(*globalSetLayout, *globalPool)
-                .writeBuffer(0, &bufferInfo)
+                .writeBuffer(0, &uboBufferInfo)
+                .writeBuffer(1, &instanceBufferInfo)
                 .build(globalDescriptorSets[i]);
         }
+        
+        uint32_t instances = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
 
+        // Initialize the maximum indirect draw size
+        BufferManager::indirectDrawData.resize(instances);
+        
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
-
-        arxRenderer.init_Passes();
+            
+//        arxRenderer.init_Passes();
 
         ArxCamera camera{};
 
@@ -75,28 +93,19 @@ namespace arx {
 
         float aspect = arxRenderer.getAspectRatio();
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
-
         chunkManager.setCamera(camera);
-        // chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
-
-        uint32_t instances = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
-
-        arxRenderer.getSwapChain()->cull.setObjectDataFromAABBs(chunkManager.getChunkAABBs());
-        arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
-        arxRenderer.getSwapChain()->cull.setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, instances);
-        arxRenderer.getSwapChain()->loadGeometryToDevice();
-
-        std::vector<uint32_t> visibleChunksIndices;
-        std::vector<uint32_t> defaultChunkIndices = arxRenderer.getSwapChain()->cull.visibleIndices.indices;
-
-        bool freezeCamera = false;
-        bool cachedCameraDataIsSet = false;
-        bool enableCulling = true;
-
-        static OcclusionSystem::GPUCameraData cachedCameraData;
-
-        // Variables to store the most recent timings
+        
+        // Set data for occlusion culling
+        {
+            arxRenderer.getSwapChain()->cull.setObjectDataFromAABBs(chunkManager);
+            arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+            arxRenderer.getSwapChain()->cull.setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, instances);
+            arxRenderer.getSwapChain()->loadGeometryToDevice();
+        }
+        
+        bool enableCulling = false;
+        
+        // Timing variables
         uint64_t cullingTime = 0, renderTime = 0, depthPyramidTime = 0;
 
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -114,11 +123,10 @@ namespace arx {
 
             ImGui::Begin("Debug");
             ImGui::Text("Press I for ImGui, O for game");
-            ImGui::Text("Chunks %d", static_cast<uint32_t>(visibleChunksIndices.size()));
+            ImGui::Text("Chunks %d", static_cast<uint32_t>(BufferManager::readDrawCommandCount()));
             ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.frustumCulling));
             ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.occlusionCulling));
-            ImGui::Checkbox("Freeze Camera", &freezeCamera);
-            ImGui::Checkbox("Enable Culling", &enableCulling);
+            ImGui::Checkbox("Freeze Culling", &enableCulling);
 
             // Display the most recent timings
             ImGui::Text("Culling Time: %.3f ms", cullingTime / 1e6); // Convert ns to ms
@@ -155,46 +163,54 @@ namespace arx {
                 ubo.zFar            = 1024.f;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
-                arxRenderer.updateMisc(ubo);
+//                arxRenderer.updateMisc(ubo);
 
-                if (enableCulling) {
+                if (!enableCulling) {
+                    BufferManager::resetDrawCommandCountBuffer(frameInfo.commandBuffer);
+                    
                     // Cull hidden chunks
-                    visibleChunksIndices = arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
+                    arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
                     vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 1);
-                } else {
-                    // Use default chunk indices when culling is disabled
-                    visibleChunksIndices = defaultChunkIndices;
+                    
+                    VkBufferMemoryBarrier postCullBarrier = {
+                       .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                       .pNext = nullptr,
+                       .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                       .dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+                       .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                       .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                       .buffer = BufferManager::drawCommandCountBuffer->getBuffer(),
+                       .offset = 0,
+                       .size = sizeof(uint32_t)
+                    };
+
+                    vkCmdPipelineBarrier(commandBuffer,
+                                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                         VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                                         0,
+                                         0, nullptr,
+                                         1, &postCullBarrier,
+                                         0, nullptr);
                 }
-
-                // G-Pass
-    //            arxRenderer.Pass_GBuffer(frameInfo, visibleChunksIndices);
-
-                // Early render
+                
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 2);
+                // G-Pass
+//                arxRenderer.Pass_GBuffer(frameInfo);
+                // Early render
                 arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
-                simpleRenderSystem.renderGameObjects(frameInfo, visibleChunksIndices);
+                simpleRenderSystem.renderGameObjects(frameInfo);
                 ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 3);
 
-                if (enableCulling) {
+                if (!enableCulling) {
                     // Calculate the depth pyramid
                     vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 4);
-                    if (freezeCamera) {
-                        if (!cachedCameraDataIsSet) {
-                            cachedCameraData.view = camera.getView();
-                            cachedCameraData.proj = camera.getProjection();
-                            cachedCameraData.viewProj = camera.getVP();
-                            cachedCameraData.invView = camera.getInverseView();
-                            cachedCameraDataIsSet = true;
-                        }
-                        arxRenderer.getSwapChain()->cull.cameraBuffer->writeToBuffer(&cachedCameraData);
-                    } else {
-                        arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
-                        arxRenderer.getSwapChain()->updateDynamicData();
-                        arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
-                        cachedCameraDataIsSet = false;
-                    }
+                    
+                    arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+                    arxRenderer.getSwapChain()->updateDynamicData();
+                    arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
+                    
                     vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 5);
                 }
 
@@ -204,7 +220,7 @@ namespace arx {
                 uint64_t timestamps[6];
                 vkGetQueryPoolResults(arxDevice.device(), queryPool, 0, 6, sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 
-                if (enableCulling) {
+                if (!enableCulling) {
                     // Calculate the elapsed time in nanoseconds
                     cullingTime = timestamps[1] - timestamps[0];
                     renderTime = timestamps[3] - timestamps[2];
@@ -212,6 +228,7 @@ namespace arx {
                 } else {
                     renderTime = timestamps[3] - timestamps[2];
                 }
+//                readDrawCommandCount(BufferManager::drawCommandCountBuffer.get());
             }
         }
         vkDeviceWaitIdle(arxDevice.device());

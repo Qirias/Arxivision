@@ -16,20 +16,6 @@ namespace arx {
     
     class OcclusionSystem;
 
-    // Per-instance data block
-    struct InstanceData {
-        glm::vec3 translation{};
-        glm::vec3 color{};
-    };
-
-    struct VkDrawIndexedIndirectCommand {
-        uint32_t indexCount;
-        uint32_t instanceCount;
-        uint32_t firstIndex;
-        int32_t vertexOffset;
-        uint32_t firstInstance;
-    };
-
     class ArxModel {
     public:
         
@@ -69,11 +55,12 @@ namespace arx {
         void draw(VkCommandBuffer commandBuffer);
         
         uint32_t getIndexCount() { return indexCount; }
-
+        uint32_t getInstanceCount() { return instanceCount; }
         
     private:
         void createVertexBuffers(const ArxModel::Builder &builder);
         void createIndexBuffers(const std::vector<uint32_t> &indices);
+        void createInstanceBuffer(const ArxModel::Builder &builder);
         
         ArxDevice       &arxDevice;
         
@@ -82,6 +69,7 @@ namespace arx {
         
         std::shared_ptr<ArxBuffer>  instanceBuffer;
         uint32_t                    instanceCount;
+        static uint32_t             totalInstances;
         
         bool                        hasIndexBuffer = false;
         std::shared_ptr<ArxBuffer>  indexBuffer;

@@ -50,7 +50,7 @@ namespace arx {
 
         
         // Passes
-        void Pass_GBuffer(FrameInfo &frameInfo, std::vector<uint32_t> &visibleChunksIndices);
+        void Pass_GBuffer(FrameInfo &frameInfo);
         void init_Passes();
         
         void updateMisc(const GlobalUbo &rhs);
