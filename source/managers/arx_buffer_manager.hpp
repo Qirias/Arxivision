@@ -35,12 +35,15 @@ namespace arx {
         static void createLargeInstanceBuffer(ArxDevice &device);
         static uint32_t readDrawCommandCount();
         static void resetDrawCommandCountBuffer(VkCommandBuffer commandBuffer);
+        static VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
         
         // occlusion_culling.comp
         static std::unique_ptr<ArxBuffer> drawIndirectBuffer;
         static std::unique_ptr<ArxBuffer> drawCommandCountBuffer;
         static std::unique_ptr<ArxBuffer> instanceOffsetBuffer;
+        static std::unique_ptr<ArxBuffer> visibilityBuffer;
         static std::vector<GPUIndirectDrawCommand> indirectDrawData;
+        static std::vector<uint32_t> visibilityData;;
         
         // vertex shader
         static std::shared_ptr<ArxBuffer> largeInstanceBuffer;

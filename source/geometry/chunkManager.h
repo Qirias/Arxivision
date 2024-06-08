@@ -45,6 +45,5 @@ namespace arx {
         std::vector<std::pair<glm::vec3, unsigned int>>         chunkPositions;
                 
         void setChunkPosition(const std::pair<glm::vec3, unsigned int>& position);
-        
     };
 }

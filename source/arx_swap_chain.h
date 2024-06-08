@@ -23,9 +23,9 @@ class ArxSwapChain {
         ArxSwapChain& operator=(const ArxSwapChain &) = delete;
 
         VkFramebuffer getFrameBuffer(int index) { return swapChainFramebuffers[index]; }
-        VkFramebuffer getLateFrameBuffer(int index) { return lateSwapChainFramebuffers[index]; }
+        VkFramebuffer getEarlyFrameBuffer(int index) { return earlySwapChainFramebuffers[index]; }
         VkRenderPass getRenderPass() { return renderPass; }
-        VkRenderPass getLateRenderPass() { return lateRenderPass; }
+        VkRenderPass getEarlyRenderPass() { return earlyRenderPass; }
         VkImageView getImageView(int index) { return swapChainImageViews[index]; }
         VkImage getDepthImage() { return depthImage; }
         size_t imageCount() { return swapChainImages.size(); }
@@ -52,8 +52,8 @@ class ArxSwapChain {
         void createSwapChain();
         void createImageViews();
         void createDepthResources();
-        void createRenderPass(bool latePass = false);
-        void createFramebuffers(bool latePass = false);
+        void createRenderPass(bool earlyPass = false);
+        void createFramebuffers(bool earlyPass = false);
         void createSyncObjects();
         void createColorResources();
         VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, uint32_t baseMipLevel = 0);
@@ -77,8 +77,8 @@ class ArxSwapChain {
         std::vector<VkFramebuffer>  swapChainFramebuffers;
         VkRenderPass                renderPass;
     
-        std::vector<VkFramebuffer>  lateSwapChainFramebuffers;
-        VkRenderPass                lateRenderPass;
+        std::vector<VkFramebuffer>  earlySwapChainFramebuffers;
+        VkRenderPass                earlyRenderPass;
 
         
         std::vector<VkImage>        depthImages; // Multisampled
@@ -118,6 +118,6 @@ class ArxSwapChain {
     
         void createCullingDescriptors();
         void updateDynamicData();
-        void computeCulling(VkCommandBuffer commandBuffer, const uint32_t instances, bool late = false);
+        void computeCulling(VkCommandBuffer commandBuffer, const uint32_t chunkCount, bool early = false);
     };
 }

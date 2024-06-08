@@ -14,9 +14,11 @@ namespace arx {
     std::shared_ptr<ArxBuffer> BufferManager::largeInstanceBuffer = nullptr;
     std::unique_ptr<ArxBuffer> BufferManager::drawIndirectBuffer = nullptr;
     std::unique_ptr<ArxBuffer> BufferManager::drawCommandCountBuffer = nullptr;
+    std::unique_ptr<ArxBuffer> BufferManager::visibilityBuffer = nullptr;
     std::unique_ptr<ArxBuffer> BufferManager::instanceOffsetBuffer = nullptr;
 
     std::vector<GPUIndirectDrawCommand> BufferManager::indirectDrawData;
+    std::vector<uint32_t> BufferManager::visibilityData;
 
     void BufferManager::addVertexBuffer(std::shared_ptr<ArxBuffer> buffer, VkDeviceSize offset) {
         vertexBuffers.push_back(buffer);
@@ -60,7 +62,6 @@ namespace arx {
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         };
 
-        // Map the staging buffer
         stagingBuffer.map();
         VkDeviceSize offset = 0;
         for (size_t j = 0; j < instanceBuffers.size(); ++j) {
@@ -70,7 +71,6 @@ namespace arx {
         }
         stagingBuffer.unmap();
 
-        // Copy data from the staging buffer to the large instance buffer
         device.copyBuffer(stagingBuffer.getBuffer(), largeInstanceBuffer->getBuffer(), totalInstanceBufferSize, 0, 0);
     }
 
@@ -97,31 +97,41 @@ namespace arx {
         if (!drawCommandCountBuffer->getMappedMemory()) {
             drawCommandCountBuffer->map(sizeof(uint32_t));
         }
+        
+        // Invalidate to fetch updated data in case of non-coherent memory
         drawCommandCountBuffer->invalidate(sizeof(uint32_t));
         drawCount = *static_cast<uint32_t*>(drawCommandCountBuffer->getMappedMemory());
         return drawCount;
     }
 
     void BufferManager::resetDrawCommandCountBuffer(VkCommandBuffer commandBuffer) {
+        // Ensure previous indirect command reads are completed with VK_ACCESS_INDIRECT_COMMAND_READ_BIT
+        VkBufferMemoryBarrier prefillBarrier = bufferBarrier(drawCommandCountBuffer->getBuffer(), VK_ACCESS_INDIRECT_COMMAND_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT);
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &prefillBarrier, 0, 0);
+    
         vkCmdFillBuffer(commandBuffer,
-                        BufferManager::drawCommandCountBuffer->getBuffer(),
+                        drawCommandCountBuffer->getBuffer(),
                         0,
                         sizeof(uint32_t),
                         0);
         
-        VkBufferMemoryBarrier barrier = {};
-        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        barrier.buffer = BufferManager::drawCommandCountBuffer->getBuffer();
-        barrier.offset = 0;
-        barrier.size = sizeof(uint32_t);
-        vkCmdPipelineBarrier(commandBuffer,
-                             VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                             0,
-                             0, nullptr,
-                             1, &barrier,
-                             0, nullptr);
+        // Ensure the buffer operation is complete with VK_ACCESS_TRANSFER_WRITE_BIT
+        // Allow subsequent shader stages to read from and write to this buffer
+        VkBufferMemoryBarrier fillBarrier = bufferBarrier(drawCommandCountBuffer->getBuffer(), VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, 0, 1, &fillBarrier, 0, 0);
+    }
+
+    VkBufferMemoryBarrier BufferManager::bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask) {
+        VkBufferMemoryBarrier result = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+
+        result.srcAccessMask = srcAccessMask;
+        result.dstAccessMask = dstAccessMask;
+        result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        result.buffer = buffer;
+        result.offset = 0;
+        result.size = VK_WHOLE_SIZE;
+
+        return result;
     }
 }

@@ -52,6 +52,8 @@ namespace arx {
         }
         
         // Create large instance buffers that contains all the instance buffers of each chunk
+        // We will use the gl_BaseInstance in the vertex shader to acces the firstInstance from the indirect draw commands
+        // Since voxels share the same vertex and index buffer why can bind that once and do multi draw indirect
         BufferManager::createLargeInstanceBuffer(arxDevice);
 
         // Global descriptor set layout
@@ -72,10 +74,10 @@ namespace arx {
                 .build(globalDescriptorSets[i]);
         }
         
-        uint32_t instances = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
+        uint32_t chunkCount = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
 
         // Initialize the maximum indirect draw size
-        BufferManager::indirectDrawData.resize(instances);
+        BufferManager::indirectDrawData.resize(chunkCount);
         
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
             
@@ -99,12 +101,12 @@ namespace arx {
         {
             arxRenderer.getSwapChain()->cull.setObjectDataFromAABBs(chunkManager);
             arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
-            arxRenderer.getSwapChain()->cull.setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, instances);
+            arxRenderer.getSwapChain()->cull.setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, chunkCount);
             arxRenderer.getSwapChain()->loadGeometryToDevice();
         }
         
         bool enableCulling = false;
-        
+
         // Timing variables
         uint64_t cullingTime = 0, renderTime = 0, depthPyramidTime = 0;
 
@@ -135,6 +137,7 @@ namespace arx {
 
             ImGui::End();
             ImGui::Render();
+            
 
             cameraController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
             camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
@@ -150,9 +153,16 @@ namespace arx {
                     globalDescriptorSets[frameIndex],
                     gameObjects
                 };
-
+                
                 vkCmdResetQueryPool(commandBuffer, queryPool, 0, 6);
-                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 0);
+
+                if (!enableCulling) {
+                    // Early cull: frustum cull and fill objects that *were* visible last frame
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 0);
+                    BufferManager::resetDrawCommandCountBuffer(frameInfo.commandBuffer);
+                    arxRenderer.getSwapChain()->computeCulling(commandBuffer, chunkCount, true);
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 1);
+                }
 
                 // Update ubo
                 GlobalUbo ubo{};
@@ -163,54 +173,33 @@ namespace arx {
                 ubo.zFar            = 1024.f;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
+                // Update misc for the rest of the render passes
 //                arxRenderer.updateMisc(ubo);
-
-                if (!enableCulling) {
-                    BufferManager::resetDrawCommandCountBuffer(frameInfo.commandBuffer);
-                    
-                    // Cull hidden chunks
-                    arxRenderer.getSwapChain()->computeCulling(commandBuffer, instances);
-                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 1);
-                    
-                    VkBufferMemoryBarrier postCullBarrier = {
-                       .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                       .pNext = nullptr,
-                       .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                       .dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-                       .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                       .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                       .buffer = BufferManager::drawCommandCountBuffer->getBuffer(),
-                       .offset = 0,
-                       .size = sizeof(uint32_t)
-                    };
-
-                    vkCmdPipelineBarrier(commandBuffer,
-                                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                                         VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
-                                         0,
-                                         0, nullptr,
-                                         1, &postCullBarrier,
-                                         0, nullptr);
-                }
                 
-                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 2);
                 // G-Pass
 //                arxRenderer.Pass_GBuffer(frameInfo);
-                // Early render
+                
+                // Render objects
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
                 arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
                 simpleRenderSystem.renderGameObjects(frameInfo);
                 ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
-                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 3);
 
                 if (!enableCulling) {
                     // Calculate the depth pyramid
-                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 4);
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 3);
                     
                     arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
                     arxRenderer.getSwapChain()->updateDynamicData();
                     arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
                     
+                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 4);
+                }
+                
+                if (!enableCulling) {
+                    // Late cull: frustum + occlusion cull and fill objects that were *not* visible last frame
+                    arxRenderer.getSwapChain()->computeCulling(commandBuffer, chunkCount);
                     vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 5);
                 }
 
@@ -222,13 +211,12 @@ namespace arx {
 
                 if (!enableCulling) {
                     // Calculate the elapsed time in nanoseconds
-                    cullingTime = timestamps[1] - timestamps[0];
+                    cullingTime = timestamps[5] - timestamps[4];
                     renderTime = timestamps[3] - timestamps[2];
-                    depthPyramidTime = timestamps[5] - timestamps[4];
+                    depthPyramidTime = timestamps[4] - timestamps[3];
                 } else {
                     renderTime = timestamps[3] - timestamps[2];
                 }
-//                readDrawCommandCount(BufferManager::drawCommandCountBuffer.get());
             }
         }
         vkDeviceWaitIdle(arxDevice.device());

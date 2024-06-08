@@ -42,14 +42,14 @@ namespace arx {
         createCullingPipeline();
         
         // late
-//        createLateCullingPipelineLayout();
-//        createLateCullingPipeline();
+        createEarlyCullingPipelineLayout();
+        createEarlyCullingPipeline();
     }
 
     OcclusionSystem::~OcclusionSystem() {
         vkDestroyPipelineLayout(arxDevice.device(), depthPyramidPipelineLayout, nullptr);
         vkDestroyPipelineLayout(arxDevice.device(), cullingPipelineLayout, nullptr);
-        vkDestroyPipelineLayout(arxDevice.device(), lateCullingPipelineLayout, nullptr);
+        vkDestroyPipelineLayout(arxDevice.device(), earlyCullingPipelineLayout, nullptr);
     }
     
     void OcclusionSystem::createDepthPyramidPipelineLayout() {
@@ -104,7 +104,7 @@ namespace arx {
                                                         cullingPipelineLayout);
     }
 
-    void OcclusionSystem::createLateCullingPipelineLayout() {
+    void OcclusionSystem::createEarlyCullingPipelineLayout() {
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts{cullingDescriptorLayout->getDescriptorSetLayout()};
         
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -113,16 +113,16 @@ namespace arx {
         pipelineLayoutInfo.pSetLayouts              = descriptorSetLayouts.data();
         pipelineLayoutInfo.pushConstantRangeCount   = 0;
         
-        if (vkCreatePipelineLayout(arxDevice.device(), &pipelineLayoutInfo, nullptr, &lateCullingPipelineLayout) != VK_SUCCESS) {
+        if (vkCreatePipelineLayout(arxDevice.device(), &pipelineLayoutInfo, nullptr, &earlyCullingPipelineLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create late culling pipeline layout!");
         }
     }
 
-    void OcclusionSystem::createLateCullingPipeline() {
-        assert(lateCullingPipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
+    void OcclusionSystem::createEarlyCullingPipeline() {
+        assert(earlyCullingPipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
         
-        lateCullingPipeline = std::make_unique<ArxPipeline>(arxDevice,
-                                                        "shaders/occlusionLate_culling.spv",
-                                                        lateCullingPipelineLayout);
+        earlyCullingPipeline = std::make_unique<ArxPipeline>(arxDevice,
+                                                        "shaders/occlusionEarly_culling.spv",
+                                                        earlyCullingPipelineLayout);
     }
 }

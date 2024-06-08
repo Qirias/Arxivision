@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <fstream>
 
+#define ARRAYSIZE(a) (sizeof(a) / sizeof(*(a)))
+
 namespace arx {
 
     ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent)
@@ -29,11 +31,11 @@ namespace arx {
         createSwapChain();
         createImageViews();
         createRenderPass();
-//        createRenderPass(true); // late
+        createRenderPass(true); // earlyPass
         createColorResources();
         createDepthResources();
         createFramebuffers();
-//        createFramebuffers(true); // late
+        createFramebuffers(true); // earlyPass
         createSyncObjects();
         
         createDepthSampler();
@@ -74,7 +76,7 @@ namespace arx {
         }
 
         vkDestroyRenderPass(device.device(), renderPass, nullptr);
-        vkDestroyRenderPass(device.device(), lateRenderPass, nullptr);
+        vkDestroyRenderPass(device.device(), earlyRenderPass, nullptr);
 
         // cleanup synchronization objects
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -255,16 +257,16 @@ namespace arx {
       }
     }
 
-    void ArxSwapChain::createRenderPass(bool latePass) {
+    void ArxSwapChain::createRenderPass(bool earlyPass) {
         VkAttachmentDescription2 depthAttachment{};
         depthAttachment.sType             = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
         depthAttachment.format            = findDepthFormat();
         depthAttachment.samples           = device.msaaSamples;
-        depthAttachment.loadOp            = latePass ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp           = latePass ? VK_ATTACHMENT_STORE_OP_DONT_CARE: VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachment.loadOp            = earlyPass ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp           = earlyPass ? VK_ATTACHMENT_STORE_OP_DONT_CARE: VK_ATTACHMENT_STORE_OP_STORE;
         depthAttachment.stencilLoadOp     = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthAttachment.stencilStoreOp    = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout     = latePass ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.initialLayout     = earlyPass ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
         depthAttachment.finalLayout       = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
         VkAttachmentReference2 depthAttachmentRef{};
@@ -294,11 +296,11 @@ namespace arx {
         colorAttachment.sType             = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
         colorAttachment.format            = getSwapChainImageFormat();
         colorAttachment.samples           = device.msaaSamples;
-        colorAttachment.loadOp            = latePass ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachment.loadOp            = earlyPass ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachment.storeOp           = VK_ATTACHMENT_STORE_OP_STORE;
         colorAttachment.stencilStoreOp    = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachment.stencilLoadOp     = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachment.initialLayout     = latePass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.initialLayout     = earlyPass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
         colorAttachment.finalLayout       = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
         VkAttachmentReference2 colorAttachmentRef = {};
@@ -356,14 +358,14 @@ namespace arx {
         renderPassInfo.dependencyCount    = 1;
         renderPassInfo.pDependencies      = &dependency;
 
-        if (vkCreateRenderPass2(device.device(), &renderPassInfo, nullptr, latePass ? &lateRenderPass : &renderPass) != VK_SUCCESS) {
+        if (vkCreateRenderPass2(device.device(), &renderPassInfo, nullptr, earlyPass ? &earlyRenderPass : &renderPass) != VK_SUCCESS) {
             throw std::runtime_error("failed to create render pass!");
         }
     }
 
-    void ArxSwapChain::createFramebuffers(bool latePass) {
-        if (latePass)
-            lateSwapChainFramebuffers.resize(imageCount());
+    void ArxSwapChain::createFramebuffers(bool earlyPass) {
+        if (earlyPass)
+            earlySwapChainFramebuffers.resize(imageCount());
         else
             swapChainFramebuffers.resize(imageCount());
 
@@ -384,7 +386,7 @@ namespace arx {
                     device.device(),
                     &framebufferInfo,
                     nullptr,
-                    latePass ? &lateSwapChainFramebuffers[i] : &swapChainFramebuffers[i]) != VK_SUCCESS) {
+                    earlyPass ? &earlySwapChainFramebuffers[i] : &swapChainFramebuffers[i]) != VK_SUCCESS) {
               throw std::runtime_error("failed to create framebuffer!");
             }
         }
@@ -692,7 +694,7 @@ namespace arx {
         depthPyramidInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         
         VkDescriptorBufferInfo visibilityInfo{};
-        visibilityInfo.buffer = cull.visibilityBuffer->getBuffer();
+        visibilityInfo.buffer = BufferManager::visibilityBuffer->getBuffer();
         visibilityInfo.offset = 0;
         visibilityInfo.range = VK_WHOLE_SIZE;
         
@@ -839,45 +841,55 @@ namespace arx {
         cull.framebufferDepthReadBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
     }
 
-    void ArxSwapChain::computeCulling(VkCommandBuffer commandBuffer, const uint32_t instances, bool late) {
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, late ? cull.lateCullingPipeline->computePipeline : cull.cullingPipeline->computePipeline);
+    void ArxSwapChain::computeCulling(VkCommandBuffer commandBuffer, const uint32_t chunkCount, bool early) {
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, early ? cull.earlyCullingPipeline->computePipeline : cull.cullingPipeline->computePipeline);
 
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, late ? cull.lateCullingPipelineLayout : cull.cullingPipelineLayout, 0, 1, &cull.cullingDescriptorSet, 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, early ? cull.earlyCullingPipelineLayout : cull.cullingPipelineLayout, 0, 1, &cull.cullingDescriptorSet, 0, nullptr);
         
-        uint32_t groupCountX = static_cast<uint32_t>((instances / 256) + 1);
+        uint32_t groupCountX = static_cast<uint32_t>((chunkCount / 256) + 1);
         vkCmdDispatch(commandBuffer, groupCountX, 1, 1);
+        
+        VkBufferMemoryBarrier cullBarriers[] = {
+            BufferManager::bufferBarrier(BufferManager::drawIndirectBuffer->getBuffer(), VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT),
+            BufferManager::bufferBarrier(BufferManager::drawCommandCountBuffer->getBuffer(), VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT)
+        };
+        
+        vkCmdPipelineBarrier(commandBuffer,
+                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                             VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                             0, 0, 0,
+                             ARRAYSIZE(cullBarriers),
+                             cullBarriers, 0, 0);
     }
 
     void ArxSwapChain::loadGeometryToDevice() {
-
-        VkMemoryPropertyFlags memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         
         // ObjectBuffer
         cull.objectsDataBuffer = std::make_unique<ArxBuffer>(device,
                                                              sizeof(OcclusionSystem::GPUObjectDataBuffer::GPUObjectData),
                                                              cull.objectData.size(),
                                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                             memoryPropertyFlags);
+                                                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         cull.objectsDataBuffer->map();
         cull.objectsDataBuffer->writeToBuffer(cull.objectData.dataPtr(), cull.objectData.bufferSize());
         
-        // VisibleIndices
-        cull.visibilityBuffer = std::make_unique<ArxBuffer>(device,
+        // VisibleIndexes
+        BufferManager::visibilityBuffer = std::make_unique<ArxBuffer>(device,
                                                             sizeof(uint32_t),
-                                                            cull.visibleIndices.size(),
+                                                            BufferManager::visibilityData.size(),
                                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        cull.visibilityBuffer->map();
-        cull.visibilityBuffer->writeToBuffer(cull.visibleIndices.data());
+        BufferManager::visibilityBuffer->map();
+        BufferManager::visibilityBuffer->writeToBuffer(BufferManager::visibilityData.data());
         
         // Global data
         cull.globalDataBuffer = std::make_unique<ArxBuffer>(device,
                                                             sizeof(OcclusionSystem::GPUCullingGlobalData),
                                                             1,
                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                            memoryPropertyFlags);
+                                                            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
         cull.globalDataBuffer->map();
         cull.globalDataBuffer->writeToBuffer(&cull.cullingData);
@@ -887,7 +899,7 @@ namespace arx {
                                                         sizeof(OcclusionSystem::GPUCameraData),
                                                         1,
                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                        memoryPropertyFlags);
+                                                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
         cull.cameraBuffer->map();
         cull.cameraBuffer->writeToBuffer(&cull.cameraData);
@@ -897,7 +909,7 @@ namespace arx {
                                                       sizeof(OcclusionSystem::GPUMiscData),
                                                       1,
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                      memoryPropertyFlags);
+                                                      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
         cull.miscBuffer->map();
         cull.miscBuffer->writeToBuffer(&cull.miscData);

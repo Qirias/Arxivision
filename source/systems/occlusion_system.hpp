@@ -43,7 +43,7 @@ namespace arx {
             float P11 = 0;
             uint32_t pyramidWidth = 0;
             uint32_t pyramidHeight = 0;
-            uint32_t totalInstances = 0;
+            uint32_t chunkCount = 0;
             uint32_t _padding;
         };
         
@@ -65,15 +65,6 @@ namespace arx {
             size_t bufferSize() const { return data.size() * sizeof(GPUObjectData); }
         };
         
-        struct GPUVisibleIndices {
-            GPUVisibleIndices() = default;
-            std::vector<uint32_t> indices;
-            explicit GPUVisibleIndices(size_t numObjects) : indices(numObjects, 0) {}
-            void reset() { std::fill(indices.begin(), indices.end(), 0); }
-            size_t size() const { return indices.size(); }
-            uint32_t* data() { return indices.data(); }
-        };
-        
         OcclusionSystem(ArxDevice &device);
         ~OcclusionSystem();
         
@@ -92,10 +83,6 @@ namespace arx {
             miscData.frustumCulling = frustum;
         }
         
-        void setVisibleIndices(const std::vector<uint32_t> rhs) {
-            visibleIndices.reset();
-            visibleIndices.indices = rhs;
-        }
         
         void setObjectDataFromAABBs(ChunkManager& chunkManager) {
             const auto& chunkAABBs = chunkManager.getChunkAABBs();
@@ -103,8 +90,6 @@ namespace arx {
 
             objectData.data.clear();
             objectData.data.reserve(chunkAABBs.size());
-            std::vector<uint32_t> indices;
-            indices.reserve(chunkAABBs.size());
 
             for (const auto& chunk : chunks) {
                 GPUObjectDataBuffer::GPUObjectData gpuObjectData;
@@ -113,10 +98,9 @@ namespace arx {
                 gpuObjectData.aabbMax = glm::vec4(chunkAABBs.at(chunk->getID()).max, 1.0f);
                 gpuObjectData.instances = chunk->getInstanceCount();
                 objectData.data.push_back(gpuObjectData);
-                indices.push_back(chunk->getID());
+                
+                BufferManager::visibilityData.push_back(1);
             }
-
-            setVisibleIndices(indices);
         }
 
         glm::vec4 normalizePlane(glm::vec4 p)
@@ -124,7 +108,7 @@ namespace arx {
             return p / length(glm::vec3(p));
         }
         
-        void setGlobalData(const glm::mat4& projectionMatrix, const uint32_t& width, const uint32_t& height, const uint32_t& instances) {
+        void setGlobalData(const glm::mat4& projectionMatrix, const uint32_t& width, const uint32_t& height, const uint32_t& chunkCount) {
             glm::mat4 projectionT = glm::transpose(projectionMatrix);
             cullingData.frustum[0] = normalizePlane(projectionT[3] + projectionT[0]); // x + w < 0
             cullingData.frustum[1] = normalizePlane(projectionT[3] - projectionT[0]); // x - w > 0
@@ -136,7 +120,7 @@ namespace arx {
             cullingData.P11 = projectionT[1][1];
             cullingData.pyramidWidth = width;
             cullingData.pyramidHeight = height;
-            cullingData.totalInstances = instances;
+            cullingData.chunkCount = chunkCount;
         }
 
         // Depth pyramid
@@ -172,17 +156,16 @@ namespace arx {
         void createCullingPipelineLayout();
         void createCullingPipeline();
         
-        // Late culling stuff, will reuse the same descriptors as the culling. Will only need new pipeline
-        std::unique_ptr<ArxPipeline>                lateCullingPipeline;
-        VkPipelineLayout                            lateCullingPipelineLayout;
+        // Early culling stuff, will reuse the same descriptors as the culling. Will only need new pipeline
+        std::unique_ptr<ArxPipeline>                earlyCullingPipeline;
+        VkPipelineLayout                            earlyCullingPipelineLayout;
         
-        void createLateCullingPipelineLayout();
-        void createLateCullingPipeline();
+        void createEarlyCullingPipelineLayout();
+        void createEarlyCullingPipeline();
         
         // Buffers for the compute shaders
         std::unique_ptr<ArxBuffer>                  cameraBuffer;
         std::unique_ptr<ArxBuffer>                  objectsDataBuffer;
-        std::unique_ptr<ArxBuffer>                  visibilityBuffer;
         std::unique_ptr<ArxBuffer>                  globalDataBuffer;
         std::unique_ptr<ArxBuffer>                  miscBuffer;
         
@@ -190,9 +173,7 @@ namespace arx {
         GPUCameraData                               cameraData;
         GPUObjectDataBuffer                         objectData;
         GPUCullingGlobalData                        cullingData;
-        GPUVisibleIndices                           visibleIndices;
         GPUMiscData                                 miscData;
-        
         
     private:
         ArxDevice&                                  arxDevice;
