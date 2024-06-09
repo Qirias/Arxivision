@@ -69,6 +69,23 @@ namespace arx {
         }
     }
 
+    Chunk::Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, const std::vector<InstanceData>& instanceDataVec) : position{pos} {
+        initializeBlocks();
+        
+        std::vector<InstanceData> tmpInstance = instanceDataVec;
+
+        instances = static_cast<uint32_t>(tmpInstance.size());
+        
+        if (instances > 0)
+        {
+            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
+            auto cube = ArxGameObject::createGameObject();
+            id = cube.getId();
+            cube.model = cubeModel;
+            voxel.emplace(id, std::move(cube));
+            instanceData[id] = tmpInstance;
+        }
+    }
 
     void Chunk::deactivateHiddenVoxels() {
         // First, mark all voxels as active based on the original 'blocks' array.

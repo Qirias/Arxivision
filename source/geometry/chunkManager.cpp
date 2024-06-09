@@ -94,7 +94,89 @@ namespace arx {
             }
         }
     }
-    
+
+    const ogt_vox_scene* ChunkManager::loadVoxModel(const std::string& filepath) {
+        FILE* file = fopen(filepath.c_str(), "rb");
+        if (!file) {
+            std::cerr << "Failed to open .vox file: " << filepath << std::endl;
+            return nullptr;
+        }
+
+        fseek(file, 0, SEEK_END);
+        uint32_t bufferSize = static_cast<uint32_t>(ftell(file));
+        fseek(file, 0, SEEK_SET);
+
+        uint8_t* buffer = new uint8_t[bufferSize];
+        fread(buffer, bufferSize, 1, file);
+        fclose(file);
+
+        // Load the scene
+        const ogt_vox_scene* scene = ogt_vox_read_scene(buffer, bufferSize);
+        delete[] buffer;
+
+        if (!scene) {
+            std::cerr << "Failed to read .vox scene: " << filepath << std::endl;
+        }
+
+        return scene;
+    }
+
+    void ChunkManager::vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath) {
+        const ogt_vox_scene* scene = loadVoxModel(filepath);
+        if (!scene) return;
+
+        for (uint32_t modelIndex = 0; modelIndex < scene->num_models; ++modelIndex) {
+            const ogt_vox_model* model = scene->models[modelIndex];
+            glm::vec3 maxBounds(model->size_x, model->size_y, model->size_z);
+
+            int numChunksX = static_cast<int>(std::ceil(maxBounds.x / CHUNK_SIZE));
+            int numChunksY = static_cast<int>(std::ceil(maxBounds.y / CHUNK_SIZE));
+            int numChunksZ = static_cast<int>(std::ceil(maxBounds.z / CHUNK_SIZE));
+
+            for (int x = 0; x < numChunksX; ++x) {
+                for (int y = 0; y < numChunksY; ++y) {
+                    for (int z = 0; z < numChunksZ; ++z) {
+                        glm::vec3 chunkPosition(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE);
+                        std::vector<InstanceData> chunkInstanceData;
+
+                        for (uint32_t voxelX = 0; voxelX < model->size_x; ++voxelX) {
+                            for (uint32_t voxelY = 0; voxelY < model->size_y; ++voxelY) {
+                                for (uint32_t voxelZ = 0; voxelZ < model->size_z; ++voxelZ) {
+                                    uint32_t colorIndex = model->voxel_data[voxelX + voxelY * model->size_x + voxelZ * model->size_x * model->size_y];
+                                    if (colorIndex != 0) {
+                                        glm::vec4 position(voxelX, voxelY, voxelZ, 1.0f);
+//                                        position = rotationMatrix * position;
+                                        glm::vec4 color = glm::vec4(scene->palette.color[colorIndex].r / 255.0f,
+                                                                    scene->palette.color[colorIndex].g / 255.0f,
+                                                                    scene->palette.color[colorIndex].b / 255.0f,
+                                                                    scene->palette.color[colorIndex].a / 255.0f);
+
+                                        // Add voxel to chunk if it fits within the chunk bounds
+                                        if (position.x >= chunkPosition.x && position.x < chunkPosition.x + CHUNK_SIZE &&
+                                            position.y >= chunkPosition.y && position.y < chunkPosition.y + CHUNK_SIZE &&
+                                            position.z >= chunkPosition.z && position.z < chunkPosition.z + CHUNK_SIZE) {
+                                            chunkInstanceData.push_back({glm::vec4(position.x, position.y, position.z, 1.0f), color});
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!chunkInstanceData.empty()) {
+                            Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, chunkInstanceData);
+                            m_vpChunks.push_back(newChunk);
+                            if (newChunk->getID() != -1) {
+                                setChunkPosition({chunkPosition, newChunk->getID()});
+                                setChunkAABB(newChunk->getPosition(), newChunk->getID());
+                            }
+                        }
+                    }
+                }
+            }
+            ogt_vox_destroy_scene(scene);
+        }
+    }
+
     void ChunkManager::setChunkPosition(const std::pair<glm::vec3, unsigned int>& position) {
             chunkPositions.push_back({position.first, position.second});
     }

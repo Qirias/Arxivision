@@ -10,6 +10,9 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
 
+#define OGT_VOX_IMPLEMENTATION
+#include "ogt_vox.h"
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -37,9 +40,9 @@ namespace arx {
     App::~App() {}
 
     void App::run() {
-        
-        // chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
+//        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
+//        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
+        chunkManager.vox2Chunks(gameObjects, "scenes/monu1.vox");
         
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
@@ -52,7 +55,7 @@ namespace arx {
         }
         
         // Create large instance buffers that contains all the instance buffers of each chunk
-        // We will use the gl_BaseInstance in the vertex shader to acces the firstInstance from the indirect draw commands
+        // We will use the gl_BaseInstance in the vertex shader to access the firstInstance from the indirect draw commands
         // Since voxels share the same vertex and index buffer why can bind that once and do multi draw indirect
         BufferManager::createLargeInstanceBuffer(arxDevice);
 

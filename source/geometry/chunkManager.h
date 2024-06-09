@@ -7,7 +7,10 @@
 #include "arx_model.h"
 #include "arx_utils.h"
 
+#include "ogt_vox.h"
+
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/transform.hpp>
 
 // std
 #include <cassert>
@@ -33,6 +36,8 @@ namespace arx {
         void initializeTerrain(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize);
         void setChunkAABB(const glm::vec3& position, const unsigned int chunkId);
         
+        void vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath);
+        
         const std::vector<std::pair<glm::vec3, unsigned int>>& getPositions() const { return chunkPositions; }
         const std::unordered_map<unsigned int, AABB>& getChunkAABBs() const { return chunkAABBs; }
         
@@ -44,6 +49,8 @@ namespace arx {
         ArxCamera                                               camera;
         std::vector<std::pair<glm::vec3, unsigned int>>         chunkPositions;
                 
+        const ogt_vox_scene* loadVoxModel(const std::string& filepath);
         void setChunkPosition(const std::pair<glm::vec3, unsigned int>& position);
+        void rotateVoxels(const ogt_vox_model* model, float angle, std::vector<glm::vec4>& rotatedVoxels, std::vector<glm::vec4>& colors, const ogt_vox_palette& palette);
     };
 }
