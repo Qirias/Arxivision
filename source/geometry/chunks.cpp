@@ -25,7 +25,7 @@ namespace arx {
                 }
             }
         }
-        
+
         if (instances > 0)
         {
             std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
@@ -70,20 +70,16 @@ namespace arx {
     }
 
     Chunk::Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, const std::vector<InstanceData>& instanceDataVec) : position{pos} {
-        initializeBlocks();
-        
-        std::vector<InstanceData> tmpInstance = instanceDataVec;
-
-        instances = static_cast<uint32_t>(tmpInstance.size());
+        instances = static_cast<uint32_t>(instanceDataVec.size());
         
         if (instances > 0)
         {
-            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
+            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, instanceDataVec);
             auto cube = ArxGameObject::createGameObject();
             id = cube.getId();
             cube.model = cubeModel;
             voxel.emplace(id, std::move(cube));
-            instanceData[id] = tmpInstance;
+            instanceData[id] = instanceDataVec;
         }
     }
 
@@ -164,7 +160,7 @@ namespace arx {
             if (t == numThreads - 1) {
                 endIdx = totalVoxels;
             }
-
+            
             threadPool.threads[t]->addJob([this, startIdx, endIdx, &vertices, &inst, adjustedChunk]() {
                 for (int idx = startIdx; idx < endIdx; ++idx) {
                     int x = idx / (adjustedChunk * adjustedChunk);

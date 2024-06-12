@@ -32,7 +32,7 @@ namespace arx {
 
     void BufferManager::addInstanceBuffer(std::shared_ptr<ArxBuffer> buffer, VkDeviceSize offset) {
         instanceBuffers.push_back(buffer);
-        instanceOffsets.push_back(offset);
+        instanceOffsets.push_back(offset/sizeof(InstanceData));
     }
 
     void BufferManager::createLargeInstanceBuffer(ArxDevice &device) {

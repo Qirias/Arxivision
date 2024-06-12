@@ -6,9 +6,7 @@ layout(local_size_x = 256) in;
 
 struct ObjectData {
     vec4 aabbMin;
-    vec4 aabbMax;
-    uint instanceCount;
-    uint _padding[3];
+    vec4 aabbMax; // w component stores the instanceCount
 };
 
 struct IndirectDrawCommand
@@ -18,6 +16,8 @@ struct IndirectDrawCommand
     uint    firstIndex;
     int     vertexOffset;
     uint    firstInstance;
+    uint    drawID;
+    uint    _padding[2];
 };
 
 layout(set = 0, binding = 0) uniform CameraData {
@@ -29,7 +29,7 @@ layout(set = 0, binding = 0) uniform CameraData {
 
 layout(set = 0, binding = 1) readonly buffer ObjectBuffer {
     ObjectData objects[];
-} objectBuffer;
+};
 
 layout(set = 0, binding = 2) uniform sampler2D depthPyramid;
 
@@ -101,11 +101,11 @@ bool isVisibleAABB(vec3 aabbMin, vec3 aabbMax) {
     bool visible = true;
 
     if (distance(vec3(camera.invView[3]), center) < 10.0f) {
-        visible = true;
+        return true;
     }
 
     if (!isFrustumVisible(aabbMin, aabbMax, camera.viewProj) && misc.frustumCulling == 1) {
-        visible = false;
+        return false;
     }
 
     visible = visible || (misc.occlusionCulling == 0);
@@ -120,16 +120,17 @@ void main() {
     if (visibleIndices[index] == 0)
         return;
 
-    bool visible = isVisibleAABB(objectBuffer.objects[index].aabbMin.xyz, objectBuffer.objects[index].aabbMax.xyz);
+    bool visible = isVisibleAABB(objects[index].aabbMin.xyz, objects[index].aabbMax.xyz);
 
     // Update the draw command
     if (visible) {
         uint drawCommandIndex = atomicAdd(drawCommandCount, 1);
         
+        drawCommands[drawCommandIndex].drawID = index;
         drawCommands[drawCommandIndex].indexCount = 36;
-        drawCommands[drawCommandIndex].instanceCount = objectBuffer.objects[index].instanceCount;
+        drawCommands[drawCommandIndex].instanceCount = uint(objects[index].aabbMax.w);
         drawCommands[drawCommandIndex].firstIndex = 0;
         drawCommands[drawCommandIndex].vertexOffset = 0;
-        drawCommands[drawCommandIndex].firstInstance = uint(instanceOffsets[index] / 64); // Instance Data is 32 bytes but VkDeviceSize is 64
+        drawCommands[drawCommandIndex].firstInstance = uint(instanceOffsets[index]);
     }
 }

@@ -32,7 +32,9 @@ layout (push_constant) uniform Push {
 } push;
 
 void main() {
-    InstanceData instance = instances[gl_InstanceIndex + gl_BaseInstance];
+    // gl_InstanceIndex bounds are [firstInstance, firstInstance + baseInstance]
+    // where these are set in the drawCommand
+    InstanceData instance = instances[gl_InstanceIndex];
     vec4 positionWorld = push.modelMatrix * vec4(inPos, 1.0);
     positionWorld.xyz += instance.translation.xyz;
     gl_Position = ubo.projection * ubo.view * positionWorld;

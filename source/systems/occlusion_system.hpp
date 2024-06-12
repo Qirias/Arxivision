@@ -30,7 +30,7 @@ namespace arx {
             glm::mat4 invView;
         };
         
-        struct alignas(16) GPUMiscData {
+        struct GPUMiscData {
             int occlusionCulling = 1;
             int frustumCulling = 1;
         };
@@ -47,13 +47,11 @@ namespace arx {
             uint32_t _padding;
         };
         
-        struct GPUObjectDataBuffer {
+        struct alignas(16) GPUObjectDataBuffer {
             
-            struct alignas(16) GPUObjectData {
+            struct GPUObjectData {
                 glm::vec4 aabbMin;
                 glm::vec4 aabbMax;
-                uint32_t instances;
-                uint32_t padding[3];
             };
             
             std::vector<GPUObjectData> data;
@@ -83,7 +81,6 @@ namespace arx {
             miscData.frustumCulling = frustum;
         }
         
-        
         void setObjectDataFromAABBs(ChunkManager& chunkManager) {
             const auto& chunkAABBs = chunkManager.getChunkAABBs();
             const auto& chunks = chunkManager.GetChunks();
@@ -96,7 +93,7 @@ namespace arx {
                 if (chunk->getID() == -1) continue;
                 gpuObjectData.aabbMin = glm::vec4(chunkAABBs.at(chunk->getID()).min, 1.0f);
                 gpuObjectData.aabbMax = glm::vec4(chunkAABBs.at(chunk->getID()).max, 1.0f);
-                gpuObjectData.instances = chunk->getInstanceCount();
+                gpuObjectData.aabbMax.w = static_cast<float>(chunk->getInstanceCount());
                 objectData.data.push_back(gpuObjectData);
                 
                 BufferManager::visibilityData.push_back(1);

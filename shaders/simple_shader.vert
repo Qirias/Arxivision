@@ -23,7 +23,7 @@ layout (set = 0, binding = 0) uniform GlobalUbo {
     float farPlane;
 } ubo;
 
-layout (set = 0, binding = 1) buffer InstanceDataBuffer {
+layout (set = 0, binding = 1) readonly buffer InstanceDataBuffer {
     InstanceData instances[];
 };
 
@@ -33,11 +33,13 @@ layout (push_constant) uniform Push {
 } push;
 
 void main() {
-    InstanceData instance = instances[gl_InstanceIndex + gl_BaseInstance];
+    // gl_InstanceIndex bounds are [firstInstance, firstInstance + baseInstance]
+    // where these are set in the drawCommand
+    InstanceData instance = instances[gl_InstanceIndex];
     vec4 positionWorld = push.modelMatrix * vec4(position, 1.0);
     positionWorld.xyz += instance.translation.xyz;
     gl_Position = ubo.projection * ubo.view * positionWorld;
-
+    
     fragNormalWorld = normalize(mat3(push.normalMatrix) * normal);
     fragPosWorld = positionWorld.xyz;
     fragColor = instance.color.xyz;

@@ -79,7 +79,7 @@ namespace arx {
         frameInfo.voxel[0].model->bind(frameInfo.commandBuffer);
 
         SimplePushConstantData push{};
-        frameInfo.voxel[0].transform.scale = glm::vec3(VOXEL_SIZE/2);
+        frameInfo.voxel[0].transform.scale = glm::vec3(VOXEL_SIZE*0.5);
         push.modelMatrix    = frameInfo.voxel[0].transform.mat4();
         push.normalMatrix   = frameInfo.voxel[0].transform.normalMatrix();
 
@@ -93,12 +93,10 @@ namespace arx {
         
         uint32_t drawCount = BufferManager::readDrawCommandCount();
         
-        if (drawCount > 0) {
-            vkCmdDrawIndexedIndirect(frameInfo.commandBuffer,
-                                     BufferManager::drawIndirectBuffer->getBuffer(),
-                                     0,
-                                     drawCount,
-                                     sizeof(GPUIndirectDrawCommand));
-        }
+        vkCmdDrawIndexedIndirect(frameInfo.commandBuffer,
+                                 BufferManager::drawIndirectBuffer->getBuffer(),
+                                 offsetof(GPUIndirectDrawCommand, command),
+                                 drawCount,
+                                 sizeof(GPUIndirectDrawCommand));
     }
 }

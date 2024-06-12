@@ -37,13 +37,14 @@ namespace arx {
         createQueryPool();
         initializeImgui();
     }
+
     App::~App() {}
 
     void App::run() {
 //        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-//        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
-        chunkManager.vox2Chunks(gameObjects, "scenes/monu1.vox");
-        
+        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 5)));
+//        chunkManager.vox2Chunks(gameObjects, "scenes/monu1.vox");
+    
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
             uboBuffers[i] = std::make_unique<ArxBuffer>(arxDevice,
@@ -54,9 +55,9 @@ namespace arx {
             uboBuffers[i]->map();
         }
         
-        // Create large instance buffers that contains all the instance buffers of each chunk
-        // We will use the gl_BaseInstance in the vertex shader to access the firstInstance from the indirect draw commands
-        // Since voxels share the same vertex and index buffer why can bind that once and do multi draw indirect
+        // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
+        // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
+        // Since voxels share the same vertex and index buffer we can bind those once and do multi draw indirect
         BufferManager::createLargeInstanceBuffer(arxDevice);
 
         // Global descriptor set layout
@@ -97,7 +98,7 @@ namespace arx {
         camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
 
         float aspect = arxRenderer.getAspectRatio();
-        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 512);
         chunkManager.setCamera(camera);
         
         // Set data for occlusion culling
@@ -159,13 +160,13 @@ namespace arx {
                 
                 vkCmdResetQueryPool(commandBuffer, queryPool, 0, 6);
 
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 0);
                 if (!enableCulling) {
                     // Early cull: frustum cull and fill objects that *were* visible last frame
-                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 0);
                     BufferManager::resetDrawCommandCountBuffer(frameInfo.commandBuffer);
                     arxRenderer.getSwapChain()->computeCulling(commandBuffer, chunkCount, true);
-                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 1);
                 }
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 1);
 
                 // Update ubo
                 GlobalUbo ubo{};
@@ -173,7 +174,7 @@ namespace arx {
                 ubo.view            = camera.getView();
                 ubo.inverseView     = camera.getInverseView();
                 ubo.zNear           = .1f;
-                ubo.zFar            = 1024.f;
+                ubo.zFar            = 512;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
                 // Update misc for the rest of the render passes
@@ -189,16 +190,14 @@ namespace arx {
                 ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
                 arxRenderer.endSwapChainRenderPass(commandBuffer);
 
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 3);
                 if (!enableCulling) {
                     // Calculate the depth pyramid
-                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 3);
-                    
                     arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
                     arxRenderer.getSwapChain()->updateDynamicData();
                     arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
-                    
-                    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 4);
                 }
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 4);
                 
                 if (!enableCulling) {
                     // Late cull: frustum + occlusion cull and fill objects that were *not* visible last frame

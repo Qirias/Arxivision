@@ -21,6 +21,8 @@ namespace arx {
 
     struct GPUIndirectDrawCommand {
         VkDrawIndexedIndirectCommand command{};
+        uint32_t drawID;
+        uint32_t padding[2];
     };
 
     class BufferManager {
@@ -54,6 +56,5 @@ namespace arx {
         static std::vector<VkDeviceSize> indexOffsets;
         static std::vector<std::shared_ptr<ArxBuffer>> instanceBuffers;
         static std::vector<VkDeviceSize> instanceOffsets;
-        
     };
 }

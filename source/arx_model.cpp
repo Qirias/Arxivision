@@ -84,6 +84,7 @@ namespace arx {
         VkDeviceSize vertexBufferOffset = 0;
         for (const auto& buffer : BufferManager::vertexBuffers) {
            vertexBufferOffset += buffer->getBufferSize();
+            
         }
         BufferManager::addVertexBuffer(stagingBuffer, vertexBufferOffset);
     }
@@ -166,7 +167,7 @@ namespace arx {
         for (const auto& buffer : BufferManager::instanceBuffers) {
             instanceBufferOffset += buffer->getBufferSize();
         }
-        
+            
         BufferManager::addInstanceBuffer(instanceStagingBuffer, instanceBufferOffset);
     }
 
