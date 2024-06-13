@@ -76,9 +76,9 @@ namespace arx {
 
     void ChunkManager::initializeTerrain(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize) {
         
-        int numChunksX = (terrainSize.x) / ADJUSTED_CHUNK;
-        int numChunksY = (terrainSize.y) / ADJUSTED_CHUNK;
-        int numChunksZ = (terrainSize.z) / ADJUSTED_CHUNK;
+        int numChunksX = terrainSize.x / ADJUSTED_CHUNK;
+        int numChunksY = terrainSize.y / ADJUSTED_CHUNK;
+        int numChunksZ = terrainSize.z / ADJUSTED_CHUNK;
 
         for (int x = 0; x < numChunksX; ++x) {
             for (int y = 0; y < numChunksY; ++y) {
@@ -121,29 +121,41 @@ namespace arx {
         return scene;
     }
 
+    glm::mat4 ChunkManager::ogtTransformToMat4(const ogt_vox_transform& transform) {
+        return glm::mat4(
+            transform.m00, transform.m01, transform.m02, transform.m03,
+            transform.m10, transform.m11, transform.m12, transform.m13,
+            transform.m20, transform.m21, transform.m22, transform.m23,
+            transform.m30, transform.m31, transform.m32, transform.m33
+        );
+    }
+
     void ChunkManager::vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath) {
         const ogt_vox_scene* scene = loadVoxModel(filepath);
         if (!scene) return;
 
-        for (uint32_t modelIndex = 0; modelIndex < scene->num_models; ++modelIndex) {
-            const ogt_vox_model* model = scene->models[modelIndex];
+        for (uint32_t instanceIndex = 0; instanceIndex < scene->num_instances; ++instanceIndex) {
+            const ogt_vox_instance* instance = &scene->instances[instanceIndex];
+            const ogt_vox_model* model = scene->models[instance->model_index];
+
+            glm::mat4 transform = ogtTransformToMat4(instance->transform);
             glm::vec3 maxBounds(model->size_x, model->size_y, model->size_z);
-            
+
             int numChunksX = static_cast<int>(std::ceil(maxBounds.x / CHUNK_SIZE));
             int numChunksY = static_cast<int>(std::ceil(maxBounds.y / CHUNK_SIZE));
             int numChunksZ = static_cast<int>(std::ceil(maxBounds.z / CHUNK_SIZE));
-            
+
             std::vector<std::vector<std::vector<std::vector<InstanceData>>>> chunks(numChunksX,
                                 std::vector<std::vector<std::vector<InstanceData>>>(numChunksY,
-                                             std::vector<std::vector<InstanceData>>(numChunksZ, std::vector<InstanceData>())));
-            
-            
+                                            std::vector<std::vector<InstanceData>>(numChunksZ, std::vector<InstanceData>())));
+
             for (uint32_t voxelX = 0; voxelX < model->size_x; ++voxelX) {
                 for (uint32_t voxelY = 0; voxelY < model->size_y; ++voxelY) {
                     for (uint32_t voxelZ = 0; voxelZ < model->size_z; ++voxelZ) {
                         uint32_t colorIndex = model->voxel_data[voxelX + (voxelY * model->size_x) + (voxelZ * model->size_x * model->size_y)];
                         if (colorIndex != 0) {
                             glm::vec4 position(voxelX, voxelY, voxelZ, 1.0f);
+                            glm::vec4 transformedPosition = transform * position; // Apply transformation
                             glm::vec4 color = glm::vec4(scene->palette.color[colorIndex].r / 255.0f,
                                                         scene->palette.color[colorIndex].g / 255.0f,
                                                         scene->palette.color[colorIndex].b / 255.0f,
@@ -152,18 +164,18 @@ namespace arx {
                             int chunkX = voxelX / CHUNK_SIZE;
                             int chunkY = voxelY / CHUNK_SIZE;
                             int chunkZ = voxelZ / CHUNK_SIZE;
-                            
-                            chunks[chunkX][chunkY][chunkZ].push_back({position, color});
+
+                            chunks[chunkX][chunkY][chunkZ].push_back({transformedPosition, color});
                         }
                     }
                 }
             }
-            
+
             for (int x = 0; x < numChunksX; ++x) {
                 for (int y = 0; y < numChunksY; ++y) {
                     for (int z = 0; z < numChunksZ; ++z) {
                         if (!chunks[x][y][z].empty()) {
-                            glm::vec3 chunkPosition(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE);
+                            glm::vec3 chunkPosition = glm::vec3(transform * glm::vec4(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE, 1.0f));
                             Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, chunks[x][y][z]);
                             m_vpChunks.push_back(newChunk);
                             setChunkPosition({newChunk->getPosition(), newChunk->getID()});
@@ -173,6 +185,7 @@ namespace arx {
                 }
             }
         }
+
         ogt_vox_destroy_scene(scene);
     }
 

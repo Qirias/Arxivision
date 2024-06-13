@@ -5,7 +5,7 @@
 
 namespace arx {
     
-static const int CHUNK_SIZE = 9;
+static const int CHUNK_SIZE = 16;
 static const float VOXEL_SIZE = 1;
 static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
 
@@ -19,7 +19,7 @@ static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
         glm::mat4 view{1.f};
         glm::mat4 inverseView{1.f};
         float zNear{.1f};
-        float zFar{512.f};
+        float zFar{1024.f};
     };
     
     struct FrameInfo {

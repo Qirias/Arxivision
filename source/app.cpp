@@ -42,8 +42,8 @@ namespace arx {
 
     void App::run() {
 //        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 5)));
-//        chunkManager.vox2Chunks(gameObjects, "scenes/monu1.vox");
+//        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 5)));
+        chunkManager.vox2Chunks(gameObjects, "scenes/pieta.vox");
     
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
@@ -98,7 +98,7 @@ namespace arx {
         camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
 
         float aspect = arxRenderer.getAspectRatio();
-        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 512);
+        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         chunkManager.setCamera(camera);
         
         // Set data for occlusion culling
@@ -174,7 +174,7 @@ namespace arx {
                 ubo.view            = camera.getView();
                 ubo.inverseView     = camera.getInverseView();
                 ubo.zNear           = .1f;
-                ubo.zFar            = 512;
+                ubo.zFar            = 1024.f;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
                 // Update misc for the rest of the render passes

@@ -67,7 +67,6 @@ layout(set = 0, binding = 8) buffer DrawCommandCount {
 };
 
 const float MAX_DEPTH = 1.0;
-const float SAMPLE_STEP = 0.025; // This is a static sample step, adjust based on profiling
 
 bool within(float lower, float value, float upper) {
     return value >= lower && value <= upper;

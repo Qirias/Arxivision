@@ -51,6 +51,6 @@ namespace arx {
                 
         const ogt_vox_scene* loadVoxModel(const std::string& filepath);
         void setChunkPosition(const std::pair<glm::vec3, unsigned int>& position);
-        void rotateVoxels(const ogt_vox_model* model, float angle, std::vector<glm::vec4>& rotatedVoxels, std::vector<glm::vec4>& colors, const ogt_vox_palette& palette);
+        glm::mat4 ogtTransformToMat4(const ogt_vox_transform& transform);
     };
 }
