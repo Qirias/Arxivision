@@ -133,12 +133,15 @@ namespace arx {
     void ChunkManager::vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath) {
         const ogt_vox_scene* scene = loadVoxModel(filepath);
         if (!scene) return;
+            
+        // Rotate the model around X because the way I create the chunks is different from MagicaVoxel
+        glm::mat4 worldRotation = glm::rotate(glm::mat4(1.f), glm::radians(90.f), glm::vec3(1, 0, 0)); // World space rotation
 
         for (uint32_t instanceIndex = 0; instanceIndex < scene->num_instances; ++instanceIndex) {
             const ogt_vox_instance* instance = &scene->instances[instanceIndex];
             const ogt_vox_model* model = scene->models[instance->model_index];
 
-            glm::mat4 transform = ogtTransformToMat4(instance->transform);
+            glm::mat4 modelTransform = ogtTransformToMat4(instance->transform);
             glm::vec3 maxBounds(model->size_x, model->size_y, model->size_z);
 
             int numChunksX = static_cast<int>(std::ceil(maxBounds.x / CHUNK_SIZE));
@@ -146,8 +149,8 @@ namespace arx {
             int numChunksZ = static_cast<int>(std::ceil(maxBounds.z / CHUNK_SIZE));
 
             std::vector<std::vector<std::vector<std::vector<InstanceData>>>> chunks(numChunksX,
-                                std::vector<std::vector<std::vector<InstanceData>>>(numChunksY,
-                                            std::vector<std::vector<InstanceData>>(numChunksZ, std::vector<InstanceData>())));
+                std::vector<std::vector<std::vector<InstanceData>>>(numChunksY,
+                    std::vector<std::vector<InstanceData>>(numChunksZ, std::vector<InstanceData>())));
 
             for (uint32_t voxelX = 0; voxelX < model->size_x; ++voxelX) {
                 for (uint32_t voxelY = 0; voxelY < model->size_y; ++voxelY) {
@@ -155,7 +158,8 @@ namespace arx {
                         uint32_t colorIndex = model->voxel_data[voxelX + (voxelY * model->size_x) + (voxelZ * model->size_x * model->size_y)];
                         if (colorIndex != 0) {
                             glm::vec4 position(voxelX, voxelY, voxelZ, 1.0f);
-                            glm::vec4 transformedPosition = transform * position; // Apply transformation
+                            glm::vec4 worldPosition = modelTransform * position; // Transform to world space
+                            glm::vec4 rotatedPosition = worldRotation * worldPosition; // Apply world space rotation
                             glm::vec4 color = glm::vec4(scene->palette.color[colorIndex].r / 255.0f,
                                                         scene->palette.color[colorIndex].g / 255.0f,
                                                         scene->palette.color[colorIndex].b / 255.0f,
@@ -165,7 +169,7 @@ namespace arx {
                             int chunkY = voxelY / CHUNK_SIZE;
                             int chunkZ = voxelZ / CHUNK_SIZE;
 
-                            chunks[chunkX][chunkY][chunkZ].push_back({transformedPosition, color});
+                            chunks[chunkX][chunkY][chunkZ].push_back({rotatedPosition, color});
                         }
                     }
                 }
@@ -175,11 +179,49 @@ namespace arx {
                 for (int y = 0; y < numChunksY; ++y) {
                     for (int z = 0; z < numChunksZ; ++z) {
                         if (!chunks[x][y][z].empty()) {
-                            glm::vec3 chunkPosition = glm::vec3(transform * glm::vec4(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE, 1.0f));
+                            glm::vec3 chunkPosition = glm::vec3(worldRotation * modelTransform * glm::vec4(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE, 1.0f));
                             Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, chunks[x][y][z]);
                             m_vpChunks.push_back(newChunk);
-                            setChunkPosition({newChunk->getPosition(), newChunk->getID()});
-                            setChunkAABB(newChunk->getPosition(), newChunk->getID());
+                            if (newChunk->getID() != -1) {
+                                setChunkPosition({newChunk->getPosition(), newChunk->getID()});
+                                
+//                                        Original AABB box
+//                                         +-----------+
+//                                        /|          /|
+//                                       / |         / |
+//                                      /  |        /  |
+//                                     +-----------O   |
+//                                     |   X-------|---+
+//                                     |  /        |  /    z
+//                                     | /         | /    ^                     
+//                                     |/          |/     |
+//                                     +-----------+      ----> x
+//                                X = MAX and O = MIN
+                                
+                                
+// ====================================================================================================
+// Since we rotate the whole .vox around the X axis, we need to adjust the AABB min and max accordingly
+// ====================================================================================================
+                                
+//                                        Altered AABB box
+//                                         X-----------+
+//                                        /|          /|
+//                                       / |         / |
+//                                      /  |        /  |
+//                                     +-----------+   |
+//                                     |   +-------|---+
+//                                     |  /        |  /    z
+//                                     | /         | /    ^
+//                                     |/          |/     |
+//                                     +-----------O      ----> x
+//                                X = MAX and O = MIN
+                                
+                                AABB aabb;
+                                aabb.min = newChunk->getPosition() - glm::vec3(0, CHUNK_SIZE, 0);
+                                aabb.max = newChunk->getPosition() + glm::vec3(CHUNK_SIZE, 0, CHUNK_SIZE);
+                           
+                                chunkAABBs[newChunk->getID()] = aabb;
+                            }
                         }
                     }
                 }
@@ -189,13 +231,11 @@ namespace arx {
         ogt_vox_destroy_scene(scene);
     }
 
-
     void ChunkManager::setChunkPosition(const std::pair<glm::vec3, unsigned int>& position) {
             chunkPositions.push_back({position.first, position.second});
     }
 
     void ChunkManager::setChunkAABB(const glm::vec3& position, const unsigned int chunkId) {
-        
         AABB aabb;
         aabb.min = position;
         aabb.max = position + glm::vec3(CHUNK_SIZE);
