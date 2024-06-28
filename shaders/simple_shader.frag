@@ -21,7 +21,7 @@ layout (push_constant) uniform Push {
 
 void main() {
     // Light and material properties
-    vec3 lightPos = vec3(ubo.invView[3]);
+    vec3 lightPos = vec3(35, -740, -220);
     vec3 lightColor = vec3(1.0, 1.0, 1.0);
     vec3 viewPos = vec3(ubo.invView[3]);
 

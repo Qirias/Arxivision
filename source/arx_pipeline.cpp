@@ -18,17 +18,29 @@ namespace arx {
     }
 
     ArxPipeline::ArxPipeline(ArxDevice& device,
+                            VkShaderModule vertShaderModule,
+                            const std::string& fragFilepath,
+                            const PipelineConfigInfo& config) : arxDevice{device}, vertShaderModule{vertShaderModule} {
+       createGraphicsPipeline(vertShaderModule, fragFilepath, config);
+   }
+
+    ArxPipeline::ArxPipeline(ArxDevice& device,
                              const std::string& compFilepath,
                              VkPipelineLayout& pipelineLayout) : arxDevice{device} {
         createComputePipeline(compFilepath, pipelineLayout);
     }
 
     ArxPipeline::~ArxPipeline() {
-        vkDestroyShaderModule(arxDevice.device(), vertShaderModule, nullptr);
-        vkDestroyShaderModule(arxDevice.device(), fragShaderModule, nullptr);
-        vkDestroyShaderModule(arxDevice.device(), computeShaderModule, nullptr);
-        vkDestroyPipeline(arxDevice.device(), graphicsPipeline, nullptr);
-        vkDestroyPipeline(arxDevice.device(), computePipeline, nullptr);
+        if (vertShaderModule != VK_NULL_HANDLE)
+           vkDestroyShaderModule(arxDevice.device(), vertShaderModule, nullptr);
+        if (fragShaderModule != VK_NULL_HANDLE)
+           vkDestroyShaderModule(arxDevice.device(), fragShaderModule, nullptr);
+        if (computeShaderModule != VK_NULL_HANDLE)
+           vkDestroyShaderModule(arxDevice.device(), computeShaderModule, nullptr);
+        if (graphicsPipeline != VK_NULL_HANDLE)
+           vkDestroyPipeline(arxDevice.device(), graphicsPipeline, nullptr);
+        if (computePipeline != VK_NULL_HANDLE)
+            vkDestroyPipeline(arxDevice.device(), computePipeline, nullptr);
     }
 
     std::vector<char> ArxPipeline::readFile(const std::string& filepath) {
@@ -66,7 +78,7 @@ namespace arx {
         shaderStages[0].pName               = "main";
         shaderStages[0].flags               = 0;
         shaderStages[0].pNext               = nullptr;
-        shaderStages[0].pSpecializationInfo = nullptr;
+        shaderStages[0].pSpecializationInfo = configInfo.vertexShaderStage.pSpecializationInfo;
         
         shaderStages[1].sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStages[1].stage               = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -74,17 +86,28 @@ namespace arx {
         shaderStages[1].pName               = "main";
         shaderStages[1].flags               = 0;
         shaderStages[1].pNext               = nullptr;
-        shaderStages[1].pSpecializationInfo = nullptr;
+        shaderStages[1].pSpecializationInfo = configInfo.fragmentShaderStage.pSpecializationInfo;
         
         auto& bindingDescriptions    = configInfo.bindingDescriptions;
         auto& attributeDescriptions  = configInfo.attributeDescriptions;
         
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-        vertexInputInfo.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.vertexBindingDescriptionCount   = static_cast<uint32_t>(bindingDescriptions.size());
-        vertexInputInfo.pVertexBindingDescriptions      = bindingDescriptions.data();
-        vertexInputInfo.pVertexAttributeDescriptions    = attributeDescriptions.data();
+        
+        if (configInfo.useVertexInputState) {
+            vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+            vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+            vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
+            vertexInputInfo.pVertexBindingDescriptions = configInfo.bindingDescriptions.data();
+            vertexInputInfo.pVertexAttributeDescriptions = configInfo.attributeDescriptions.data();
+        } else {
+            // Empty VkPipelineVertexInputStateCreateInfo structure
+            vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+            vertexInputInfo.vertexBindingDescriptionCount = 0;
+            vertexInputInfo.vertexAttributeDescriptionCount = 0;
+            vertexInputInfo.pVertexBindingDescriptions = nullptr;
+            vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+        }
+        
         
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType                  = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -107,6 +130,66 @@ namespace arx {
 //        pipelineInfo.basePipelineIndex      = -1;
 //        pipelineInfo.basePipelineHandle     = VK_NULL_HANDLE;
         
+        if (vkCreateGraphicsPipelines(arxDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create graphics pipeline!");
+        }
+    }
+
+    void ArxPipeline::createGraphicsPipeline(VkShaderModule vertShaderModule, const std::string &fragFilepath, const PipelineConfigInfo& configInfo) {
+        assert(configInfo.pipelineLayout != VK_NULL_HANDLE && "Cannot create graphics pipeline: no pipelineLayout provided in configInfo");
+
+        assert(configInfo.renderPass != VK_NULL_HANDLE && "Cannot create graphics pipeline: no renderPass provided in configInfo");
+
+        VkPipelineShaderStageCreateInfo shaderStages[2];
+
+        // Use existing vertex shader module
+        vertexShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertexShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertexShaderStageInfo.module = vertShaderModule;
+        vertexShaderStageInfo.pName = "main";
+        vertexShaderStageInfo.flags = 0;
+        vertexShaderStageInfo.pNext = nullptr;
+        vertexShaderStageInfo.pSpecializationInfo = configInfo.vertexShaderStage.pSpecializationInfo;
+
+        shaderStages[0] = vertexShaderStageInfo;
+
+        // Create fragment shader module
+        auto fragCode = readFile(fragFilepath);
+        createShaderModule(fragCode, &fragShaderModule);
+
+        shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        shaderStages[1].module = fragShaderModule;
+        shaderStages[1].pName = "main";
+        shaderStages[1].flags = 0;
+        shaderStages[1].pNext = nullptr;
+        shaderStages[1].pSpecializationInfo = configInfo.fragmentShaderStage.pSpecializationInfo;
+
+        // Vertex input state
+        VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(configInfo.attributeDescriptions.size());
+        vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(configInfo.bindingDescriptions.size());
+        vertexInputInfo.pVertexBindingDescriptions = configInfo.bindingDescriptions.data();
+        vertexInputInfo.pVertexAttributeDescriptions = configInfo.attributeDescriptions.data();
+
+        // Graphics pipeline creation
+        VkGraphicsPipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount = 2;
+        pipelineInfo.pStages = shaderStages;
+        pipelineInfo.pVertexInputState = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState = &configInfo.inputAssemblyInfo;
+        pipelineInfo.pViewportState = &configInfo.viewportInfo;
+        pipelineInfo.pRasterizationState = &configInfo.rasterizationInfo;
+        pipelineInfo.pMultisampleState = &configInfo.multisampleInfo;
+        pipelineInfo.pColorBlendState = &configInfo.colorBlendInfo;
+        pipelineInfo.pDepthStencilState = &configInfo.depthStencilInfo;
+        pipelineInfo.pDynamicState = &configInfo.dynamicStateInfo;
+        pipelineInfo.layout = configInfo.pipelineLayout;
+        pipelineInfo.renderPass = configInfo.renderPass;
+        pipelineInfo.subpass = configInfo.subpass;
+
         if (vkCreateGraphicsPipelines(arxDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline!");
         }

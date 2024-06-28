@@ -15,6 +15,11 @@ namespace arx {
             pair.second->destroy(device.device());
         }
         attachments.clear();
+        
+        for (auto& pair : samplers) {
+            vkDestroySampler(device.device(), pair.second, nullptr);
+        }
+        samplers.clear();
     }
 
     void TextureManager::createTexture2D(
@@ -41,7 +46,7 @@ namespace arx {
     std::shared_ptr<Texture> TextureManager::getTexture(const std::string& name) const {
         auto it = textures.find(name);
         if (it == textures.end()) {
-            throw std::runtime_error("Texture not found: " + name);
+            throw std::runtime_error("Texture " + name + " not found!");
         }
         return it->second;
     }
@@ -49,10 +54,19 @@ namespace arx {
     std::shared_ptr<Texture> TextureManager::getAttachment(const std::string& name) const {
         auto it = attachments.find(name);
         if (it == attachments.end()) {
-            throw std::runtime_error("Attachment not found: " + name);
+            throw std::runtime_error("Attachment " + name + " not found!");
         }
 
         return std::make_shared<Texture>(it->second->texture);
+    }
+
+    VkSampler TextureManager::getSampler(const std::string &name) const {
+        auto it = samplers.find(name);
+        if (it == samplers.end()) {
+            throw std::runtime_error("Sampler " + name + " not found!");
+        }
+        
+        return it->second;
     }
 
     void TextureManager::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkImageTiling tiling, VkImage& image, VkDeviceMemory& imageMemory) {
@@ -140,6 +154,29 @@ namespace arx {
         attachments[name] = std::move(attachment);
     }
 
+    void TextureManager::createSampler(const std::string &name) {
+        VkSampler sampler;
+        
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_NEAREST;
+        samplerInfo.minFilter = VK_FILTER_NEAREST;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.maxAnisotropy = 1.0f;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = 1.0f;
+        samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        if (vkCreateSampler(device.device(), &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create color sampler!");
+        }
+        
+        samplers[name] = sampler;
+    }
+
 
     VkSampler TextureManager::createSampler() {
         VkSampler sampler;
@@ -200,5 +237,150 @@ namespace arx {
             0, nullptr,
             1, &barrier
         );
+    }
+
+    void TextureManager::createTexture2DFromBuffer(
+        const std::string& name,
+        void* buffer,
+        VkDeviceSize bufferSize,
+        VkFormat format,
+        uint32_t width,
+        uint32_t height,
+        VkFilter filter,
+        VkImageUsageFlags imageUsageFlags,
+        VkImageLayout imageLayout) {
+
+        assert(buffer);
+
+        auto texture = std::make_shared<Texture>();
+        texture->format = format;
+
+        // Raw image data staging
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingMemory;
+
+        VkBufferCreateInfo bufferCreateInfo = {};
+        bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferCreateInfo.size = bufferSize;
+        bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        if (vkCreateBuffer(device.device(), &bufferCreateInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create buffer in createTexture2DFromBuffer!");
+        }
+
+        VkMemoryRequirements memReqs;
+        vkGetBufferMemoryRequirements(device.device(), stagingBuffer, &memReqs);
+
+        VkMemoryAllocateInfo memAllocInfo = {};
+        memAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        memAllocInfo.allocationSize = memReqs.size;
+        memAllocInfo.memoryTypeIndex = device.findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        if (vkAllocateMemory(device.device(), &memAllocInfo, nullptr, &stagingMemory) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate buffer memory in createTexture2DFromBuffer!");
+        }
+
+        vkBindBufferMemory(device.device(), stagingBuffer, stagingMemory, 0);
+
+        // Copy texture data into staging buffer
+        void* data;
+        vkMapMemory(device.device(), stagingMemory, 0, bufferSize, 0, &data);
+        memcpy(data, buffer, static_cast<size_t>(bufferSize));
+        vkUnmapMemory(device.device(), stagingMemory);
+
+        // Create the image
+        createImage(width, height, format, imageUsageFlags | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, texture->image, texture->memory);
+
+        // Use a command buffer for copy and layout transitions
+        VkCommandBuffer commandBuffer = device.beginSingleTimeCommands();
+
+        // Transition the image to be a valid copy destination
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = texture->image;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+
+        // Copy buffer to image
+        VkBufferImageCopy bufferCopyRegion = {};
+        bufferCopyRegion.bufferOffset = 0;
+        bufferCopyRegion.bufferRowLength = 0;
+        bufferCopyRegion.bufferImageHeight = 0;
+        bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        bufferCopyRegion.imageSubresource.mipLevel = 0;
+        bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+        bufferCopyRegion.imageSubresource.layerCount = 1;
+        bufferCopyRegion.imageOffset = { 0, 0, 0 };
+        bufferCopyRegion.imageExtent = { width, height, 1 };
+
+        vkCmdCopyBufferToImage(commandBuffer, stagingBuffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferCopyRegion);
+
+        // Transition the image to be shader readable
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = imageLayout;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+
+        device.endSingleTimeCommands(commandBuffer);
+
+        // Clean up staging resources
+        vkDestroyBuffer(device.device(), stagingBuffer, nullptr);
+        vkFreeMemory(device.device(), stagingMemory, nullptr);
+
+        // Create image view
+        texture->view = createImageView(texture->image, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+
+        // Create sampler
+        VkSamplerCreateInfo samplerCreateInfo = {};
+        samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerCreateInfo.magFilter = filter;
+        samplerCreateInfo.minFilter = filter;
+        samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerCreateInfo.anisotropyEnable = VK_TRUE;
+        samplerCreateInfo.maxAnisotropy = 16;
+        samplerCreateInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerCreateInfo.compareEnable = VK_FALSE;
+        samplerCreateInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerCreateInfo.mipLodBias = 0.0f;
+        samplerCreateInfo.minLod = 0.0f;
+        samplerCreateInfo.maxLod = 1.0f;
+
+        if (vkCreateSampler(device.device(), &samplerCreateInfo, nullptr, &texture->sampler) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create texture sampler!");
+        }
+
+        textures[name] = std::move(texture);
     }
 }

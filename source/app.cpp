@@ -85,7 +85,7 @@ namespace arx {
         
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
             
-//        arxRenderer.init_Passes();
+        arxRenderer.init_Passes();
 
         ArxCamera camera{};
 
@@ -141,7 +141,6 @@ namespace arx {
 
             ImGui::End();
             ImGui::Render();
-            
 
             cameraController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
             camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
@@ -157,7 +156,7 @@ namespace arx {
                     globalDescriptorSets[frameIndex],
                     gameObjects
                 };
-                
+                                
                 vkCmdResetQueryPool(commandBuffer, queryPool, 0, 6);
 
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 0);
@@ -178,14 +177,14 @@ namespace arx {
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
                 // Update misc for the rest of the render passes
-//                arxRenderer.updateMisc(ubo);
+                arxRenderer.updateMisc(ubo);
                 
                 // G-Pass
-//                arxRenderer.Pass_GBuffer(frameInfo);
+                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
+                arxRenderer.Pre_Passes(frameInfo);
                 
                 // Render objects
-                vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
-                arxRenderer.beginSwapChainRenderPass(frameInfo, commandBuffer);
+                arxRenderer.beginSwapChainRenderPass(commandBuffer);
                 simpleRenderSystem.renderGameObjects(frameInfo);
                 ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
                 arxRenderer.endSwapChainRenderPass(commandBuffer);

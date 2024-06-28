@@ -5,9 +5,13 @@
 
 namespace arx {
     
-static const int CHUNK_SIZE = 16;
+static const int CHUNK_SIZE = 24;
 static const float VOXEL_SIZE = 1;
 static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
+
+static const float SSAO_KERNEL_SIZE = 64;
+static const float SSAO_NOISE_DIM = 8;
+static const float SSAO_RADIUS = 0.3f;
 
     struct AABB {
         glm::vec3 min{};
@@ -20,6 +24,13 @@ static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
         glm::mat4 inverseView{1.f};
         float zNear{.1f};
         float zFar{1024.f};
+    };
+
+    struct SSAOParams {
+        glm::mat4 projection;
+        int32_t ssao = true;
+        int32_t ssaoOnly = true;
+        int32_t ssaoBlur = false;
     };
     
     struct FrameInfo {

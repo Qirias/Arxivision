@@ -43,14 +43,14 @@ namespace arx {
         VkCommandBuffer beginFrame();
         void endFrame();
         
-        void beginSwapChainRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer);
-        void beginRenderPass(FrameInfo &frameInfo, const std::string& name);
+        void beginSwapChainRenderPass(VkCommandBuffer commandBuffer);
+        void beginRenderPass(VkCommandBuffer commandBuffer, const std::string& name);
         
         void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
 
         
         // Passes
-        void Pass_GBuffer(FrameInfo &frameInfo);
+        void Pre_Passes(FrameInfo &frameInfo);
         void init_Passes();
         
         void updateMisc(const GlobalUbo &rhs);
@@ -81,5 +81,6 @@ namespace arx {
         bool                            isFrameStarted = false;
         
         GlobalUbo                       ubo{};
+        SSAOParams                      uboSSAOParams{};
     };
 }

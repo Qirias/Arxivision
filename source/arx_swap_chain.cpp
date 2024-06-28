@@ -874,7 +874,7 @@ namespace arx {
         cull.objectsDataBuffer->map();
         cull.objectsDataBuffer->writeToBuffer(cull.objectData.dataPtr(), cull.objectData.bufferSize());
         
-        // VisibleIndexes
+        // VisibleIndices
         BufferManager::visibilityBuffer = std::make_unique<ArxBuffer>(device,
                                                             sizeof(uint32_t),
                                                             BufferManager::visibilityData.size(),

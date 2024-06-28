@@ -51,15 +51,29 @@ namespace arx {
         
         // Used for framebuffer since we don't need a sampler
         void createAttachment(const std::string& name, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags);
+        // Create stand-alone samplers
+        void createSampler(const std::string& name);
         void transitionImageLayout(VkCommandBuffer commandPool, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+        void createTexture2DFromBuffer(
+                const std::string& name,
+                void* buffer,
+                VkDeviceSize bufferSize,
+                VkFormat format,
+                uint32_t width,
+                uint32_t height,
+                VkFilter filter = VK_FILTER_LINEAR,
+                VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                VkImageLayout imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         
         std::shared_ptr<Texture> getTexture(const std::string& name) const;
         std::shared_ptr<Texture> getAttachment(const std::string& name) const;
-
+        VkSampler getSampler(const std::string& name) const;
+        
     private:
         ArxDevice& device;
         std::unordered_map<std::string, std::shared_ptr<Texture>> textures;
         std::unordered_map<std::string, std::shared_ptr<FrameBufferAttachment>> attachments;
+        std::unordered_map<std::string, VkSampler> samplers;
 
         VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
         VkSampler createSampler();

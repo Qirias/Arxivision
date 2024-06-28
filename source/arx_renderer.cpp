@@ -110,7 +110,7 @@ namespace arx {
         currentFrameIndex = (currentFrameIndex + 1) % ArxSwapChain::MAX_FRAMES_IN_FLIGHT;
     }
 
-    void ArxRenderer::beginSwapChainRenderPass(FrameInfo &frameInfo, VkCommandBuffer commandBuffer) {
+    void ArxRenderer::beginSwapChainRenderPass(VkCommandBuffer commandBuffer) {
         assert(isFrameStarted && "Can't beginSwapChainRenderPass if frame is not in progress");
         assert(commandBuffer == getCurrentCommandBuffer() && "Can't begin render pass on command buffer from a different frame");
         
@@ -142,7 +142,7 @@ namespace arx {
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     }
 
-    void ArxRenderer::beginRenderPass(FrameInfo &frameInfo, const std::string& name) {
+    void ArxRenderer::beginRenderPass(VkCommandBuffer commandBuffer, const std::string& name) {
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType        = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass   = rpManager.getRenderPass(name);
@@ -170,7 +170,7 @@ namespace arx {
             renderPassInfo.pClearValues     = clearValues.data();
         }
 
-        vkCmdBeginRenderPass(frameInfo.commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         
         VkViewport viewport{};
         viewport.x  = 0.0f;
@@ -180,8 +180,8 @@ namespace arx {
         viewport.minDepth   = 0.0f;
         viewport.maxDepth   = 1.0f;
         VkRect2D scissor{{0, 0}, arxSwapChain->getSwapChainExtent()};
-        vkCmdSetViewport(frameInfo.commandBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(frameInfo.commandBuffer, 0, 1, &scissor);
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     }
 
     void ArxRenderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {

@@ -11,6 +11,7 @@ namespace arx {
     std::vector<std::shared_ptr<ArxBuffer>> BufferManager::instanceBuffers;
     std::vector<VkDeviceSize> BufferManager::instanceOffsets;
 
+    // Occlusion Culling
     std::shared_ptr<ArxBuffer> BufferManager::largeInstanceBuffer = nullptr;
     std::unique_ptr<ArxBuffer> BufferManager::drawIndirectBuffer = nullptr;
     std::unique_ptr<ArxBuffer> BufferManager::drawCommandCountBuffer = nullptr;

@@ -45,7 +45,7 @@ namespace arx {
         static std::unique_ptr<ArxBuffer> instanceOffsetBuffer;
         static std::unique_ptr<ArxBuffer> visibilityBuffer;
         static std::vector<GPUIndirectDrawCommand> indirectDrawData;
-        static std::vector<uint32_t> visibilityData;;
+        static std::vector<uint32_t> visibilityData;
         
         // vertex shader
         static std::shared_ptr<ArxBuffer> largeInstanceBuffer;
