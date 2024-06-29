@@ -424,9 +424,9 @@ namespace arx {
                                                                 .build();
         
         VkDescriptorImageInfo samplerAlbedoInfo{};
-        samplerNormalInfo.sampler = textureManager.getSampler("colorSampler");
-        samplerNormalInfo.imageView = textureManager.getAttachment("gAlbedo")->view;
-        samplerNormalInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        samplerAlbedoInfo.sampler = textureManager.getSampler("colorSampler");
+        samplerAlbedoInfo.imageView = textureManager.getAttachment("gAlbedo")->view;
+        samplerAlbedoInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         
         
         VkDescriptorImageInfo samplerSSAOBlurColorInfo{};
@@ -748,73 +748,41 @@ namespace arx {
         //                                    SSAOBlur
         // ====================================================================================
         
-//        std::array<VkClearValue, 2> clearValues{};
-//        clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
-//        clearValues[1].depthStencil = { 1.0f, 0 };
-//        
-//        VkRenderPassBeginInfo renderPassBeginInfo;
-//        renderPassBeginInfo.renderPass = rpManager.getRenderPass("SSAOBlur");
-//        renderPassBeginInfo.framebuffer = rpManager.getFrameBuffer("SSAOBlur");
-//        renderPassBeginInfo.renderArea.offset = {0, 0};
-//        renderPassBeginInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
-//        
-//        renderPassBeginInfo.clearValueCount = 2;
-//        renderPassBeginInfo.pClearValues = clearValues.data();
-//        
-//        vkCmdBeginRenderPass(frameInfo.commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-//        
-//        VkViewport viewport{};
-//        viewport.x  = 0.0f;
-//        viewport.y  = 0.0f;
-//        viewport.width  = static_cast<float>(arxSwapChain->getSwapChainExtent().width);
-//        viewport.height = static_cast<float>(arxSwapChain->getSwapChainExtent().height);
-//        viewport.minDepth   = 0.0f;
-//        viewport.maxDepth   = 1.0f;
-//        VkRect2D scissor{{0, 0}, arxSwapChain->getSwapChainExtent()};
-//        vkCmdSetViewport(frameInfo.commandBuffer, 0, 1, &viewport);
-//        vkCmdSetScissor(frameInfo.commandBuffer, 0, 1, &scissor);
-//        
-//        pipelines[static_cast<uint8_t>(PassName::SSAOBLUR)]->bind(frameInfo.commandBuffer);
-//    
-//        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
-//                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-//                                pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)],
-//                                0,
-//                                1,
-//                                &descriptorSets[static_cast<uint8_t>(PassName::SSAOBLUR)][0],
-//                                0,
-//                                nullptr);
-//        
-//        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
-//        vkCmdEndRenderPass(frameInfo.commandBuffer);
-//        
-//        // ====================================================================================
-//        //                                   COMPOSITION
-//        // ====================================================================================
-//        
-//        renderPassBeginInfo.renderPass = arxSwapChain->getRenderPass();
-//        renderPassBeginInfo.framebuffer = arxSwapChain->getFrameBuffer(currentFrameIndex);
-//        renderPassBeginInfo.renderArea.offset = {0, 0};
-//        renderPassBeginInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
-//        
-//        vkCmdBeginRenderPass(frameInfo.commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-//        
-//        vkCmdSetViewport(frameInfo.commandBuffer, 0, 1, &viewport);
-//        vkCmdSetScissor(frameInfo.commandBuffer, 0, 1, &scissor);
-//        
-//        pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->bind(frameInfo.commandBuffer);
-//    
-//        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
-//                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-//                                pipelineLayouts[static_cast<uint8_t>(PassName::COMPOSITION)],
-//                                0,
-//                                1,
-//                                &descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)][0],
-//                                0,
-//                                nullptr);
-//        
-//        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
-//        vkCmdEndRenderPass(frameInfo.commandBuffer);
+        beginRenderPass(frameInfo.commandBuffer, "SSAOBlur");
+        
+        pipelines[static_cast<uint8_t>(PassName::SSAOBLUR)]->bind(frameInfo.commandBuffer);
+    
+        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)],
+                                0,
+                                1,
+                                &descriptorSets[static_cast<uint8_t>(PassName::SSAOBLUR)][0],
+                                0,
+                                nullptr);
+        
+        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+        vkCmdEndRenderPass(frameInfo.commandBuffer);
+        
+        // ====================================================================================
+        //                                   COMPOSITION
+        // ====================================================================================
+
+        beginSwapChainRenderPass(frameInfo.commandBuffer);
+        
+        pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->bind(frameInfo.commandBuffer);
+    
+        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                pipelineLayouts[static_cast<uint8_t>(PassName::COMPOSITION)],
+                                0,
+                                1,
+                                &descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)][0],
+                                0,
+                                nullptr);
+        
+        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+        endSwapChainRenderPass(frameInfo.commandBuffer);
     }
 
     void ArxRenderer::updateMisc(const GlobalUbo &rhs) {
