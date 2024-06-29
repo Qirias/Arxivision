@@ -179,7 +179,7 @@ namespace arx {
                 // Update misc for the rest of the render passes
                 arxRenderer.updateMisc(ubo);
                 
-                // G-Pass
+                // Pre-Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
                 arxRenderer.Pre_Passes(frameInfo);
                 

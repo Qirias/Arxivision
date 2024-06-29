@@ -153,7 +153,7 @@ namespace arx {
         // ====================================================================================
 
         assert(pipelineLayouts[static_cast<uint8_t>(PassName::GPass)] != nullptr && "Cannot create pipeline before pipeline layout");
-        
+
         PipelineConfigInfo gPassConfigInfo{};
         VkPipelineColorBlendAttachmentState attachment1 = ArxPipeline::createDefaultColorBlendAttachment();
         VkPipelineColorBlendAttachmentState attachment2 = ArxPipeline::createDefaultColorBlendAttachment();
@@ -161,14 +161,16 @@ namespace arx {
         gPassConfigInfo.colorBlendAttachments = {attachment1, attachment2, attachment3};
         
         ArxPipeline::defaultPipelineConfigInfo(gPassConfigInfo);
-        gPassConfigInfo.renderPass       = rpManager.getRenderPass("GBuffer");
-        gPassConfigInfo.pipelineLayout   = pipelineLayouts[static_cast<uint8_t>(PassName::GPass)];
-        
+        gPassConfigInfo.renderPass                      = rpManager.getRenderPass("GBuffer");
+        gPassConfigInfo.pipelineLayout                  = pipelineLayouts[static_cast<uint8_t>(PassName::GPass)];
+        gPassConfigInfo.colorBlendInfo.attachmentCount  = 3;
+        gPassConfigInfo.colorBlendInfo.pAttachments     = gPassConfigInfo.colorBlendAttachments.data();
+
         pipelines[static_cast<uint8_t>(PassName::GPass)] = std::make_shared<ArxPipeline>(arxDevice,
                                                                                         "shaders/gbuffer_vert.spv",
                                                                                         "shaders/gbuffer_frag.spv",
                                                                                          gPassConfigInfo);
-        
+
         // ====================================================================================
         //                                    COMPOSITION
         // ====================================================================================
@@ -182,19 +184,23 @@ namespace arx {
         compositionConfigInfo.rasterizationInfo.cullMode    = VK_CULL_MODE_FRONT_BIT;
         compositionConfigInfo.rasterizationInfo.frontFace   = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         compositionConfigInfo.useVertexInputState           = false;
-        
-        
+        VkPipelineColorBlendAttachmentState compositionColorBlendAttachment = ArxPipeline::createDefaultColorBlendAttachment();
+        compositionConfigInfo.colorBlendAttachments                 = {compositionColorBlendAttachment};
+        compositionConfigInfo.colorBlendInfo.attachmentCount        = 1;
+        compositionConfigInfo.colorBlendInfo.pAttachments           = compositionConfigInfo.colorBlendAttachments.data();
+        compositionConfigInfo.multisampleInfo.rasterizationSamples  = arxDevice.msaaSamples; // Final image with the msaaSamples
+
         pipelines[static_cast<uint8_t>(PassName::COMPOSITION)] = std::make_shared<ArxPipeline>(arxDevice,
                                                                                                "shaders/fullscreen.spv",
                                                                                                "shaders/composition.spv",
                                                                                                compositionConfigInfo);
-        
+
         // ====================================================================================
         //                                      SSAO
         // ====================================================================================
         
         assert(pipelineLayouts[static_cast<uint8_t>(PassName::SSAO)] != nullptr && "Cannot create pipeline before pipeline layout");
-        
+
         struct SpecializationData {
             uint32_t kernelSize = SSAO_KERNEL_SIZE;
             float radius = SSAO_RADIUS;
@@ -209,43 +215,53 @@ namespace arx {
         specializationMapEntries[1].size = sizeof(SpecializationData::radius);
         
         VkSpecializationInfo specializationInfo{};
-        specializationInfo.mapEntryCount = 2;
-        specializationInfo.pMapEntries = specializationMapEntries.data();
-        specializationInfo.dataSize = sizeof(specializationData);
-        specializationInfo.pData = &specializationData;
+        specializationInfo.mapEntryCount    = 2;
+        specializationInfo.pMapEntries      = specializationMapEntries.data();
+        specializationInfo.dataSize         = sizeof(specializationData);
+        specializationInfo.pData            = &specializationData;
         
         PipelineConfigInfo ssaoConfigInfo{};
         ArxPipeline::defaultPipelineConfigInfo(ssaoConfigInfo);
         ssaoConfigInfo.renderPass                               = rpManager.getRenderPass("SSAO");
         ssaoConfigInfo.fragmentShaderStage.pSpecializationInfo  = &specializationInfo;
         ssaoConfigInfo.pipelineLayout                           = pipelineLayouts[static_cast<uint8_t>(PassName::SSAO)];
+        ssaoConfigInfo.useVertexInputState                      = false;
+        ssaoConfigInfo.colorBlendInfo.attachmentCount           = 1;
+        VkPipelineColorBlendAttachmentState ssaoColorBlendAttachment = ArxPipeline::createDefaultColorBlendAttachment();
+        ssaoConfigInfo.colorBlendAttachments                    = {ssaoColorBlendAttachment};
+        ssaoConfigInfo.colorBlendInfo.pAttachments              = ssaoConfigInfo.colorBlendAttachments.data();
                 
         ssaoConfigInfo.vertexShaderStage = pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertexShaderStageInfo();
 
-        
         pipelines[static_cast<uint8_t>(PassName::SSAO)] = std::make_shared<ArxPipeline>(arxDevice,
                                                             pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(),
                                                             "shaders/ssao.spv",
                                                             ssaoConfigInfo);
-        
+
         // ====================================================================================
         //                                     SSAOBLUR
         // ====================================================================================
         
         assert(pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)] != nullptr && "Cannot create pipeline before pipeline layout");
-        
+
         PipelineConfigInfo ssaoBlurConfigInfo{};
         ArxPipeline::defaultPipelineConfigInfo(ssaoBlurConfigInfo);
-        ssaoBlurConfigInfo.renderPass = rpManager.getRenderPass("SSAOBlur");
-        ssaoBlurConfigInfo.pipelineLayout = pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)];
+        ssaoBlurConfigInfo.renderPass                           = rpManager.getRenderPass("SSAOBlur");
+        ssaoBlurConfigInfo.pipelineLayout                       = pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)];
+        ssaoBlurConfigInfo.colorBlendInfo.attachmentCount       = 1;
+        VkPipelineColorBlendAttachmentState ssaoBlurColorBlendAttachment = ArxPipeline::createDefaultColorBlendAttachment();
+        ssaoBlurConfigInfo.colorBlendAttachments                = {ssaoBlurColorBlendAttachment};
+        ssaoBlurConfigInfo.colorBlendInfo.pAttachments          = ssaoBlurConfigInfo.colorBlendAttachments.data();
+        ssaoBlurConfigInfo.useVertexInputState                  = false;
         
         ssaoBlurConfigInfo.vertexShaderStage = pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertexShaderStageInfo();
 
         pipelines[static_cast<uint8_t>(PassName::SSAOBLUR)] = std::make_shared<ArxPipeline>(arxDevice,
                                                                 pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(),
-                                                                "shaders/ssao.spv",
-                                                                ssaoConfigInfo);
+                                                                "shaders/ssaoBlur.spv",
+                                                                ssaoBlurConfigInfo);
     }
+
 
     void ArxRenderer::createUniformBuffers() {
         // ====================================================================================
@@ -257,7 +273,7 @@ namespace arx {
                                                                        .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.f)
                                                                        .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1.f)
                                                                        .build();
-               
+
         passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(std::make_shared<ArxBuffer>(
                                                                      arxDevice,
                                                                      sizeof(GlobalUbo),
@@ -732,82 +748,73 @@ namespace arx {
         //                                    SSAOBlur
         // ====================================================================================
         
-        VkRenderPassBeginInfo renderPassBeginInfo;
-        renderPassBeginInfo.renderPass = rpManager.getRenderPass("SSAOBlur");
-        renderPassBeginInfo.framebuffer = rpManager.getFrameBuffer("SSAOBlur");
-        renderPassBeginInfo.renderArea.offset = {0, 0};
-        renderPassBeginInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
-        
-        std::vector<VkClearValue> clearValues(2);
-        clearValues[0].color = {0, 0, 0, 1};
-        clearValues[1].depthStencil = { 1.0f, 0 };
-        
-        renderPassBeginInfo.clearValueCount = 2;
-        renderPassBeginInfo.pClearValues = clearValues.data();
-        
-        vkCmdBeginRenderPass(frameInfo.commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        
-        VkViewport viewport{};
-        viewport.x  = 0.0f;
-        viewport.y  = 0.0f;
-        viewport.width  = static_cast<float>(arxSwapChain->getSwapChainExtent().width);
-        viewport.height = static_cast<float>(arxSwapChain->getSwapChainExtent().height);
-        viewport.minDepth   = 0.0f;
-        viewport.maxDepth   = 1.0f;
-        VkRect2D scissor{{0, 0}, arxSwapChain->getSwapChainExtent()};
-        vkCmdSetViewport(frameInfo.commandBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(frameInfo.commandBuffer, 0, 1, &scissor);
-        
-        pipelines[static_cast<uint8_t>(PassName::SSAOBLUR)]->bind(frameInfo.commandBuffer);
-    
-        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)],
-                                0,
-                                1,
-                                &descriptorSets[static_cast<uint8_t>(PassName::SSAOBLUR)][0],
-                                0,
-                                nullptr);
-        
-        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
-        vkCmdEndRenderPass(frameInfo.commandBuffer);
-        
-        // ====================================================================================
-        //                                   COMPOSITION
-        // ====================================================================================
-        
-        renderPassBeginInfo.renderPass = arxSwapChain->getRenderPass();
-        renderPassBeginInfo.framebuffer = arxSwapChain->getFrameBuffer(currentFrameIndex);
-        renderPassBeginInfo.renderArea.offset = {0, 0};
-        renderPassBeginInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
-        renderPassBeginInfo.clearValueCount = 2;
-        renderPassBeginInfo.pClearValues = clearValues.data();
-        
-        vkCmdBeginRenderPass(frameInfo.commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        
-        
-        viewport.x  = 0.0f;
-        viewport.y  = 0.0f;
-        viewport.width  = static_cast<float>(arxSwapChain->getSwapChainExtent().width);
-        viewport.height = static_cast<float>(arxSwapChain->getSwapChainExtent().height);
-        viewport.minDepth   = 0.0f;
-        viewport.maxDepth   = 1.0f;
-        vkCmdSetViewport(frameInfo.commandBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(frameInfo.commandBuffer, 0, 1, &scissor);
-        
-        pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->bind(frameInfo.commandBuffer);
-    
-        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipelineLayouts[static_cast<uint8_t>(PassName::COMPOSITION)],
-                                0,
-                                1,
-                                &descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)][0],
-                                0,
-                                nullptr);
-        
-        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
-        vkCmdEndRenderPass(frameInfo.commandBuffer);
+//        std::array<VkClearValue, 2> clearValues{};
+//        clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+//        clearValues[1].depthStencil = { 1.0f, 0 };
+//        
+//        VkRenderPassBeginInfo renderPassBeginInfo;
+//        renderPassBeginInfo.renderPass = rpManager.getRenderPass("SSAOBlur");
+//        renderPassBeginInfo.framebuffer = rpManager.getFrameBuffer("SSAOBlur");
+//        renderPassBeginInfo.renderArea.offset = {0, 0};
+//        renderPassBeginInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
+//        
+//        renderPassBeginInfo.clearValueCount = 2;
+//        renderPassBeginInfo.pClearValues = clearValues.data();
+//        
+//        vkCmdBeginRenderPass(frameInfo.commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+//        
+//        VkViewport viewport{};
+//        viewport.x  = 0.0f;
+//        viewport.y  = 0.0f;
+//        viewport.width  = static_cast<float>(arxSwapChain->getSwapChainExtent().width);
+//        viewport.height = static_cast<float>(arxSwapChain->getSwapChainExtent().height);
+//        viewport.minDepth   = 0.0f;
+//        viewport.maxDepth   = 1.0f;
+//        VkRect2D scissor{{0, 0}, arxSwapChain->getSwapChainExtent()};
+//        vkCmdSetViewport(frameInfo.commandBuffer, 0, 1, &viewport);
+//        vkCmdSetScissor(frameInfo.commandBuffer, 0, 1, &scissor);
+//        
+//        pipelines[static_cast<uint8_t>(PassName::SSAOBLUR)]->bind(frameInfo.commandBuffer);
+//    
+//        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
+//                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+//                                pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)],
+//                                0,
+//                                1,
+//                                &descriptorSets[static_cast<uint8_t>(PassName::SSAOBLUR)][0],
+//                                0,
+//                                nullptr);
+//        
+//        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+//        vkCmdEndRenderPass(frameInfo.commandBuffer);
+//        
+//        // ====================================================================================
+//        //                                   COMPOSITION
+//        // ====================================================================================
+//        
+//        renderPassBeginInfo.renderPass = arxSwapChain->getRenderPass();
+//        renderPassBeginInfo.framebuffer = arxSwapChain->getFrameBuffer(currentFrameIndex);
+//        renderPassBeginInfo.renderArea.offset = {0, 0};
+//        renderPassBeginInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
+//        
+//        vkCmdBeginRenderPass(frameInfo.commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+//        
+//        vkCmdSetViewport(frameInfo.commandBuffer, 0, 1, &viewport);
+//        vkCmdSetScissor(frameInfo.commandBuffer, 0, 1, &scissor);
+//        
+//        pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->bind(frameInfo.commandBuffer);
+//    
+//        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
+//                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+//                                pipelineLayouts[static_cast<uint8_t>(PassName::COMPOSITION)],
+//                                0,
+//                                1,
+//                                &descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)][0],
+//                                0,
+//                                nullptr);
+//        
+//        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+//        vkCmdEndRenderPass(frameInfo.commandBuffer);
     }
 
     void ArxRenderer::updateMisc(const GlobalUbo &rhs) {

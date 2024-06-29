@@ -108,7 +108,6 @@ namespace arx {
             vertexInputInfo.pVertexAttributeDescriptions = nullptr;
         }
         
-        
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType                  = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineInfo.stageCount             = 2;
@@ -166,12 +165,25 @@ namespace arx {
         shaderStages[1].pSpecializationInfo = configInfo.fragmentShaderStage.pSpecializationInfo;
 
         // Vertex input state
+        auto& bindingDescriptions    = configInfo.bindingDescriptions;
+        auto& attributeDescriptions  = configInfo.attributeDescriptions;
+        
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(configInfo.attributeDescriptions.size());
-        vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(configInfo.bindingDescriptions.size());
-        vertexInputInfo.pVertexBindingDescriptions = configInfo.bindingDescriptions.data();
-        vertexInputInfo.pVertexAttributeDescriptions = configInfo.attributeDescriptions.data();
+        
+        if (configInfo.useVertexInputState) {
+            vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+            vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+            vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
+            vertexInputInfo.pVertexBindingDescriptions = configInfo.bindingDescriptions.data();
+            vertexInputInfo.pVertexAttributeDescriptions = configInfo.attributeDescriptions.data();
+        } else {
+            // Empty VkPipelineVertexInputStateCreateInfo structure
+            vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+            vertexInputInfo.vertexBindingDescriptionCount = 0;
+            vertexInputInfo.vertexAttributeDescriptionCount = 0;
+            vertexInputInfo.pVertexBindingDescriptions = nullptr;
+            vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+        }
 
         // Graphics pipeline creation
         VkGraphicsPipelineCreateInfo pipelineInfo{};
