@@ -32,7 +32,7 @@ namespace arx {
         void disableImGuiInteraction();
         
         KeyMappings keys{};
-        float moveSpeed{320.f};
+        float moveSpeed{120.f};
         float lookSpeed{0.05f};
         double xpos;
         double ypos;

@@ -31,7 +31,8 @@ void main()
 
     if (uboParams.ssaoOnly == 1)
     {
-        outFragColor.rgb = ssao.rrr;
+//        outFragColor.rgb = ssao.rrr;
+        outFragColor.rgb = texture(samplerAlbedo, inUV).rgb;
     }
     else
     {

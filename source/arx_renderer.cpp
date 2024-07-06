@@ -38,11 +38,11 @@ namespace arx {
         vkDeviceWaitIdle(arxDevice.device());
         
         if (arxSwapChain == nullptr) {
-            arxSwapChain = std::make_unique<ArxSwapChain>(arxDevice, extent);
+            arxSwapChain = std::make_unique<ArxSwapChain>(arxDevice, extent, rpManager, textureManager);
         }
         else {
             std::shared_ptr<ArxSwapChain> oldSwapChain = std::move(arxSwapChain);
-            arxSwapChain = std::make_unique<ArxSwapChain>(arxDevice, extent, oldSwapChain);
+            arxSwapChain = std::make_unique<ArxSwapChain>(arxDevice, extent, oldSwapChain, rpManager, textureManager);
             
             if (!oldSwapChain->compareSwapFormats(*arxSwapChain.get())) {
                 throw std::runtime_error("Swap chain image(or depth) format has changed");

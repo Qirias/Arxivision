@@ -2,6 +2,8 @@
 
 #include "arx_device.h"
 #include "systems/occlusion_system.hpp"
+#include "arx_render_pass_manager.hpp"
+#include "arx_texture_manager.hpp"
 
 // std lib headers
 #include <string>
@@ -14,8 +16,8 @@ class ArxSwapChain {
     public:
         static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
-        ArxSwapChain(ArxDevice &deviceRef, VkExtent2D windowExtent);
-        ArxSwapChain(ArxDevice &deviceRef, VkExtent2D windowExtent, std::shared_ptr<ArxSwapChain> previous);
+        ArxSwapChain(ArxDevice &deviceRef, VkExtent2D windowExtent, RenderPassManager &rp, TextureManager &textures);
+        ArxSwapChain(ArxDevice &deviceRef, VkExtent2D windowExtent, std::shared_ptr<ArxSwapChain> previous, RenderPassManager &rp, TextureManager &textures);
     
         ~ArxSwapChain();
 
@@ -27,12 +29,13 @@ class ArxSwapChain {
         VkRenderPass getRenderPass() { return renderPass; }
         VkRenderPass getEarlyRenderPass() { return earlyRenderPass; }
         VkImageView getImageView(int index) { return swapChainImageViews[index]; }
-        VkImage getDepthImage() { return depthImage; }
         size_t imageCount() { return swapChainImages.size(); }
         VkFormat getSwapChainImageFormat() { return swapChainImageFormat; }
         VkExtent2D getSwapChainExtent() { return swapChainExtent; }
         uint32_t width() { return swapChainExtent.width; }
         uint32_t height() { return swapChainExtent.height; }
+    
+        void Init_OcclusionCulling();
 
         float extentAspectRatio() {
             return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height);
@@ -85,10 +88,7 @@ class ArxSwapChain {
         std::vector<VkDeviceMemory> depthImageMemorys;
         std::vector<VkImageView>    depthImageViews;
     
-        // Single-sampled depth resolve attachment
-        VkImage                     depthImage;
-        VkImageView                 depthImageView;
-        VkDeviceMemory              depthImageMemory;
+        // Single-sampled depth resolve sampler
         VkSampler                   depthSampler;
     
         std::vector<VkImage>        swapChainImages;
@@ -105,6 +105,9 @@ class ArxSwapChain {
         std::vector<VkFence>            inFlightFences;
         std::vector<VkFence>            imagesInFlight;
         size_t                          currentFrame = 0;
+    
+        RenderPassManager&              rpManager;
+        TextureManager&                 textureManager;        
     
     public:
         OcclusionSystem cull;

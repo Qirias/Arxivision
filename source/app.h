@@ -37,12 +37,12 @@ namespace arx {
         
         ArxWindow                           arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
         ArxDevice                           arxDevice{arxWindow};
+        TextureManager                      textureManager{arxDevice};
+        RenderPassManager                   rpManager{arxDevice};
         ArxRenderer                         arxRenderer{arxWindow, arxDevice, rpManager, textureManager};
         
         // Managers
         ChunkManager                        chunkManager{arxDevice};
-        TextureManager                      textureManager{arxDevice};
-        RenderPassManager                   rpManager{arxDevice};
 
         // note: order of declarations matters
         std::unique_ptr<ArxDescriptorPool>  globalPool{};

@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include "arx_renderer.h"
 
+
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
+
 // std
 #include <stdexcept>
 #include <array>
@@ -782,6 +787,7 @@ namespace arx {
                                 nullptr);
         
         vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), frameInfo.commandBuffer);
         endSwapChainRenderPass(frameInfo.commandBuffer);
     }
 

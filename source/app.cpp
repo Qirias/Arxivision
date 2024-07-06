@@ -42,8 +42,8 @@ namespace arx {
 
     void App::run() {
 //        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-//        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 5)));
-        chunkManager.vox2Chunks(gameObjects, "scenes/pieta.vox");
+        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
+//        chunkManager.vox2Chunks(gameObjects, "scenes/pieta.vox");
     
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
@@ -85,7 +85,11 @@ namespace arx {
         
         SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
             
+        // Create all passes including G-Pass
         arxRenderer.init_Passes();
+        
+        // Initialize culling resources after G-Pass created the depth texture
+        arxRenderer.getSwapChain()->Init_OcclusionCulling();
 
         ArxCamera camera{};
 
@@ -182,12 +186,6 @@ namespace arx {
                 // Pre-Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
                 arxRenderer.Pre_Passes(frameInfo);
-                
-                // Render objects
-                arxRenderer.beginSwapChainRenderPass(commandBuffer);
-                simpleRenderSystem.renderGameObjects(frameInfo);
-                ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
-                arxRenderer.endSwapChainRenderPass(commandBuffer);
 
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 3);
                 if (!enableCulling) {
@@ -212,7 +210,7 @@ namespace arx {
 
                 if (!enableCulling) {
                     // Calculate the elapsed time in nanoseconds
-                    cullingTime = timestamps[5] - timestamps[4];
+                    cullingTime = (timestamps[5] - timestamps[4]) + (timestamps[4] - timestamps[3]);
                     renderTime = timestamps[3] - timestamps[2];
                     depthPyramidTime = timestamps[4] - timestamps[3];
                 } else {

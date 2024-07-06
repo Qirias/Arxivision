@@ -14,13 +14,13 @@
 
 namespace arx {
 
-    ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent)
-        : device{deviceRef}, windowExtent{extent}, cull(deviceRef) {
+    ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent, RenderPassManager &rp, TextureManager &textures)
+: device{deviceRef}, windowExtent{extent}, cull(deviceRef), rpManager{rp}, textureManager{textures} {
         init();
     }
 
-    ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent, std::shared_ptr<ArxSwapChain> previous)
-        : device{deviceRef}, windowExtent{extent}, oldSwapChain(previous), cull(deviceRef) {
+    ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent, std::shared_ptr<ArxSwapChain> previous, RenderPassManager &rp, TextureManager &textures)
+: device{deviceRef}, windowExtent{extent}, oldSwapChain(previous), cull(deviceRef), rpManager{rp}, textureManager{textures} {
         init();
             
         // clean up old swap chain since it's no longer needed
@@ -37,11 +37,6 @@ namespace arx {
         createFramebuffers();
         createFramebuffers(true); // earlyPass
         createSyncObjects();
-        
-        createDepthSampler();
-        createDepthPyramid();
-        createDepthPyramidDescriptors();
-        createBarriers();
     }
 
     ArxSwapChain::~ArxSwapChain() {
@@ -64,10 +59,7 @@ namespace arx {
             vkDestroyImage(device.device(), depthImages[i], nullptr);
             vkFreeMemory(device.device(), depthImageMemorys[i], nullptr);
         }
-        vkDestroyImage(device.device(), depthImage, nullptr);
-        vkDestroyImageView(device.device(), depthImageView, nullptr);
-        vkFreeMemory(device.device(), depthImageMemory, nullptr);
-        
+
         vkDestroySampler(device.device(), depthSampler, nullptr);
         depthSampler = VK_NULL_HANDLE;
 
@@ -107,7 +99,12 @@ namespace arx {
         cull.cullingDescriptorLayout = VK_NULL_HANDLE;
     }
 
-    
+    void ArxSwapChain::Init_OcclusionCulling() {
+        createDepthSampler();
+        createDepthPyramid();
+        createDepthPyramidDescriptors();
+        createBarriers();
+    }
 
     VkResult ArxSwapChain::acquireNextImage(uint32_t *imageIndex) {
       vkWaitForFences(
@@ -257,40 +254,6 @@ namespace arx {
     }
 
     void ArxSwapChain::createRenderPass(bool earlyPass) {
-        VkAttachmentDescription2 depthAttachment{};
-        depthAttachment.sType             = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
-        depthAttachment.format            = findDepthFormat();
-        depthAttachment.samples           = device.msaaSamples;
-        depthAttachment.loadOp            = earlyPass ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp           = earlyPass ? VK_ATTACHMENT_STORE_OP_DONT_CARE: VK_ATTACHMENT_STORE_OP_STORE;
-        depthAttachment.stencilLoadOp     = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachment.stencilStoreOp    = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout     = earlyPass ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachment.finalLayout       = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        VkAttachmentReference2 depthAttachmentRef{};
-        depthAttachmentRef.sType      = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
-        depthAttachmentRef.attachment = 1;
-        depthAttachmentRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        
-        // New single-sampled depth attachment for depth resolve
-        VkAttachmentDescription2 depthResolveAttachment = {};
-        depthResolveAttachment.sType  = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
-        depthResolveAttachment.format = findDepthFormat();
-        depthResolveAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthResolveAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthResolveAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        depthResolveAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthResolveAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthResolveAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthResolveAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        
-        VkAttachmentReference2 depthResolveAttachmentRef = {};
-        depthResolveAttachmentRef.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
-        depthResolveAttachmentRef.attachment = 3; // index of single-sampled resolve depth attachment
-        depthResolveAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depthResolveAttachmentRef.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
         VkAttachmentDescription2 colorAttachment = {};
         colorAttachment.sType             = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
         colorAttachment.format            = getSwapChainImageFormat();
@@ -320,23 +283,15 @@ namespace arx {
 
         VkAttachmentReference2 colorAttachmentResolveRef{};
         colorAttachmentResolveRef.sType         = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
-        colorAttachmentResolveRef.attachment    = 2;
+        colorAttachmentResolveRef.attachment    = 1;
         colorAttachmentResolveRef.layout        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        
-        VkSubpassDescriptionDepthStencilResolve subpassDepthSencilResolve = {};
-        subpassDepthSencilResolve.sType                             = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_DEPTH_STENCIL_RESOLVE;
-        subpassDepthSencilResolve.stencilResolveMode                = VK_RESOLVE_MODE_NONE;
-        subpassDepthSencilResolve.depthResolveMode                  = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
-        subpassDepthSencilResolve.pDepthStencilResolveAttachment    = &depthResolveAttachmentRef;
 
         VkSubpassDescription2 subpass = {};
         subpass.sType                     = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2;
         subpass.pipelineBindPoint         = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount      = 1;
         subpass.pColorAttachments         = &colorAttachmentRef;
-        subpass.pDepthStencilAttachment   = &depthAttachmentRef;
         subpass.pResolveAttachments       = &colorAttachmentResolveRef;
-        subpass.pNext = &subpassDepthSencilResolve;
     
         VkSubpassDependency2 dependency = {};
         dependency.sType          = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2;
@@ -347,7 +302,7 @@ namespace arx {
         dependency.dstStageMask   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         dependency.dstAccessMask  = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-        std::array<VkAttachmentDescription2, 4> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve, depthResolveAttachment};
+        std::array<VkAttachmentDescription2, 2> attachments = {colorAttachment, colorAttachmentResolve};
         VkRenderPassCreateInfo2 renderPassInfo = {};
         renderPassInfo.sType              = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2;
         renderPassInfo.attachmentCount    = static_cast<uint32_t>(attachments.size());
@@ -369,7 +324,7 @@ namespace arx {
             swapChainFramebuffers.resize(imageCount());
 
         for (size_t i = 0; i < imageCount(); i++) {
-            std::array<VkImageView, 4> attachments = {colorImageView, depthImageViews[i], swapChainImageViews[i], depthImageView};
+            std::array<VkImageView, 2> attachments = {colorImageView, swapChainImageViews[i]};
 
             VkExtent2D swapChainExtent = getSwapChainExtent();
             VkFramebufferCreateInfo framebufferInfo = {};
@@ -502,17 +457,6 @@ namespace arx {
               throw std::runtime_error("failed to create texture image view!");
             }
         }
-        
-        // Create sinlge-sample depth image
-        createImage(swapChainExtent.width, swapChainExtent.height, 1,
-                    VK_SAMPLE_COUNT_1_BIT,
-                    depthFormat,
-                    VK_IMAGE_TILING_OPTIMAL,
-                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                    depthImage,
-                    depthImageMemory);
-        depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     }
 
     void ArxSwapChain::createSyncObjects() {
@@ -749,7 +693,7 @@ namespace arx {
             VkDescriptorImageInfo srcInfo = {};
             if (i == 0) {
                 srcInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                srcInfo.imageView = depthImageView;
+                srcInfo.imageView = textureManager.getAttachment("gDepth")->view;
             }
             else {
                 srcInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -822,7 +766,7 @@ namespace arx {
         cull.framebufferDepthWriteBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         cull.framebufferDepthWriteBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         cull.framebufferDepthWriteBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        cull.framebufferDepthWriteBarrier.image = depthImage;
+        cull.framebufferDepthWriteBarrier.image = textureManager.getAttachment("gDepth")->image;
         cull.framebufferDepthWriteBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
         cull.framebufferDepthWriteBarrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
         cull.framebufferDepthWriteBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
@@ -834,7 +778,7 @@ namespace arx {
         cull.framebufferDepthReadBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         cull.framebufferDepthReadBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         cull.framebufferDepthReadBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        cull.framebufferDepthReadBarrier.image = depthImage;
+        cull.framebufferDepthReadBarrier.image = textureManager.getAttachment("gDepth")->image;
         cull.framebufferDepthReadBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
         cull.framebufferDepthReadBarrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
         cull.framebufferDepthReadBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
