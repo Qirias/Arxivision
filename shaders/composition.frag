@@ -25,7 +25,7 @@ void main()
      
     float ssao = (uboParams.ssaoBlur == 1) ? texture(samplerSSAOBlur, inUV).r : texture(samplerSSAO, inUV).r;
 
-    vec3 lightPos = vec3(0.0);
+    vec3 lightPos = vec3(48, -214, 135);
     vec3 L = normalize(lightPos - fragPos);
     float NdotL = max(0.5, dot(normal, L));
 

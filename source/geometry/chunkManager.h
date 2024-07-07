@@ -33,7 +33,7 @@ namespace arx {
         const std::vector<Chunk*>& GetChunks() const { return m_vpChunks; }
         void obj2vox(ArxGameObject::Map& voxel, const std::string& path, const float scaleFactor);
         std::vector<std::pair<glm::vec3, unsigned int>> GetChunkPositions() { return chunkPositions; }
-        void initializeTerrain(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize);
+        void MengerSponge(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize);
         void setChunkAABB(const glm::vec3& position, const unsigned int chunkId);
         
         void vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath);

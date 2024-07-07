@@ -24,7 +24,6 @@ namespace arx {
             SSAO,
             SSAOBLUR,
             COMPOSITION,
-            // more passes...
             Max
         };
     
@@ -683,7 +682,7 @@ namespace arx {
         textureManager.createSampler("colorSampler");
     }
 
-    void ArxRenderer::Pre_Passes(FrameInfo &frameInfo) {
+    void ArxRenderer::Passes(FrameInfo &frameInfo) {
         // ====================================================================================
         //                                      G-Buffer
         // ====================================================================================
@@ -733,41 +732,46 @@ namespace arx {
         //                                      SSAO
         // ====================================================================================
         
-        beginRenderPass(frameInfo.commandBuffer, "SSAO");
-        
-        pipelines[static_cast<uint8_t>(PassName::SSAO)]->bind(frameInfo.commandBuffer);
-    
-        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipelineLayouts[static_cast<uint8_t>(PassName::SSAO)],
-                                0,
-                                1,
-                                &descriptorSets[static_cast<uint8_t>(PassName::SSAO)][0],
-                                0,
-                                nullptr);
-        
-        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
-        vkCmdEndRenderPass(frameInfo.commandBuffer);
+        if (uboSSAOParams.ssao) {
+            beginRenderPass(frameInfo.commandBuffer, "SSAO");
+            
+            pipelines[static_cast<uint8_t>(PassName::SSAO)]->bind(frameInfo.commandBuffer);
+            
+            vkCmdBindDescriptorSets(frameInfo.commandBuffer,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    pipelineLayouts[static_cast<uint8_t>(PassName::SSAO)],
+                                    0,
+                                    1,
+                                    &descriptorSets[static_cast<uint8_t>(PassName::SSAO)][0],
+                                    0,
+                                    nullptr);
+            
+            vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+            vkCmdEndRenderPass(frameInfo.commandBuffer);
+        }
         
         // ====================================================================================
         //                                    SSAOBlur
         // ====================================================================================
         
-        beginRenderPass(frameInfo.commandBuffer, "SSAOBlur");
-        
-        pipelines[static_cast<uint8_t>(PassName::SSAOBLUR)]->bind(frameInfo.commandBuffer);
-    
-        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)],
-                                0,
-                                1,
-                                &descriptorSets[static_cast<uint8_t>(PassName::SSAOBLUR)][0],
-                                0,
-                                nullptr);
-        
-        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
-        vkCmdEndRenderPass(frameInfo.commandBuffer);
+        if ((uboSSAOParams.ssao && uboSSAOParams.ssaoBlur && !uboSSAOParams.ssaoOnly)) {
+            
+            beginRenderPass(frameInfo.commandBuffer, "SSAOBlur");
+            
+            pipelines[static_cast<uint8_t>(PassName::SSAOBLUR)]->bind(frameInfo.commandBuffer);
+            
+            vkCmdBindDescriptorSets(frameInfo.commandBuffer,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)],
+                                    0,
+                                    1,
+                                    &descriptorSets[static_cast<uint8_t>(PassName::SSAOBLUR)][0],
+                                    0,
+                                    nullptr);
+            
+            vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+            vkCmdEndRenderPass(frameInfo.commandBuffer);
+        }
         
         // ====================================================================================
         //                                   COMPOSITION
@@ -821,5 +825,8 @@ namespace arx {
         createPipelineLayouts();
         createPipelines();
         createUniformBuffers();
+        
+        // Initialize culling resources after G-Pass created the depth texture
+        arxSwapChain->Init_OcclusionCulling();
     }
 }

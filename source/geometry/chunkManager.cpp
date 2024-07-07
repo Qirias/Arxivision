@@ -74,7 +74,7 @@ namespace arx {
         }
     }
 
-    void ChunkManager::initializeTerrain(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize) {
+    void ChunkManager::MengerSponge(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize) {
         
         int numChunksX = terrainSize.x / ADJUSTED_CHUNK;
         int numChunksY = terrainSize.y / ADJUSTED_CHUNK;

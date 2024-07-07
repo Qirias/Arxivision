@@ -50,7 +50,7 @@ namespace arx {
 
         
         // Passes
-        void Pre_Passes(FrameInfo &frameInfo);
+        void Passes(FrameInfo &frameInfo);
         void init_Passes();
         
         void updateMisc(const GlobalUbo &rhs, const SSAOParams &ssaorhs);

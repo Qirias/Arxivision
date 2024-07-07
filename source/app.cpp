@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "app.h"
-#include "systems/simple_render_system.h"
 #include "arx_camera.h"
 #include "user_input.h"
 #include "arx_buffer.h"
@@ -41,10 +40,32 @@ namespace arx {
     App::~App() {}
 
     void App::run() {
+        ArxCamera camera{};
+        UserInput cameraController{*this};
 //        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-//        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
+//        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 4)));
         chunkManager.vox2Chunks(gameObjects, "scenes/monu10.vox");
     
+        // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
+        // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
+        // Since voxels share the same vertex and index buffer we can bind those once and do multi draw indirect
+        BufferManager::createLargeInstanceBuffer(arxDevice);
+        uint32_t chunkCount = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
+        // Initialize the maximum indirect draw size
+        BufferManager::indirectDrawData.resize(chunkCount);
+        
+        auto viewerObject = ArxGameObject::createGameObject();
+        viewerObject.transform.scale = glm::vec3(0.1);
+        viewerObject.transform.translation = glm::vec3(0.0, 0.0, -10.0f);
+        
+        camera.lookAtRH(viewerObject.transform.translation,
+                        viewerObject.transform.translation + cameraController.forwardDir,
+                        cameraController.upDir);
+
+        float aspect = arxRenderer.getAspectRatio();
+        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+        chunkManager.setCamera(camera);
+        
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
             uboBuffers[i] = std::make_unique<ArxBuffer>(arxDevice,
@@ -54,11 +75,6 @@ namespace arx {
                                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
             uboBuffers[i]->map();
         }
-        
-        // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
-        // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
-        // Since voxels share the same vertex and index buffer we can bind those once and do multi draw indirect
-        BufferManager::createLargeInstanceBuffer(arxDevice);
 
         // Global descriptor set layout
         auto globalSetLayout = ArxDescriptorSetLayout::Builder(arxDevice)
@@ -77,34 +93,9 @@ namespace arx {
                 .writeBuffer(1, &instanceBufferInfo)
                 .build(globalDescriptorSets[i]);
         }
-        
-        uint32_t chunkCount = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
-
-        // Initialize the maximum indirect draw size
-        BufferManager::indirectDrawData.resize(chunkCount);
-        
-        SimpleRenderSystem simpleRenderSystem{arxDevice, arxRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
-            
-        // Create all passes including G-Pass
+                    
         arxRenderer.init_Passes();
-        
-        // Initialize culling resources after G-Pass created the depth texture
-        arxRenderer.getSwapChain()->Init_OcclusionCulling();
 
-        ArxCamera camera{};
-
-        auto viewerObject = ArxGameObject::createGameObject();
-        viewerObject.transform.scale = glm::vec3(0.1);
-        viewerObject.transform.translation = glm::vec3(0.0, 0.0, -10.0f);
-
-        UserInput cameraController{*this};
-
-        camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
-
-        float aspect = arxRenderer.getAspectRatio();
-        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
-        chunkManager.setCamera(camera);
-        
         // Set data for occlusion culling
         {
             arxRenderer.getSwapChain()->cull.setObjectDataFromAABBs(chunkManager);
@@ -143,6 +134,8 @@ namespace arx {
             ImGui::Checkbox("SSAO Enabled", &ssaoEnabled);
             ImGui::Checkbox("SSAO Only", &ssaoOnly);
             ImGui::Checkbox("SSAO Blur", &ssaoBlur);
+            if (!ssaoEnabled) ssaoOnly = false;
+            if (ssaoOnly || !ssaoEnabled) ssaoBlur = false;
 
             // Display the most recent timings
             ImGui::Text("Culling Time: %.3f ms", cullingTime / 1e6); // Convert ns to ms
@@ -186,6 +179,7 @@ namespace arx {
                 ubo.zFar            = 1024.f;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
+                
                 // Update misc for the rest of the render passes
                 SSAOParams ssaoParams{};
                 ssaoParams.ssao = ssaoEnabled;
@@ -195,7 +189,7 @@ namespace arx {
                 
                 // Pre-Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
-                arxRenderer.Pre_Passes(frameInfo);
+                arxRenderer.Passes(frameInfo);
 
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 3);
                 if (!enableCulling) {
