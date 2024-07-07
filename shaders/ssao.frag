@@ -53,7 +53,7 @@ void main()
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5f + 0.5f;
         
-        float sampleDepth = -texture(samplerPositionDepth, offset.xy).w;
+        float sampleDepth = texture(samplerPositionDepth, offset.xy).z;
 
         float rangeCheck = smoothstep(0.0f, 1.0f, SSAO_RADIUS / abs(fragPos.z - sampleDepth));
         occlusion += (sampleDepth >= samplePos.z + bias ? 1.0f : 0.0f) * rangeCheck;

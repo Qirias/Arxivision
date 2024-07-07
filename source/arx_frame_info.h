@@ -5,7 +5,7 @@
 
 namespace arx {
     
-static const int CHUNK_SIZE = 9;
+static const int CHUNK_SIZE = 24;
 static const float VOXEL_SIZE = 1;
 static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
 
@@ -29,8 +29,8 @@ static const float SSAO_RADIUS = 0.3f;
     struct SSAOParams {
         glm::mat4 projection;
         int32_t ssao = true;
-        int32_t ssaoOnly = true;
-        int32_t ssaoBlur = false;
+        int32_t ssaoOnly = false;
+        int32_t ssaoBlur = true;
     };
     
     struct FrameInfo {

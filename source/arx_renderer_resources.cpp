@@ -791,7 +791,7 @@ namespace arx {
         endSwapChainRenderPass(frameInfo.commandBuffer);
     }
 
-    void ArxRenderer::updateMisc(const GlobalUbo &rhs) {
+    void ArxRenderer::updateMisc(const GlobalUbo &rhs, const SSAOParams &ssaorhs) {
         ubo.projection  = rhs.projection;
         ubo.view        = rhs.view;
         ubo.inverseView = rhs.inverseView;
@@ -803,7 +803,10 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->flush();
         
         // SSAO
-        uboSSAOParams.projection = rhs.projection;
+        uboSSAOParams.projection    = rhs.projection;
+        uboSSAOParams.ssao          = ssaorhs.ssao;
+        uboSSAOParams.ssaoOnly      = ssaorhs.ssaoOnly;
+        uboSSAOParams.ssaoBlur      = ssaorhs.ssaoBlur;
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->writeToBuffer(&uboSSAOParams);
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->flush();
         

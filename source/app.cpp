@@ -42,8 +42,8 @@ namespace arx {
 
     void App::run() {
 //        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
-//        chunkManager.vox2Chunks(gameObjects, "scenes/pieta.vox");
+//        chunkManager.initializeTerrain(gameObjects, glm::ivec3(pow(3, 4)));
+        chunkManager.vox2Chunks(gameObjects, "scenes/monu10.vox");
     
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
@@ -114,6 +114,9 @@ namespace arx {
         }
         
         bool enableCulling = false;
+        bool ssaoEnabled = true;
+        bool ssaoOnly = false;
+        bool ssaoBlur = true;
 
         // Timing variables
         uint64_t cullingTime = 0, renderTime = 0, depthPyramidTime = 0;
@@ -137,6 +140,9 @@ namespace arx {
             ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.frustumCulling));
             ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.occlusionCulling));
             ImGui::Checkbox("Freeze Culling", &enableCulling);
+            ImGui::Checkbox("SSAO Enabled", &ssaoEnabled);
+            ImGui::Checkbox("SSAO Only", &ssaoOnly);
+            ImGui::Checkbox("SSAO Blur", &ssaoBlur);
 
             // Display the most recent timings
             ImGui::Text("Culling Time: %.3f ms", cullingTime / 1e6); // Convert ns to ms
@@ -181,7 +187,11 @@ namespace arx {
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
                 // Update misc for the rest of the render passes
-                arxRenderer.updateMisc(ubo);
+                SSAOParams ssaoParams{};
+                ssaoParams.ssao = ssaoEnabled;
+                ssaoParams.ssaoOnly = ssaoOnly;
+                ssaoParams.ssaoBlur = ssaoBlur;
+                arxRenderer.updateMisc(ubo, ssaoParams);
                 
                 // Pre-Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);

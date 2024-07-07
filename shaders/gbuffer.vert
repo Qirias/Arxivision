@@ -40,7 +40,7 @@ void main() {
     gl_Position = ubo.projection * ubo.view * positionWorld;
 
     outNormalWorld = normalize(mat3(push.normalMatrix) * inNormal);
-    outPosWorld = positionWorld.xyz;
+    outPosWorld = vec3(ubo.view * positionWorld);
     outColor = instance.color.xyz;
     outUV = inUV;
 }

@@ -53,7 +53,7 @@ namespace arx {
         void Pre_Passes(FrameInfo &frameInfo);
         void init_Passes();
         
-        void updateMisc(const GlobalUbo &rhs);
+        void updateMisc(const GlobalUbo &rhs, const SSAOParams &ssaorhs);
         void cleanupResources();
     private:
         void createCommandBuffers();

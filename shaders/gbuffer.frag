@@ -25,10 +25,7 @@ float linearDepth(float depth) {
 void main() {
 //    float linear = (2.0 * ubo.nearPlane) / (ubo.farPlane + ubo.nearPlane - gl_FragCoord.z * (ubo.farPlane - ubo.nearPlane));
     outPosition = vec4(inPos, linearDepth(gl_FragCoord.z));
-    
-    vec3 flippedNormal = inNormal;
-    flippedNormal.y = -flippedNormal.y;
 
-    outNormal = vec4(normalize(flippedNormal) * 0.5 + 0.5, 1.0);
+    outNormal = vec4(normalize(inNormal) * 0.5 + 0.5, 1.0);
     outAlbedo = vec4(inColor, 1.0);
 }

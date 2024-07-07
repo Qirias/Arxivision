@@ -99,7 +99,7 @@ bool isVisibleAABB(vec3 aabbMin, vec3 aabbMax) {
     vec3 center = 0.5 * (aabbMin + aabbMax);
     bool visible = true;
 
-    if (distance(vec3(camera.invView[3]), center) < 10.0f) {
+    if (distance(vec3(camera.invView[3]), center) < 20.0f) {
         return true;
     }
 
