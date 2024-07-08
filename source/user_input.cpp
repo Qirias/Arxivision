@@ -16,6 +16,7 @@ namespace arx {
             instance = this;
         }
         glfwSetCursorPosCallback(app.getWindow().getGLFWwindow(), mouse_callback);
+        glfwSetKeyCallback(app.getWindow().getGLFWwindow(), key_callback);
     }
 
     void UserInput::processInput(GLFWwindow* window, float dt, ArxGameObject& gameObject) {
@@ -83,6 +84,12 @@ namespace arx {
             instance->processMouseMovement();
         }
     }
+
+    void UserInput::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+       if (key == GLFW_KEY_F3 && action == GLFW_PRESS) {
+           instance->isCartesianActive = !instance->isCartesianActive;
+       }
+   }
 
     void UserInput::enableImGuiInteraction() {
         isImGuiActive = true;

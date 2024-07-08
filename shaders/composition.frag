@@ -20,12 +20,12 @@ layout (location = 0) out vec4 outFragColor;
 void main()
 {
     vec3 fragPos = texture(samplerPosition, inUV).rgb;
-    vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
+    vec3 normal = normalize(texture(samplerNormal, inUV).rgb);
     vec4 albedo = texture(samplerAlbedo, inUV);
      
     float ssao = (uboParams.ssaoBlur == 1) ? texture(samplerSSAOBlur, inUV).r : texture(samplerSSAO, inUV).r;
 
-    vec3 lightPos = vec3(48, -214, 135);
+    vec3 lightPos = vec3(62, -193, 130);
     vec3 L = normalize(lightPos - fragPos);
     float NdotL = max(0.5, dot(normal, L));
 

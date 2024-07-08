@@ -41,9 +41,9 @@ namespace arx {
 
     void App::run() {
         ArxCamera camera{};
-        UserInput cameraController{*this};
+        UserInput userController{*this};
 //        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-//        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 4)));
+//        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
         chunkManager.vox2Chunks(gameObjects, "scenes/monu10.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
@@ -59,10 +59,11 @@ namespace arx {
         viewerObject.transform.translation = glm::vec3(0.0, 0.0, -10.0f);
         
         camera.lookAtRH(viewerObject.transform.translation,
-                        viewerObject.transform.translation + cameraController.forwardDir,
-                        cameraController.upDir);
+                        viewerObject.transform.translation + userController.forwardDir,
+                        userController.upDir);
 
         float aspect = arxRenderer.getAspectRatio();
+
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         chunkManager.setCamera(camera);
         
@@ -124,29 +125,33 @@ namespace arx {
             auto newTime = std::chrono::high_resolution_clock::now();
             float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
             currentTime = newTime;
-
-            ImGui::Begin("Debug");
-            ImGui::Text("Press I for ImGui, O for game");
-            ImGui::Text("Chunks %d", static_cast<uint32_t>(BufferManager::readDrawCommandCount()));
-            ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.frustumCulling));
-            ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.occlusionCulling));
-            ImGui::Checkbox("Freeze Culling", &enableCulling);
-            ImGui::Checkbox("SSAO Enabled", &ssaoEnabled);
-            ImGui::Checkbox("SSAO Only", &ssaoOnly);
-            ImGui::Checkbox("SSAO Blur", &ssaoBlur);
-            if (!ssaoEnabled) ssaoOnly = false;
-            if (ssaoOnly || !ssaoEnabled) ssaoBlur = false;
-
-            // Display the most recent timings
-            ImGui::Text("Culling Time: %.3f ms", cullingTime / 1e6); // Convert ns to ms
-            ImGui::Text("Render Time: %.3f ms", renderTime / 1e6);
-            ImGui::Text("Depth Pyramid Time: %.3f ms", depthPyramidTime / 1e6);
-
-            ImGui::End();
-            ImGui::Render();
-
-            cameraController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
-            camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + cameraController.forwardDir, cameraController.upDir);
+            
+            {
+                ImGui::Begin("Debug");
+                
+                ImGui::Text("Press I for ImGui, O for game");
+                ImGui::Text("Chunks %d", static_cast<uint32_t>(BufferManager::readDrawCommandCount()));
+                ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.frustumCulling));
+                ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.occlusionCulling));
+                ImGui::Checkbox("Freeze Culling", &enableCulling);
+                ImGui::Checkbox("SSAO Enabled", &ssaoEnabled);
+                ImGui::Checkbox("SSAO Only", &ssaoOnly);
+                ImGui::Checkbox("SSAO Blur", &ssaoBlur);
+                if (!ssaoEnabled) ssaoOnly = false;
+                if (ssaoOnly || !ssaoEnabled) ssaoBlur = false;
+                
+                // Display the most recent timings
+                ImGui::Text("Culling Time: %.3f ms", cullingTime / 1e6); // Convert ns to ms
+                ImGui::Text("Render Time: %.3f ms", renderTime / 1e6);
+                ImGui::Text("Depth Pyramid Time: %.3f ms", depthPyramidTime / 1e6);
+                ImGui::End();
+                
+                if (userController.showCartesian()) drawCoordinateVectors(camera);
+                ImGui::Render();
+            }
+            
+            userController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
+            camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + userController.forwardDir, userController.upDir);
 
             // beginFrame() will return nullptr if the swapchain need to be recreated
             if (auto commandBuffer = arxRenderer.beginFrame()) {
@@ -159,6 +164,10 @@ namespace arx {
                     globalDescriptorSets[frameIndex],
                     gameObjects
                 };
+                
+//                std::cout << camera.getPosition().x << " "
+//                          << camera.getPosition().y << " "
+//                          << camera.getPosition().z << "\n";
                                 
                 vkCmdResetQueryPool(commandBuffer, queryPool, 0, 6);
 
@@ -230,6 +239,70 @@ namespace arx {
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
     }
+
+    void App::drawCoordinateVectors(const ArxCamera& camera) {
+        
+        int screenWidth = arxRenderer.getSwapChain()->width();
+        int screenHeight = arxRenderer.getSwapChain()->height();
+        
+        ImVec2 screenCenter = ImVec2(screenWidth * 0.5f, screenHeight * 0.5f);
+
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0)); // Transparent background
+        ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0)); // No border
+
+        // Begin an ImGui window with no title bar, resize, move, scrollbar, or collapse functionality
+        ImGui::Begin("Coordinate Vectors", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse);
+
+        ImGui::SetWindowPos(ImVec2(screenCenter.x - ImGui::GetWindowWidth() * 0.5f, screenCenter.y - ImGui::GetWindowHeight() * 0.5f));
+
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+        ImVec2 origin = ImVec2(ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x * 0.5f, ImGui::GetCursorScreenPos().y + ImGui::GetContentRegionAvail().y * 0.5f);
+
+        float length = 50.0f;
+
+        ImU32 color_x = IM_COL32(255, 0, 0, 255);
+        ImU32 color_y = IM_COL32(0, 255, 0, 255);
+        ImU32 color_z = IM_COL32(0, 0, 255, 255);
+
+        glm::mat3 viewRotation = glm::mat3(camera.getView());
+
+        glm::vec3 xAxisWorld(1.0f, 0.0f, 0.0f);
+        glm::vec3 yAxisWorld(0.0f, 1.0f, 0.0f);
+        glm::vec3 zAxisWorld(0.0f, 0.0f, 1.0f);
+
+        glm::vec3 xAxisView = viewRotation * xAxisWorld;
+        glm::vec3 yAxisView = viewRotation * yAxisWorld;
+        glm::vec3 zAxisView = viewRotation * zAxisWorld;
+
+        // Project the transformed axes onto the 2D screen
+        auto projectAxis = [&](const glm::vec3& axis) -> ImVec2 {
+            return ImVec2(
+                origin.x + axis.x * length,
+                origin.y + axis.y * length
+            );
+        };
+
+        ImVec2 xEnd = projectAxis(xAxisView);
+        ImVec2 yEnd = projectAxis(yAxisView);
+        ImVec2 zEnd = projectAxis(zAxisView);
+
+        draw_list->AddLine(origin, xEnd, color_x, 2.0f);
+        draw_list->AddText(xEnd, color_x, "X");
+
+        draw_list->AddLine(origin, yEnd, color_y, 2.0f);
+        draw_list->AddText(yEnd, color_y, "Y");
+
+        draw_list->AddLine(origin, zEnd, color_z, 2.0f);
+        draw_list->AddText(zEnd, color_z, "Z");
+
+        ImGui::End();
+
+        // Pop style colors to revert back to original
+        ImGui::PopStyleColor(2);
+    }
+
+
 
     void App::initializeImgui() {
         // The size of the pool is very oversize, but it's copied from imgui demo itself.

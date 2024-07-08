@@ -23,6 +23,10 @@ layout (location = 0) out float outFragColor;
 
 void main()
 {
+//    vec2 ndc = inUV * 2.0 - 1.0;
+//    float thfov = tan(60.0 / 2.0);
+//    vec3 viewray = vec3(ndc.x * thfov * 1.77777, ndc.y * thfov, 1.0);
+    
     // Get G-Buffer values
     vec3 fragPos = texture(samplerPositionDepth, inUV).rgb;
     vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
@@ -41,7 +45,7 @@ void main()
     // Calculate occlusion value
     float occlusion = 0.0f;
     // remove banding
-    const float bias = 0.025f;
+    const float bias = 0.1;
     for(int i = 0; i < SSAO_KERNEL_SIZE; i++)
     {
         vec3 samplePos = TBN * uboSSAOKernel.samples[i].xyz;
@@ -55,8 +59,8 @@ void main()
         
         float sampleDepth = texture(samplerPositionDepth, offset.xy).z;
 
-        float rangeCheck = smoothstep(0.0f, 1.0f, SSAO_RADIUS / abs(fragPos.z - sampleDepth));
-        occlusion += (sampleDepth >= samplePos.z + bias ? 1.0f : 0.0f) * rangeCheck;
+        float rangeCheck = abs(fragPos.z - sampleDepth) < SSAO_RADIUS ? 1.0 : 0.0;
+        occlusion += (sampleDepth <= samplePos.z + bias ? 1.0f : 0.0f) * rangeCheck;
     }
     occlusion = 1.0 - (occlusion / float(SSAO_KERNEL_SIZE));
     

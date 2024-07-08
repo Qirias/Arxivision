@@ -30,6 +30,7 @@ namespace arx {
         void processMouseMovement();
         void enableImGuiInteraction();
         void disableImGuiInteraction();
+        bool showCartesian() const {return isCartesianActive;}
         
         KeyMappings keys{};
         float moveSpeed{40.f};
@@ -53,7 +54,11 @@ namespace arx {
         static double lastX;
         static double lastY;
         static void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+        static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+        
+        
         bool isImGuiActive = false;
         static bool wasImGuiActiveLastFrame;
+        bool isCartesianActive = true;
     };
 }

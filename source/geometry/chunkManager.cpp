@@ -168,7 +168,7 @@ namespace arx {
                             int chunkX = voxelX / CHUNK_SIZE;
                             int chunkY = voxelY / CHUNK_SIZE;
                             int chunkZ = voxelZ / CHUNK_SIZE;
-
+                            
                             chunks[chunkX][chunkY][chunkZ].push_back({rotatedPosition, color});
                         }
                     }

@@ -34,6 +34,7 @@ namespace arx {
     private:
         void initializeImgui();
         void createQueryPool();
+        void drawCoordinateVectors(const ArxCamera& camera);
         
         ArxWindow                           arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
         ArxDevice                           arxDevice{arxWindow};

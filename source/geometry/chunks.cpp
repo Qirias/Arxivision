@@ -81,8 +81,6 @@ namespace arx {
             voxel.emplace(id, std::move(cube));
             instanceData[id] = instanceDataVec;
         }
-        else
-            std::cout << "Zero\n";
     }
 
     void Chunk::deactivateHiddenVoxels() {
