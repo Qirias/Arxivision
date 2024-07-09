@@ -43,8 +43,8 @@ namespace arx {
         ArxCamera camera{};
         UserInput userController{*this};
 //        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-//        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        chunkManager.vox2Chunks(gameObjects, "scenes/monu10.vox");
+        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 4)));
+//        chunkManager.vox2Chunks(gameObjects, "scenes/monu10.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
@@ -241,11 +241,12 @@ namespace arx {
     }
 
     void App::drawCoordinateVectors(const ArxCamera& camera) {
-        
         int screenWidth = arxRenderer.getSwapChain()->width();
         int screenHeight = arxRenderer.getSwapChain()->height();
-        
-        ImVec2 screenCenter = ImVec2(screenWidth * 0.5f, screenHeight * 0.5f);
+
+        float dpiScale = ImGui::GetIO().DisplayFramebufferScale.x;
+
+        ImVec2 screenCenter = ImVec2((screenWidth * 0.5f) / dpiScale, (screenHeight * 0.5f) / dpiScale);
 
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0)); // Transparent background
         ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0)); // No border
@@ -253,13 +254,14 @@ namespace arx {
         // Begin an ImGui window with no title bar, resize, move, scrollbar, or collapse functionality
         ImGui::Begin("Coordinate Vectors", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse);
 
-        ImGui::SetWindowPos(ImVec2(screenCenter.x - ImGui::GetWindowWidth() * 0.5f, screenCenter.y - ImGui::GetWindowHeight() * 0.5f));
+        ImGui::SetWindowPos(ImVec2(screenCenter.x - (ImGui::GetWindowWidth() * 0.5f), screenCenter.y - (ImGui::GetWindowHeight() * 0.5f)));
+        ImGui::SetWindowSize(ImVec2(100 * dpiScale, 100 * dpiScale));
 
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
         ImVec2 origin = ImVec2(ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x * 0.5f, ImGui::GetCursorScreenPos().y + ImGui::GetContentRegionAvail().y * 0.5f);
 
-        float length = 50.0f;
+        float length = 25.0f * dpiScale;
 
         ImU32 color_x = IM_COL32(255, 0, 0, 255);
         ImU32 color_y = IM_COL32(0, 255, 0, 255);
