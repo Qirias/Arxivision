@@ -4,8 +4,8 @@ layout (binding = 0) uniform sampler2D samplerPositionDepth;
 layout (binding = 1) uniform sampler2D samplerNormal;
 layout (binding = 2) uniform sampler2D ssaoNoise;
 
-layout (constant_id = 0) const int SSAO_KERNEL_SIZE = 64;
-layout (constant_id = 1) const float SSAO_RADIUS = 0.5;
+layout (constant_id = 0) const int SSAO_KERNEL_SIZE = 32;
+layout (constant_id = 1) const float SSAO_RADIUS = 0.3;
 
 layout (binding = 3) uniform UBOSSAOKernel
 {
@@ -23,10 +23,6 @@ layout (location = 0) out float outFragColor;
 
 void main()
 {
-//    vec2 ndc = inUV * 2.0 - 1.0;
-//    float thfov = tan(60.0 / 2.0);
-//    vec3 viewray = vec3(ndc.x * thfov * 1.77777, ndc.y * thfov, 1.0);
-    
     // Get G-Buffer values
     vec3 fragPos = texture(samplerPositionDepth, inUV).rgb;
     vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
@@ -57,10 +53,10 @@ void main()
         offset.xyz /= offset.w;
         offset.xyz = offset.xyz * 0.5f + 0.5f;
         
-        float sampleDepth = texture(samplerPositionDepth, offset.xy).z;
+        float sampleDepth = texture(samplerPositionDepth, offset.xy).w;
 
-        float rangeCheck = abs(fragPos.z - sampleDepth) < SSAO_RADIUS ? 1.0 : 0.0;
-        occlusion += (sampleDepth <= samplePos.z + bias ? 1.0f : 0.0f) * rangeCheck;
+        float rangeCheck = smoothstep(0.0f, 1.0f, SSAO_RADIUS / abs(fragPos.z - sampleDepth));
+        occlusion += (sampleDepth >= samplePos.z + bias ? 1.0f : 0.0f) * rangeCheck;
     }
     occlusion = 1.0 - (occlusion / float(SSAO_KERNEL_SIZE));
     

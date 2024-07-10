@@ -263,36 +263,47 @@ namespace arx {
         colorAttachment.stencilStoreOp    = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachment.stencilLoadOp     = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachment.initialLayout     = earlyPass ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.finalLayout       = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachment.finalLayout       = (device.msaaSamples == VK_SAMPLE_COUNT_1_BIT) ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
         VkAttachmentReference2 colorAttachmentRef = {};
         colorAttachmentRef.sType      = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
         colorAttachmentRef.attachment = 0;
         colorAttachmentRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        VkAttachmentDescription2 colorAttachmentResolve{};
-        colorAttachmentResolve.sType            = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
-        colorAttachmentResolve.format           = getSwapChainImageFormat();
-        colorAttachmentResolve.samples          = VK_SAMPLE_COUNT_1_BIT;
-        colorAttachmentResolve.loadOp           = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachmentResolve.storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachmentResolve.stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachmentResolve.stencilStoreOp   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        colorAttachmentResolve.initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachmentResolve.finalLayout      = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        VkAttachmentDescription2 colorAttachmentResolve = {};
+        VkAttachmentReference2 colorAttachmentResolveRef = {};
 
-        VkAttachmentReference2 colorAttachmentResolveRef{};
-        colorAttachmentResolveRef.sType         = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
-        colorAttachmentResolveRef.attachment    = 1;
-        colorAttachmentResolveRef.layout        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        std::vector<VkAttachmentDescription2> attachments;
+        attachments.push_back(colorAttachment);
 
         VkSubpassDescription2 subpass = {};
         subpass.sType                     = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2;
         subpass.pipelineBindPoint         = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount      = 1;
         subpass.pColorAttachments         = &colorAttachmentRef;
-        subpass.pResolveAttachments       = &colorAttachmentResolveRef;
-    
+
+        if (device.msaaSamples != VK_SAMPLE_COUNT_1_BIT) {
+            colorAttachmentResolve.sType            = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
+            colorAttachmentResolve.format           = getSwapChainImageFormat();
+            colorAttachmentResolve.samples          = VK_SAMPLE_COUNT_1_BIT;
+            colorAttachmentResolve.loadOp           = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            colorAttachmentResolve.storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachmentResolve.stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            colorAttachmentResolve.stencilStoreOp   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            colorAttachmentResolve.initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
+            colorAttachmentResolve.finalLayout      = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+            colorAttachmentResolveRef.sType         = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
+            colorAttachmentResolveRef.attachment    = 1;
+            colorAttachmentResolveRef.layout        = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+            attachments.push_back(colorAttachmentResolve);
+
+            subpass.pResolveAttachments = &colorAttachmentResolveRef;
+        } else {
+            subpass.pResolveAttachments = nullptr;
+        }
+
         VkSubpassDependency2 dependency = {};
         dependency.sType          = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2;
         dependency.srcSubpass     = VK_SUBPASS_EXTERNAL;
@@ -300,9 +311,8 @@ namespace arx {
         dependency.srcStageMask   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         dependency.dstSubpass     = 0;
         dependency.dstStageMask   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.dstAccessMask  = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        dependency.dstAccessMask  = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-        std::array<VkAttachmentDescription2, 2> attachments = {colorAttachment, colorAttachmentResolve};
         VkRenderPassCreateInfo2 renderPassInfo = {};
         renderPassInfo.sType              = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2;
         renderPassInfo.attachmentCount    = static_cast<uint32_t>(attachments.size());
@@ -324,12 +334,17 @@ namespace arx {
             swapChainFramebuffers.resize(imageCount());
 
         for (size_t i = 0; i < imageCount(); i++) {
-            std::array<VkImageView, 2> attachments = {colorImageView, swapChainImageViews[i]};
+            std::vector<VkImageView> attachments;
+            if (device.msaaSamples != VK_SAMPLE_COUNT_1_BIT) {
+                attachments = {colorImageView, swapChainImageViews[i]};
+            } else {
+                attachments = {swapChainImageViews[i]};
+            }
 
             VkExtent2D swapChainExtent = getSwapChainExtent();
             VkFramebufferCreateInfo framebufferInfo = {};
             framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass      = renderPass;
+            framebufferInfo.renderPass      = earlyPass ? earlyRenderPass : renderPass;
             framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
             framebufferInfo.pAttachments    = attachments.data();
             framebufferInfo.width           = swapChainExtent.width;
@@ -341,17 +356,19 @@ namespace arx {
                     &framebufferInfo,
                     nullptr,
                     earlyPass ? &earlySwapChainFramebuffers[i] : &swapChainFramebuffers[i]) != VK_SUCCESS) {
-              throw std::runtime_error("failed to create framebuffer!");
+                throw std::runtime_error("failed to create framebuffer!");
             }
         }
     }
 
     void ArxSwapChain::createColorResources() {
-        VkFormat colorFormat = getSwapChainImageFormat();
-        
-        createImage(swapChainExtent.width, swapChainExtent.height, 1, device.msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory);
-        
-        colorImageView = createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        if (device.msaaSamples != VK_SAMPLE_COUNT_1_BIT) {
+            VkFormat colorFormat = getSwapChainImageFormat();
+
+            createImage(swapChainExtent.width, swapChainExtent.height, 1, device.msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory);
+
+            colorImageView = createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        }
     }
 
     VkImageView ArxSwapChain::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, uint32_t baseMipLevel) {

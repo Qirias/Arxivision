@@ -219,7 +219,7 @@ namespace arx {
         specializationMapEntries[1].size = sizeof(SpecializationData::radius);
         
         VkSpecializationInfo specializationInfo{};
-        specializationInfo.mapEntryCount    = 2;
+        specializationInfo.mapEntryCount    = specializationMapEntries.size();
         specializationInfo.pMapEntries      = specializationMapEntries.data();
         specializationInfo.dataSize         = sizeof(specializationData);
         specializationInfo.pData            = &specializationData;
@@ -811,6 +811,7 @@ namespace arx {
         uboSSAOParams.ssao          = ssaorhs.ssao;
         uboSSAOParams.ssaoOnly      = ssaorhs.ssaoOnly;
         uboSSAOParams.ssaoBlur      = ssaorhs.ssaoBlur;
+        
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->writeToBuffer(&uboSSAOParams);
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->flush();
         
