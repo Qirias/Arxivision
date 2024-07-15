@@ -40,10 +40,9 @@ void main()
     vec3 bitangent = cross(tangent, normal);
     mat3 TBN = mat3(tangent, bitangent, normal);
 
-    // Calculate occlusion value
     float occlusion = 0.0f;
     // remove banding
-    const float bias = 0.05f;
+    const float bias = 0.025f;
     for(int i = 0; i < SSAO_KERNEL_SIZE; i++)
     {
         vec3 samplePos = TBN * uboSSAOKernel.samples[i].xyz;
@@ -52,17 +51,22 @@ void main()
         // project
         vec4 offset = vec4(samplePos, 1.0f);
         offset = ubo.projection * offset;
-        offset.xyz /= offset.w;
-        offset.xyz = offset.xyz * 0.5f + 0.5f;
+        offset.xy /= offset.w;
+        offset.xy = offset.xy * 0.5f + 0.5f;
         
         float sampleDepth = texture(samplerPositionDepth, offset.xy).w;
+        vec3 sampleNormal = normalize(texture(samplerNormal, offset.xy).rgb * 2.0 - 1.0);
+        
+        // If sampledNormal is very similar to the current fragment normal, skip the sample
+        if(dot(sampleNormal, normal) > 0.99)
+            continue;
 
         float rangeCheck = smoothstep(1.0f, 0.0f, abs(fragPos.z - sampleDepth) / SSAO_RADIUS);
         occlusion += (sampleDepth <= samplePos.z - bias ? 1.0f*rangeCheck : 0.0f);
     }
     
-    occlusion = 1.0 - (occlusion / float(SSAO_KERNEL_SIZE));;
-//    occlusion = pow(occlusion, 1.2f);
+    occlusion = 1.0 - (occlusion / float(SSAO_KERNEL_SIZE));
+    occlusion = pow(occlusion, 1.2f);
     
     outFragColor = occlusion;
 }

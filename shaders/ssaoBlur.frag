@@ -8,7 +8,7 @@ layout (location = 0) out float outFragColor;
 
 void main()
 {
-    const int blurRange = 2;
+    const int blurRange = 1;
     int n = 0;
     vec2 texelSize = 1.0 / vec2(textureSize(samplerSSAO, 0));
     float result = 0.0;
