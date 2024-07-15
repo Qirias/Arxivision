@@ -9,9 +9,9 @@ static const int CHUNK_SIZE = 9;
 static const float VOXEL_SIZE = 1;
 static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
 
-static const float SSAO_KERNEL_SIZE = 32;
-static const float SSAO_NOISE_DIM = 4;
-static const float SSAO_RADIUS = 0.3f;
+static const float SSAO_KERNEL_SIZE = 64;
+static const float SSAO_NOISE_DIM = 8;
+static const float SSAO_RADIUS = 3.0f;
 
     struct AABB {
         glm::vec3 min{};
@@ -28,9 +28,12 @@ static const float SSAO_RADIUS = 0.3f;
 
     struct SSAOParams {
         glm::mat4 projection;
+        glm::mat4 view;
+        glm::mat4 inverseView;
         int32_t ssao = true;
         int32_t ssaoOnly = false;
         int32_t ssaoBlur = true;
+        int32_t padding;
     };
     
     struct FrameInfo {

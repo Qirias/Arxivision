@@ -513,7 +513,6 @@ namespace arx {
             attachmentDescs[2].format = textureManager.getAttachment("gAlbedo")->format;
             attachmentDescs[3].format = depthFormat;
             
-            
             std::vector<VkAttachmentReference> colorReferences;
             colorReferences.push_back({ 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
             colorReferences.push_back({ 1, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
@@ -669,7 +668,7 @@ namespace arx {
             renderPassInfo.pSubpasses = &subpass;
             renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
             renderPassInfo.pDependencies = dependencies.data();
-            
+
             rpManager.createRenderPass("SSAOBlur", renderPassInfo);
     
             std::array<VkImageView, 1> attachments;
@@ -808,6 +807,8 @@ namespace arx {
         
         // SSAO
         uboSSAOParams.projection    = rhs.projection;
+        uboSSAOParams.view          = rhs.view;
+        uboSSAOParams.inverseView   = rhs.inverseView;
         uboSSAOParams.ssao          = ssaorhs.ssao;
         uboSSAOParams.ssaoOnly      = ssaorhs.ssaoOnly;
         uboSSAOParams.ssaoBlur      = ssaorhs.ssaoBlur;

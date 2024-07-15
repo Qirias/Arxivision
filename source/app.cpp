@@ -43,8 +43,8 @@ namespace arx {
         ArxCamera camera{};
         UserInput userController{*this};
 //        chunkManager.obj2vox(gameObjects, "models/bunny.obj", 12.f);
-//        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 4)));
-        chunkManager.vox2Chunks(gameObjects, "scenes/monu1.vox");
+        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
+        chunkManager.vox2Chunks(gameObjects, "scenes/monu10.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
@@ -94,7 +94,7 @@ namespace arx {
                 .writeBuffer(1, &instanceBufferInfo)
                 .build(globalDescriptorSets[i]);
         }
-                    
+
         arxRenderer.init_Passes();
 
         // Set data for occlusion culling
@@ -104,7 +104,7 @@ namespace arx {
             arxRenderer.getSwapChain()->cull.setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, chunkCount);
             arxRenderer.getSwapChain()->loadGeometryToDevice();
         }
-        
+
         bool enableCulling = false;
         bool ssaoEnabled = true;
         bool ssaoOnly = false;
@@ -168,7 +168,8 @@ namespace arx {
 //                std::cout << camera.getPosition().x << " "
 //                          << camera.getPosition().y << " "
 //                          << camera.getPosition().z << "\n";
-                                
+//                printMat4(camera.getView());
+
                 vkCmdResetQueryPool(commandBuffer, queryPool, 0, 6);
 
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 0);
@@ -188,14 +189,14 @@ namespace arx {
                 ubo.zFar            = 1024.f;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
-                
+
                 // Update misc for the rest of the render passes
                 SSAOParams ssaoParams{};
                 ssaoParams.ssao = ssaoEnabled;
                 ssaoParams.ssaoOnly = ssaoOnly;
                 ssaoParams.ssaoBlur = ssaoBlur;
                 arxRenderer.updateMisc(ubo, ssaoParams);
-                
+
                 // Pre-Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
                 arxRenderer.Passes(frameInfo);
@@ -208,7 +209,7 @@ namespace arx {
                     arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
                 }
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 4);
-                
+
                 if (!enableCulling) {
                     // Late cull: frustum + occlusion cull and fill objects that were *not* visible last frame
                     arxRenderer.getSwapChain()->computeCulling(commandBuffer, chunkCount);
@@ -304,8 +305,6 @@ namespace arx {
         ImGui::PopStyleColor(2);
     }
 
-
-
     void App::initializeImgui() {
         // The size of the pool is very oversize, but it's copied from imgui demo itself.
         VkDescriptorPoolSize pool_sizes[] =
@@ -351,7 +350,7 @@ namespace arx {
         init_info.DescriptorPool = imguiPool;
         init_info.MinImageCount = 2;
         init_info.ImageCount = static_cast<uint32_t>(arxRenderer.getSwapChain()->imageCount());
-        init_info.MSAASamples = VK_SAMPLE_COUNT_4_BIT;
+        init_info.MSAASamples = arxDevice.msaaSamples;
         init_info.RenderPass = arxRenderer.getSwapChain()->getRenderPass();
         ImGui_ImplVulkan_Init(&init_info);
 
@@ -368,5 +367,13 @@ namespace arx {
         if (vkCreateQueryPool(arxDevice.device(), &queryPoolInfo, nullptr, &queryPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create query pool!");
         }
+    }
+
+    void App::printMat4(const glm::mat4& mat) {
+        std::cout << "Mat\n";
+        std::cout << "[ " << mat[0][0] << " " << mat[0][1] << " " << mat[0][2] << " " << mat[0][3] << " ]" << std::endl;
+        std::cout << "[ " << mat[1][0] << " " << mat[1][1] << " " << mat[1][2] << " " << mat[1][3] << " ]" << std::endl;
+        std::cout << "[ " << mat[2][0] << " " << mat[2][1] << " " << mat[2][2] << " " << mat[2][3] << " ]" << std::endl;
+        std::cout << "[ " << mat[3][0] << " " << mat[3][1] << " " << mat[3][2] << " " << mat[3][3] << " ]" << std::endl;
     }
 }

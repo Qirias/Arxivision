@@ -7,8 +7,8 @@ layout (location = 2) in vec3 inNormal;
 layout (location = 3) in vec2 inUV;
 
 layout (location = 0) out vec3 outColor;
-layout (location = 1) out vec3 outPosWorld;
-layout (location = 2) out vec3 outNormalWorld;
+layout (location = 1) out vec3 outPosView;
+layout (location = 2) out vec3 outNormalView;
 layout (location = 3) out vec2 outUV;
 
 struct InstanceData {
@@ -39,8 +39,10 @@ void main() {
     positionWorld.xyz += instance.translation.xyz;
     gl_Position = ubo.projection * ubo.view * positionWorld;
 
-    outNormalWorld = normalize(mat3(push.normalMatrix) * inNormal);
-    outPosWorld = vec3(ubo.view * positionWorld);
+    mat3 normalViewMatrix = transpose(inverse(mat3(ubo.view * push.modelMatrix)));
+    
+    outNormalView = normalViewMatrix * inNormal;
+    outPosView = vec3(ubo.view * positionWorld);
     outColor = instance.color.xyz;
     outUV = inUV;
 }

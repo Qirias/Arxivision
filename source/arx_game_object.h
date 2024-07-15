@@ -14,14 +14,10 @@ namespace arx {
     struct TransformComponent {
         glm::vec3 translation{};
         glm::vec3 scale{1.f, 1.f, 1.f};
-        glm::vec3 rotation;
+        glm::vec3 rotation{};
         
         glm::mat4 mat4();
         glm::mat3 normalMatrix();
-    };
-
-    struct PointLightComponent {
-        float lightIntensity = 1.0f;
     };
 
     class ArxGameObject {
@@ -49,7 +45,6 @@ namespace arx {
         
         // Optional pointer components
         std::shared_ptr<ArxModel> model{};
-        std::unique_ptr<PointLightComponent> pointLight = nullptr;
     private:
         ArxGameObject(id_t objId) : id{objId} {}
         

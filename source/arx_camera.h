@@ -17,12 +17,6 @@ namespace arx {
             glm::vec3 max{};
         };
         
-        void cull_chunks_against_frustum(const std::vector<std::pair<glm::vec3, unsigned int>>& chunkPositions, std::vector<uint32_t>& out_visible_list, int CHUNK_SIZE);
-        
-        bool test_AABB_against_frustum(glm::mat4& MVP, const glm::vec3& chunkPosition, int CHUNK_SIZE);
-        
-        bool within(float lower, float value, float upper);
-            
         void setOrthographicProjection(float left, float right, float top, float bottom, float near, float far);
         
         void setPerspectiveProjection(float fovy, float aspect, float near, float far);
