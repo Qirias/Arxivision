@@ -28,7 +28,7 @@ namespace arx {
 
         if (instances > 0)
         {
-            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
+            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "data/models/cube.obj", instances, tmpInstance);
             auto cube = ArxGameObject::createGameObject();
             id = cube.getId();
             cube.model = cubeModel;
@@ -60,7 +60,7 @@ namespace arx {
 //        std::cout << "Instances drawn: " << instances << std::endl;
         if (instances > 0)
         {
-            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, tmpInstance);
+            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "data/models/cube.obj", instances, tmpInstance);
             auto cube = ArxGameObject::createGameObject();
             cube.model = cubeModel;
             id = cube.getId();
@@ -74,7 +74,7 @@ namespace arx {
         
         if (instances > 0)
         {
-            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "models/cube.obj", instances, instanceDataVec);
+            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "data/models/cube.obj", instances, instanceDataVec);
             auto cube = ArxGameObject::createGameObject();
             id = cube.getId();
             cube.model = cubeModel;
