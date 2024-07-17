@@ -23,7 +23,7 @@ layout (location = 0) out vec4 outFragColor;
 void main()
 {
     vec3 fragPos = texture(samplerPosition, inUV).rgb;
-    vec3 fragWorldPos = (uboParams.inverseView * vec4(fragPos, 1.0)).xyz;
+//    vec3 fragWorldPos = (uboParams.inverseView * vec4(fragPos, 1.0)).xyz;
     vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
     vec4 albedo = texture(samplerAlbedo, inUV);
     

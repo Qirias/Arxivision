@@ -123,7 +123,7 @@ namespace arx {
         renderPassInfo.renderArea.extent = arxSwapChain->getSwapChainExtent();
         
         std::array<VkClearValue, 2> clearValues{};
-        clearValues[0].color            = {0.0f, 0.0f, 0.0f, 1.0f};
+        clearValues[0].color            = {0.4f, 0.4f, 0.4f, 1.0f};
         clearValues[1].depthStencil     = {1.0f, 0};
         renderPassInfo.clearValueCount  = static_cast<uint32_t>(clearValues.size());
         renderPassInfo.pClearValues     = clearValues.data();
@@ -155,16 +155,16 @@ namespace arx {
         
         if (name == "GBuffer") {
             clearValues.resize(4);
-            clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
-            clearValues[1].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
-            clearValues[2].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+            clearValues[0].color = { { 0.4f, 0.4f, 0.4f, 1.0f } };
+            clearValues[1].color = { { 0.4f, 0.4f, 0.4f, 1.0f } };
+            clearValues[2].color = { { 0.4f, 0.4f, 0.4f, 1.0f } };
             clearValues[3].depthStencil = { 1.0f, 0 };
             renderPassInfo.clearValueCount  = static_cast<uint32_t>(clearValues.size());
             renderPassInfo.pClearValues     = clearValues.data();
         }
         else {
             clearValues.resize(2);
-            clearValues[0].color            = {0.0f, 0.0f, 0.0f, 1.0f};
+            clearValues[0].color            = {0.4f, 0.4f, 0.4f, 1.0f};
             clearValues[1].depthStencil     = {1.0f, 0};
             renderPassInfo.clearValueCount  = static_cast<uint32_t>(clearValues.size());
             renderPassInfo.pClearValues     = clearValues.data();
