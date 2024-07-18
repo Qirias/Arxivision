@@ -1,2 +1,4 @@
 // Ignore SPIR-V executables
 *.spv
+
+.DS_Store
