@@ -28,7 +28,10 @@ namespace std {
 
 namespace arx {
 
-    uint32_t ArxModel::totalInstances = 0;
+    uint32_t ArxModel::totalInstances   = 0;
+    uint32_t ArxModel::worldWidth       = 0;
+    uint32_t ArxModel::worldHeight      = 0;
+    uint32_t ArxModel::worldDepth       = 0;
 
     ArxModel::ArxModel(ArxDevice &device, const ArxModel::Builder &builder)
     : arxDevice{device} {
@@ -47,6 +50,8 @@ namespace arx {
         builder.instanceCount = instanceCount;
         builder.loadModel(filepath);
         builder.instanceData = data;
+        
+        calculateWorldDimensions(data);
        
         return std::make_unique<ArxModel>(device, builder);
     }
@@ -264,5 +269,22 @@ namespace arx {
                 indices.push_back(uniqueVertices[vertex]);
             }
         }
+    }
+    
+    void ArxModel::calculateWorldDimensions(const std::vector<InstanceData> &instanceData) {
+        if (instanceData.empty()) {
+            return;
+        }
+
+        // Assuming the last value has the maximum dimensions
+        glm::vec4 lastTranslation = instanceData.back().translation;
+
+        uint32_t newWidth = static_cast<uint32_t>(lastTranslation.x);
+        uint32_t newHeight = static_cast<uint32_t>(std::abs(lastTranslation.y));
+        uint32_t newDepth = static_cast<uint32_t>(lastTranslation.z);
+
+        if (newWidth > worldWidth) worldWidth = newWidth;
+        if (newHeight > worldHeight) worldHeight = newHeight;
+        if (newDepth > worldDepth) worldDepth = newDepth;
     }
 }

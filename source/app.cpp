@@ -43,8 +43,8 @@ namespace arx {
         ArxCamera camera{};
         UserInput userController{*this};
 //        chunkManager.obj2vox(gameObjects, "data/models/bunny.obj", 12.f);
-        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu10.vox");
+//        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
+        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu5Edited.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
@@ -53,6 +53,11 @@ namespace arx {
         uint32_t chunkCount = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
         // Initialize the maximum indirect draw size
         BufferManager::indirectDrawData.resize(chunkCount);
+        
+        std::cout << "Width: " << ArxModel::getWorldWidth() << "\n";
+        std::cout << "Height: " << ArxModel::getWorldHeight() << "\n";
+        std::cout << "Depth: " << ArxModel::getWorldDepth() << "\n";
+        std::cout << "Instances: " << ArxModel::getTotalInstances() << "\n";
         
         auto viewerObject = ArxGameObject::createGameObject();
         viewerObject.transform.scale = glm::vec3(0.1);

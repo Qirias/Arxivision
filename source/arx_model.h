@@ -57,10 +57,16 @@ namespace arx {
         uint32_t getIndexCount() { return indexCount; }
         uint32_t getInstanceCount() { return instanceCount; }
         
+        static uint32_t getWorldWidth() { return worldWidth; }
+        static uint32_t getWorldHeight() { return worldHeight; }
+        static uint32_t getWorldDepth() { return worldDepth; }
+        static uint32_t getTotalInstances() { return totalInstances; }
+        
     private:
         void createVertexBuffers(const ArxModel::Builder &builder);
         void createIndexBuffers(const std::vector<uint32_t> &indices);
         void createInstanceBuffer(const ArxModel::Builder &builder);
+        static void calculateWorldDimensions(const std::vector<InstanceData> &instanceData);
         
         ArxDevice       &arxDevice;
         
@@ -70,6 +76,10 @@ namespace arx {
         std::shared_ptr<ArxBuffer>  instanceBuffer;
         uint32_t                    instanceCount;
         static uint32_t             totalInstances;
+        static uint32_t             worldWidth;
+        static uint32_t             worldHeight;
+        static uint32_t             worldDepth;
+        
         
         bool                        hasIndexBuffer = false;
         std::shared_ptr<ArxBuffer>  indexBuffer;

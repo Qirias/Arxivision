@@ -162,6 +162,7 @@ namespace arx {
             deviceFeatures2.features.drawIndirectFirstInstance  = VK_TRUE;
             deviceFeatures2.features.multiDrawIndirect          = VK_TRUE;
             deviceFeatures2.features.shaderInt64                = VK_TRUE;
+//            deviceFeatures2.features.geometryShader             = VK_TRUE; // Doesn't work on my mac
             
             setImagelessFramebufferFeature();
             setBufferDeviceAddressFeature();

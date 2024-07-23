@@ -38,6 +38,7 @@ namespace arx {
         ArxPipeline(ArxDevice& device,
                     const std::string& vertFilepath,
                     const std::string& fragFilepath,
+                    const std::string &geomFilepath,
                     const PipelineConfigInfo& config);
         
         ArxPipeline(ArxDevice& device,
@@ -72,6 +73,7 @@ namespace arx {
         
         void createGraphicsPipeline(const std::string& vertFilepath,
                                     const std::string& fragFilepath,
+                                    const std::string& geomFilepath,
                                     const PipelineConfigInfo& config);
         
         void createGraphicsPipeline(VkShaderModule vertShaderModule,
@@ -87,6 +89,7 @@ namespace arx {
         VkPipeline graphicsPipeline;
         VkShaderModule vertShaderModule = VK_NULL_HANDLE;
         VkShaderModule fragShaderModule = VK_NULL_HANDLE;
+        VkShaderModule geomShaderModule = VK_NULL_HANDLE;
         
         VkPipelineShaderStageCreateInfo vertexShaderStageInfo{};
     };

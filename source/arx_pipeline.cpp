@@ -13,8 +13,9 @@ namespace arx {
     ArxPipeline::ArxPipeline(ArxDevice& device,
                              const std::string& vertFilepath,
                              const std::string& fragFilepath,
+                             const std::string& geomFilepath,
                              const PipelineConfigInfo& config) : arxDevice{device} {
-        createGraphicsPipeline(vertFilepath, fragFilepath, config);
+        createGraphicsPipeline(vertFilepath, fragFilepath, geomFilepath, config);
     }
 
     ArxPipeline::ArxPipeline(ArxDevice& device,
@@ -37,6 +38,8 @@ namespace arx {
            vkDestroyShaderModule(arxDevice.device(), fragShaderModule, nullptr);
         if (computeShaderModule != VK_NULL_HANDLE)
            vkDestroyShaderModule(arxDevice.device(), computeShaderModule, nullptr);
+        if (geomShaderModule != VK_NULL_HANDLE)
+           vkDestroyShaderModule(arxDevice.device(), geomShaderModule, nullptr);
         if (graphicsPipeline != VK_NULL_HANDLE)
            vkDestroyPipeline(arxDevice.device(), graphicsPipeline, nullptr);
         if (computePipeline != VK_NULL_HANDLE)
@@ -60,7 +63,7 @@ namespace arx {
         return buffer;
     }
 
-    void ArxPipeline::createGraphicsPipeline(const std::string &vertFilepath, const std::string &fragFilepath, const PipelineConfigInfo& configInfo) {
+    void ArxPipeline::createGraphicsPipeline(const std::string &vertFilepath, const std::string &fragFilepath, const std::string &geomFilepath, const PipelineConfigInfo& configInfo) {
         assert(configInfo.pipelineLayout != VK_NULL_HANDLE && "Cannot create graphics pipeline: no pipelineLayout provided in configInfo");
         
         assert(configInfo.renderPass != VK_NULL_HANDLE && "Cannot create graphics pipeline: no renderPass provided in configInfo");
@@ -71,7 +74,9 @@ namespace arx {
         createShaderModule(vertCode, &vertShaderModule);
         createShaderModule(fragCode, &fragShaderModule);
         
-        VkPipelineShaderStageCreateInfo shaderStages[2];
+        VkPipelineShaderStageCreateInfo shaderStages[3];
+        uint32_t stageCount = 2; // Default without geometry shader
+        
         shaderStages[0].sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStages[0].stage               = VK_SHADER_STAGE_VERTEX_BIT;
         shaderStages[0].module              = vertShaderModule;
@@ -87,6 +92,22 @@ namespace arx {
         shaderStages[1].flags               = 0;
         shaderStages[1].pNext               = nullptr;
         shaderStages[1].pSpecializationInfo = configInfo.fragmentShaderStage.pSpecializationInfo;
+        
+        
+        if (!geomFilepath.empty()) {
+            auto geomCode = readFile(geomFilepath);
+            createShaderModule(geomCode, &geomShaderModule);
+            
+            shaderStages[2].sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            shaderStages[2].stage               = VK_SHADER_STAGE_GEOMETRY_BIT;
+            shaderStages[2].module              = geomShaderModule;
+            shaderStages[2].pName               = "main";
+            shaderStages[2].flags               = 0;
+            shaderStages[2].pNext               = nullptr;
+            shaderStages[2].pSpecializationInfo = nullptr;
+            
+            stageCount = 3; // Update stage count to 3 if geometry shader is provided
+        }
         
         auto& bindingDescriptions    = configInfo.bindingDescriptions;
         auto& attributeDescriptions  = configInfo.attributeDescriptions;
@@ -110,7 +131,7 @@ namespace arx {
         
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType                  = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipelineInfo.stageCount             = 2;
+        pipelineInfo.stageCount             = stageCount;
         pipelineInfo.pStages                = shaderStages;
         pipelineInfo.pVertexInputState      = &vertexInputInfo;
         pipelineInfo.pInputAssemblyState    = &configInfo.inputAssemblyInfo;

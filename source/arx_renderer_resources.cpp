@@ -173,6 +173,7 @@ namespace arx {
         pipelines[static_cast<uint8_t>(PassName::GPass)] = std::make_shared<ArxPipeline>(arxDevice,
                                                                                         "shaders/gbuffer_vert.spv",
                                                                                         "shaders/gbuffer_frag.spv",
+                                                                                        "",
                                                                                          gPassConfigInfo);
 
         // ====================================================================================
@@ -197,6 +198,7 @@ namespace arx {
         pipelines[static_cast<uint8_t>(PassName::COMPOSITION)] = std::make_shared<ArxPipeline>(arxDevice,
                                                                                                "shaders/fullscreen.spv",
                                                                                                "shaders/composition.spv",
+                                                                                               "",
                                                                                                compositionConfigInfo);
 
         // ====================================================================================
