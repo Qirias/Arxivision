@@ -34,7 +34,8 @@ namespace arx {
         static void addInstanceBuffer(std::shared_ptr<ArxBuffer> buffer, VkDeviceSize offset);
 
         static void bindBuffers(VkCommandBuffer commandBuffer);
-        static void createLargeInstanceBuffer(ArxDevice &device);
+        static void createLargeInstanceBuffer(ArxDevice &device, const uint32_t totalInstances);
+        static void createFaceVisibilityBuffer(ArxDevice &device, const uint32_t totalInstances);
         static uint32_t readDrawCommandCount();
         static void resetDrawCommandCountBuffer(VkCommandBuffer commandBuffer);
         static VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
@@ -49,6 +50,9 @@ namespace arx {
         
         // vertex shader
         static std::shared_ptr<ArxBuffer> largeInstanceBuffer;
+        
+        // face visibility
+        static std::shared_ptr<ArxBuffer> faceVisibilityBuffer;
 
         static std::vector<std::shared_ptr<ArxBuffer>> vertexBuffers;
         static std::vector<VkDeviceSize> vertexOffsets;

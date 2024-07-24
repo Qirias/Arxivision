@@ -41,6 +41,7 @@ namespace arx {
         descriptorLayouts[static_cast<uint8_t>(PassName::GPass)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
                                             .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
                                             .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                                            .addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
                                             .build());
         
         // SSAO
@@ -277,7 +278,7 @@ namespace arx {
         descriptorPools[static_cast<uint8_t>(PassName::GPass)] = ArxDescriptorPool::Builder(arxDevice)
                                                                        .setMaxSets(1)
                                                                        .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.f)
-                                                                       .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1.f)
+                                                                       .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f)
                                                                        .build();
 
         passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(std::make_shared<ArxBuffer>(
@@ -291,17 +292,22 @@ namespace arx {
 
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->writeToBuffer(&ubo);
+        
+        passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(BufferManager::faceVisibilityBuffer);
 
         descriptorSets[static_cast<uint8_t>(PassName::GPass)].resize(1);
 
         auto bufferInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->descriptorInfo();
         auto instanceBufferInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][1]->descriptorInfo();
+        auto faceVibilityInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][2]->descriptorInfo();
 
         ArxDescriptorWriter(*descriptorLayouts[static_cast<uint8_t>(PassName::GPass)][0],
                            *descriptorPools[static_cast<uint8_t>(PassName::GPass)])
                            .writeBuffer(0, &bufferInfo)
                            .writeBuffer(1, &instanceBufferInfo)
+                           .writeBuffer(2, &faceVibilityInfo)
                            .build(descriptorSets[static_cast<uint8_t>(PassName::GPass)][0]);
+        
         // ====================================================================================
         //                                      SSAO
         // ====================================================================================

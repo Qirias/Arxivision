@@ -26,12 +26,25 @@ layout (set = 0, binding = 1) readonly buffer InstanceDataBuffer {
     InstanceData instances[];
 };
 
+layout(set = 0, binding = 2) readonly buffer FaceVisibilityBuffer {
+    uint faceVisibility[];
+};
+
 layout (push_constant) uniform Push {
     mat4 modelMatrix;
     mat4 normalMatrix;
 } push;
 
 void main() {
+    uint visibility = faceVisibility[gl_InstanceIndex];
+    int faceIndex = gl_VertexIndex / 6; // Assuming 6 vertices per face
+
+    if ((visibility & (1u << faceIndex)) == 0) {
+        // Face is not visible, move the vertex behind the camera
+        gl_Position = vec4(0, 0, 10, 1);
+        return;
+    }
+    
     // gl_InstanceIndex bounds are [firstInstance, firstInstance + baseInstance]
     // where these are set in the drawCommand
     InstanceData instance = instances[gl_InstanceIndex];

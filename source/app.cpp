@@ -4,6 +4,7 @@
 #include "user_input.h"
 #include "arx_buffer.h"
 #include "chunkManager.h"
+#include "systems/face_visibility_system.hpp"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -49,15 +50,13 @@ namespace arx {
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
         // Since voxels share the same vertex and index buffer we can bind those once and do multi draw indirect
-        BufferManager::createLargeInstanceBuffer(arxDevice);
+        BufferManager::createLargeInstanceBuffer(arxDevice, ArxModel::getTotalInstances());
         uint32_t chunkCount = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
         // Initialize the maximum indirect draw size
         BufferManager::indirectDrawData.resize(chunkCount);
+        // Initialize the front face removal compute system
+        FaceVisibilitySystem::init(arxDevice);
         
-        std::cout << "Width: " << ArxModel::getWorldWidth() << "\n";
-        std::cout << "Height: " << ArxModel::getWorldHeight() << "\n";
-        std::cout << "Depth: " << ArxModel::getWorldDepth() << "\n";
-        std::cout << "Instances: " << ArxModel::getTotalInstances() << "\n";
         
         auto viewerObject = ArxGameObject::createGameObject();
         viewerObject.transform.scale = glm::vec3(0.1);
@@ -169,11 +168,6 @@ namespace arx {
                     globalDescriptorSets[frameIndex],
                     gameObjects
                 };
-                
-//                std::cout << camera.getPosition().x << " "
-//                          << camera.getPosition().y << " "
-//                          << camera.getPosition().z << "\n";
-//                printMat4(camera.getView());
 
                 vkCmdResetQueryPool(commandBuffer, queryPool, 0, 6);
 
@@ -184,7 +178,9 @@ namespace arx {
                     arxRenderer.getSwapChain()->computeCulling(commandBuffer, chunkCount, true);
                 }
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 1);
-
+                
+                FaceVisibilitySystem::removeHiddenFrontFaces(commandBuffer);
+                
                 // Update ubo
                 GlobalUbo ubo{};
                 ubo.projection      = camera.getProjection();
@@ -202,7 +198,7 @@ namespace arx {
                 ssaoParams.ssaoBlur = ssaoBlur;
                 arxRenderer.updateMisc(ubo, ssaoParams);
 
-                // Pre-Passes
+                // Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
                 arxRenderer.Passes(frameInfo);
 
@@ -244,6 +240,7 @@ namespace arx {
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
+        FaceVisibilitySystem::cleanup();
     }
 
     void App::drawCoordinateVectors(const ArxCamera& camera) {

@@ -13,6 +13,7 @@ namespace arx {
 
     // Occlusion Culling
     std::shared_ptr<ArxBuffer> BufferManager::largeInstanceBuffer = nullptr;
+    std::shared_ptr<ArxBuffer> BufferManager::faceVisibilityBuffer = nullptr;
     std::unique_ptr<ArxBuffer> BufferManager::drawIndirectBuffer = nullptr;
     std::unique_ptr<ArxBuffer> BufferManager::drawCommandCountBuffer = nullptr;
     std::unique_ptr<ArxBuffer> BufferManager::visibilityBuffer = nullptr;
@@ -36,7 +37,21 @@ namespace arx {
         instanceOffsets.push_back(offset/sizeof(InstanceData));
     }
 
-    void BufferManager::createLargeInstanceBuffer(ArxDevice &device) {
+    void BufferManager::createFaceVisibilityBuffer(ArxDevice &device, const uint32_t totalInstances) {
+        faceVisibilityBuffer = std::make_shared<ArxBuffer>(
+            device,
+            sizeof(uint32_t),
+            totalInstances,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        );
+        
+        faceVisibilityBuffer->map();
+    }
+
+    void BufferManager::createLargeInstanceBuffer(ArxDevice &device, const uint32_t totalInstances) {
         // Calculate the total size of the instance buffer once
         VkDeviceSize totalInstanceBufferSize = 0;
         for (const auto &buffer : instanceBuffers) {
@@ -73,6 +88,9 @@ namespace arx {
         stagingBuffer.unmap();
 
         device.copyBuffer(stagingBuffer.getBuffer(), largeInstanceBuffer->getBuffer(), totalInstanceBufferSize, 0, 0);
+        
+        // Create face visibility buffer
+        createFaceVisibilityBuffer(device, totalInstances);
     }
 
     void BufferManager::bindBuffers(VkCommandBuffer commandBuffer) {
