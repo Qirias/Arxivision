@@ -1,10 +1,11 @@
-#version 460
+/* #version 460
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
 struct InstanceData {
     vec4 translation; // w component is the material type
     vec4 color;
+    uint visibilityMask;
 };
 
 layout(std430, binding = 0) readonly buffer InstanceBuffer {
@@ -35,16 +36,29 @@ void main() {
 
     uint visibility = 0;
     ivec3 offsets[6] = {
-        ivec3(1,0,0), ivec3(-1,0,0),
-        ivec3(0,1,0), ivec3(0,-1,0),
-        ivec3(0,0,1), ivec3(0,0,-1)
+        ivec3(1, 0, 0), // Positive X
+        ivec3(-1, 0, 0), // Negative X
+        ivec3(0, -1, 0), // Positive Y (down)
+        ivec3(0, 1, 0), // Negative Y (up)
+        ivec3(0, 0, 1), // Positive Z (back)
+        ivec3(0, 0, -1) // Negative Z (front)
     };
 
     for (int i = 0; i < 6; i++) {
         if (!isVoxelSolid(pos + offsets[i])) {
-            visibility |= (1u << i);
+            visibility &= ~(1u << i);
         }
     }
 
     faceVisibility[index] = visibility;
 }
+
+================================================================================================================
+                                                    NOT IN USE
+================================================================================================================
+
+I will have to use this when I edit the terrain. The 3D voxel array contains voxels that are air.
+The largeInstanceBuffer only contains solid voxels with their visibility. I will have to also edit a chunk from
+the largeInstanceBuffer to add or delete a voxel. If that is slow I might initialize the whole terrain including
+empty voxels.
+*/

@@ -49,6 +49,9 @@ namespace arx {
         );
         
         faceVisibilityBuffer->map();
+        // Initialize the buffer with zeros
+        std::vector<uint32_t> initialData(totalInstances, 0);
+        faceVisibilityBuffer->writeToBuffer(initialData.data(), initialData.size() * sizeof(uint32_t));
     }
 
     void BufferManager::createLargeInstanceBuffer(ArxDevice &device, const uint32_t totalInstances) {

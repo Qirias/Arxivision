@@ -54,9 +54,11 @@ namespace arx {
         uint32_t chunkCount = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
         // Initialize the maximum indirect draw size
         BufferManager::indirectDrawData.resize(chunkCount);
-        // Initialize the front face removal compute system
-        FaceVisibilitySystem::init(arxDevice);
         
+        std::cout << "Width: " << ArxModel::getWorldWidth() << "\n";
+        std::cout << "Height: " << ArxModel::getWorldHeight() << "\n";
+        std::cout << "Depth: " << ArxModel::getWorldDepth() << "\n";
+        std::cout << "Total Voxels: " << ArxModel::getTotalInstances() << "\n";
         
         auto viewerObject = ArxGameObject::createGameObject();
         viewerObject.transform.scale = glm::vec3(0.1);
@@ -179,8 +181,6 @@ namespace arx {
                 }
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 1);
                 
-                FaceVisibilitySystem::removeHiddenFrontFaces(commandBuffer);
-                
                 // Update ubo
                 GlobalUbo ubo{};
                 ubo.projection      = camera.getProjection();
@@ -240,7 +240,6 @@ namespace arx {
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
-        FaceVisibilitySystem::cleanup();
     }
 
     void App::drawCoordinateVectors(const ArxCamera& camera) {

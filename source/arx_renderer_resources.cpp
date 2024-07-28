@@ -293,19 +293,19 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->writeToBuffer(&ubo);
         
-        passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(BufferManager::faceVisibilityBuffer);
+//        passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(BufferManager::faceVisibilityBuffer);
 
         descriptorSets[static_cast<uint8_t>(PassName::GPass)].resize(1);
 
         auto bufferInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->descriptorInfo();
         auto instanceBufferInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][1]->descriptorInfo();
-        auto faceVibilityInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][2]->descriptorInfo();
+//        auto faceVibilityInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][2]->descriptorInfo();
 
         ArxDescriptorWriter(*descriptorLayouts[static_cast<uint8_t>(PassName::GPass)][0],
                            *descriptorPools[static_cast<uint8_t>(PassName::GPass)])
                            .writeBuffer(0, &bufferInfo)
                            .writeBuffer(1, &instanceBufferInfo)
-                           .writeBuffer(2, &faceVibilityInfo)
+//                           .writeBuffer(2, &faceVibilityInfo)
                            .build(descriptorSets[static_cast<uint8_t>(PassName::GPass)][0]);
         
         // ====================================================================================
@@ -711,7 +711,7 @@ namespace arx {
         
         PushConstantData push{};
 
-        frameInfo.voxel[0].transform.scale = glm::vec3(VOXEL_SIZE/2);
+        frameInfo.voxel[0].transform.scale = glm::vec3(VOXEL_SIZE*0.5);
         push.modelMatrix    = frameInfo.voxel[0].transform.mat4();
         push.normalMatrix   = frameInfo.voxel[0].transform.normalMatrix();
 

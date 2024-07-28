@@ -61,6 +61,9 @@ namespace arx {
 
             yaw     += xoffset;
             pitch   += yoffset;
+            
+            if (pitch > 89.f) pitch = 89.f;
+            if (pitch < -89.f) pitch = -89.f;
 
             updateCameraVectors();
         }

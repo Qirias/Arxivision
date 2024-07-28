@@ -269,6 +269,8 @@ namespace arx {
                 indices.push_back(uniqueVertices[vertex]);
             }
         }
+//        for (auto i : indices) std::cout << i << ", ";
+//        std::cout << "\n";
     }
     
     void ArxModel::calculateWorldDimensions(const std::vector<InstanceData> &instanceData) {

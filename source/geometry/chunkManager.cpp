@@ -136,6 +136,15 @@ namespace arx {
             
         // Rotate the model around X because the way I create the chunks is different from MagicaVoxel
         glm::mat4 worldRotation = glm::rotate(glm::mat4(1.f), glm::radians(90.f), glm::vec3(1, 0, 0)); // World space rotation
+        
+        const std::array<glm::ivec3, 6> faceDirections = {
+            glm::ivec3(-1,  0,  0), // Left (negative X)
+            glm::ivec3( 1,  0,  0), // Right (positive X)
+            glm::ivec3( 0,  1,  0), // Bottom (positive Y)
+            glm::ivec3( 0, -1,  0), // Top (negative Y)
+            glm::ivec3( 0,  0,  1), // Back (positive Z)
+            glm::ivec3( 0,  0, -1)  // Front (negative Z)
+        };
 
         for (uint32_t instanceIndex = 0; instanceIndex < scene->num_instances; ++instanceIndex) {
             const ogt_vox_instance* instance = &scene->instances[instanceIndex];
@@ -151,6 +160,21 @@ namespace arx {
             std::vector<std::vector<std::vector<std::vector<InstanceData>>>> chunks(numChunksX,
                 std::vector<std::vector<std::vector<InstanceData>>>(numChunksY,
                     std::vector<std::vector<InstanceData>>(numChunksZ, std::vector<InstanceData>())));
+            
+            // Initialize voxelWorld with the correct dimensions
+            voxelWorld.resize(model->size_x,
+                std::vector<std::vector<VoxelData>>(model->size_y,
+                    std::vector<VoxelData>(model->size_z, {0, true})));
+            
+            // First pass: Populate the voxelWorld array
+            for (uint32_t voxelX = 0; voxelX < model->size_x; ++voxelX) {
+                for (uint32_t voxelY = 0; voxelY < model->size_y; ++voxelY) {
+                    for (uint32_t voxelZ = 0; voxelZ < model->size_z; ++voxelZ) {
+                        uint32_t colorIndex = model->voxel_data[voxelX + (voxelY * model->size_x) + (voxelZ * model->size_x * model->size_y)];
+                        voxelWorld[voxelX][voxelY][voxelZ] = {colorIndex, colorIndex == 0}; // 3D representation includes air voxels
+                    }
+                }
+            }
 
             for (uint32_t voxelX = 0; voxelX < model->size_x; ++voxelX) {
                 for (uint32_t voxelY = 0; voxelY < model->size_y; ++voxelY) {
@@ -164,12 +188,34 @@ namespace arx {
                                                         scene->palette.color[colorIndex].g / 255.0f,
                                                         scene->palette.color[colorIndex].b / 255.0f,
                                                         scene->palette.color[colorIndex].a / 255.0f);
+                            
+                            uint32_t visibilityMask = 0x3F; // All faces visible by default
+
+                            for (int i = 0; i < 6; ++i) {
+                                glm::ivec3 neighborPos(voxelX + faceDirections[i].x,
+                                                       voxelY + faceDirections[i].y,
+                                                       voxelZ + faceDirections[i].z);
+                                
+                                // Check if the neighboring voxel is within bounds and not air
+                                if (neighborPos.x >= 0 && neighborPos.x < model->size_x &&
+                                    neighborPos.y >= 0 && neighborPos.y < model->size_y &&
+                                    neighborPos.z >= 0 && neighborPos.z < model->size_z &&
+                                    !voxelWorld[neighborPos.x][neighborPos.y][neighborPos.z].isAir) {
+                                    // If there's a solid voxel in this direction, hide this face
+                                    visibilityMask &= ~(1u << i);
+                                }
+                            }
+                            
+                            // Set the leftmost bit to indicate that the rotationX90 should be applied in the gbuffer vertex shader
+                            visibilityMask |= 0x80000000; // Set the 31st bit to 1
 
                             int chunkX = voxelX / CHUNK_SIZE;
                             int chunkY = voxelY / CHUNK_SIZE;
                             int chunkZ = voxelZ / CHUNK_SIZE;
-                            
-                            chunks[chunkX][chunkY][chunkZ].push_back({rotatedPosition, color});
+//                            scene->materials.matl[1].type
+                            if (filepath == "data/scenes/sponza.vox") 
+                                color = glm::vec4(1.0);
+                            chunks[chunkX][chunkY][chunkZ].push_back({rotatedPosition, color, visibilityMask});
                         }
                     }
                 }

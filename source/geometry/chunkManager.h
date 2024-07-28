@@ -19,10 +19,14 @@
 #include <iostream>
 #include <random>
 
-
 namespace arx {
 
     class ArxModel;
+
+    struct VoxelData {
+        uint32_t colorIndex;
+        bool isAir;
+    };
 
     class ChunkManager {
     public:
@@ -43,11 +47,13 @@ namespace arx {
         
     private:
         ArxDevice                                               &arxDevice;
-        std::vector<Chunk*>                                     m_vpChunks;
-        std::unordered_map<unsigned int, AABB>                  chunkAABBs;
+        std::vector<Chunk*>                                     m_vpChunks; // All the Chunk instances
+        std::unordered_map<unsigned int, AABB>                  chunkAABBs; // The world space AABB min and max of each chunk
         ArxModel::Builder                                       builder;
         ArxCamera                                               camera;
-        std::vector<std::pair<glm::vec3, unsigned int>>         chunkPositions;
+        std::vector<std::pair<glm::vec3, unsigned int>>         chunkPositions; // World space positions of chunks
+        std::vector<std::vector<std::vector<VoxelData>>>        voxelWorld; // A 3D representation of each voxel including the air voxels
+
                 
         const ogt_vox_scene* loadVoxModel(const std::string& filepath);
         void setChunkPosition(const std::pair<glm::vec3, unsigned int>& position);

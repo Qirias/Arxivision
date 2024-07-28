@@ -17,6 +17,8 @@ namespace arx {
     struct InstanceData {
         glm::vec4 translation{};
         glm::vec4 color{};
+        uint32_t visibilityMask{0x3F};
+        uint32_t padding[3];
     };
 
     struct GPUIndirectDrawCommand {

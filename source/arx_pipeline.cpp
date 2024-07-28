@@ -9,7 +9,7 @@
 #include <cassert>
 
 namespace arx {
-    
+
     ArxPipeline::ArxPipeline(ArxDevice& device,
                              const std::string& vertFilepath,
                              const std::string& fragFilepath,
