@@ -5,7 +5,7 @@
 
 namespace arx {
     
-static const int CHUNK_SIZE = 8;
+static const int CHUNK_SIZE = 16;
 static const float VOXEL_SIZE = 1;
 static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
 

@@ -145,6 +145,21 @@ namespace arx {
             glm::ivec3( 0,  0,  1), // Back (positive Z)
             glm::ivec3( 0,  0, -1)  // Front (negative Z)
         };
+        
+        // Calculate world size
+        glm::vec3 worldSize(0.0f);
+        for (uint32_t instanceIndex = 0; instanceIndex < scene->num_instances; ++instanceIndex) {
+            const ogt_vox_instance* instance = &scene->instances[instanceIndex];
+            const ogt_vox_model* model = scene->models[instance->model_index];
+            glm::mat4 modelTransform = ogtTransformToMat4(instance->transform);
+            glm::vec3 maxBounds(model->size_x, model->size_y, model->size_z);
+            glm::vec4 transformedMax = modelTransform * glm::vec4(maxBounds, 1.0f);
+            worldSize = glm::max(worldSize, glm::vec3(transformedMax));
+        }
+
+        // Create SVO
+        int maxDepth = static_cast<int>(std::ceil(std::log2(std::max({worldSize.x, worldSize.y, worldSize.z}))));
+        svo = std::make_unique<SVO>(worldSize, maxDepth);
 
         for (uint32_t instanceIndex = 0; instanceIndex < scene->num_instances; ++instanceIndex) {
             const ogt_vox_instance* instance = &scene->instances[instanceIndex];
@@ -213,8 +228,7 @@ namespace arx {
                             int chunkY = voxelY / CHUNK_SIZE;
                             int chunkZ = voxelZ / CHUNK_SIZE;
 //                            scene->materials.matl[1].type
-                            if (filepath == "data/scenes/sponza.vox") 
-                                color = glm::vec4(1.0);
+        
                             chunks[chunkX][chunkY][chunkZ].push_back({rotatedPosition, color, visibilityMask});
                         }
                     }
@@ -226,6 +240,9 @@ namespace arx {
                     for (int z = 0; z < numChunksZ; ++z) {
                         if (!chunks[x][y][z].empty()) {
                             glm::vec3 chunkPosition = glm::vec3(worldRotation * modelTransform * glm::vec4(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE, 1.0f));
+                            
+                            svo->insertChunk(chunkPosition, chunks[x][y][z]);
+                            
                             Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, chunks[x][y][z]);
                             m_vpChunks.push_back(newChunk);
                             if (newChunk->getID() != -1) {
@@ -287,5 +304,21 @@ namespace arx {
         aabb.max = position + glm::vec3(CHUNK_SIZE);
    
         chunkAABBs[chunkId] = aabb;
+    }
+
+    void ChunkManager::addVoxel(const glm::vec3& worldPosition, const InstanceData& voxelData) {
+        svo->addVoxel(worldPosition, voxelData);
+        // Update corresponding Chunk object if necessary
+        // Update rendering data
+    }
+
+    void ChunkManager::removeVoxel(const glm::vec3& worldPosition) {
+        svo->removeVoxel(worldPosition);
+        // Update corresponding Chunk object if necessary
+        // Update rendering data
+    }
+
+    const InstanceData* ChunkManager::getVoxel(const glm::vec3& worldPosition) const {
+        return svo->getVoxel(worldPosition);
     }
 }

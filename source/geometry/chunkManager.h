@@ -6,6 +6,7 @@
 #include "arx_camera.h"
 #include "arx_model.h"
 #include "arx_utils.h"
+#include "svo.hpp"
 
 #include "ogt_vox.h"
 
@@ -45,6 +46,13 @@ namespace arx {
         const std::vector<std::pair<glm::vec3, unsigned int>>& getPositions() const { return chunkPositions; }
         const std::unordered_map<unsigned int, AABB>& getChunkAABBs() const { return chunkAABBs; }
         
+        // SVO related
+        void addVoxel(const glm::vec3& worldPosition, const InstanceData& voxelData);
+
+        void removeVoxel(const glm::vec3& worldPosition);
+
+        const InstanceData* getVoxel(const glm::vec3& worldPosition) const;
+        
     private:
         ArxDevice                                               &arxDevice;
         std::vector<Chunk*>                                     m_vpChunks; // All the Chunk instances
@@ -58,5 +66,7 @@ namespace arx {
         const ogt_vox_scene* loadVoxModel(const std::string& filepath);
         void setChunkPosition(const std::pair<glm::vec3, unsigned int>& position);
         glm::mat4 ogtTransformToMat4(const ogt_vox_transform& transform);
+        
+        std::unique_ptr<SVO>                                    svo;
     };
 }

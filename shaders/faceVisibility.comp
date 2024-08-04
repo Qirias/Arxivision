@@ -61,4 +61,5 @@ I will have to use this when I edit the terrain. The 3D voxel array contains vox
 The largeInstanceBuffer only contains solid voxels with their visibility. I will have to also edit a chunk from
 the largeInstanceBuffer to add or delete a voxel. If that is slow I might initialize the whole terrain including
 empty voxels.
+
 */

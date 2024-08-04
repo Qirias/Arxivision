@@ -21,6 +21,10 @@ namespace arx {
 
     std::vector<GPUIndirectDrawCommand> BufferManager::indirectDrawData;
     std::vector<uint32_t> BufferManager::visibilityData;
+    
+    // SVO
+    std::shared_ptr<ArxBuffer> BufferManager::nodeBuffer = nullptr;
+    std::shared_ptr<ArxBuffer> BufferManager::voxelBuffer = nullptr;
 
     void BufferManager::addVertexBuffer(std::shared_ptr<ArxBuffer> buffer, VkDeviceSize offset) {
         vertexBuffers.push_back(buffer);
@@ -92,7 +96,6 @@ namespace arx {
 
         device.copyBuffer(stagingBuffer.getBuffer(), largeInstanceBuffer->getBuffer(), totalInstanceBufferSize, 0, 0);
         
-        // Create face visibility buffer
         createFaceVisibilityBuffer(device, totalInstances);
     }
 
@@ -156,4 +159,65 @@ namespace arx {
 
         return result;
     }
+
+    void BufferManager::createNodeBuffer(ArxDevice &device, const std::vector<GPUNode>& nodes) {
+        VkDeviceSize bufferSize = sizeof(GPUNode) * nodes.size();
+
+        ArxBuffer stagingBuffer{
+            device,
+            bufferSize,
+            1,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        };
+
+        stagingBuffer.map();
+        stagingBuffer.writeToBuffer((void*)nodes.data());
+
+        nodeBuffer = std::make_shared<ArxBuffer>(
+            device,
+            bufferSize,
+            1,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        );
+
+        device.copyBuffer(stagingBuffer.getBuffer(), nodeBuffer->getBuffer(), bufferSize);
+    }
+
+    void BufferManager::createVoxelBuffer(ArxDevice &device, const std::vector<InstanceData>& voxels) {
+        VkDeviceSize bufferSize = sizeof(InstanceData) * voxels.size();
+
+        ArxBuffer stagingBuffer{
+            device,
+            bufferSize,
+            1,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        };
+
+        stagingBuffer.map();
+        stagingBuffer.writeToBuffer((void*)voxels.data());
+
+        voxelBuffer = std::make_shared<ArxBuffer>(
+            device,
+            bufferSize,
+            1,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        );
+
+        device.copyBuffer(stagingBuffer.getBuffer(), voxelBuffer->getBuffer(), bufferSize);
+    }
+
+    void BufferManager::createSVOBuffers(ArxDevice &device, const std::vector<GPUNode>& nodes, const std::vector<InstanceData>& voxels) {
+        createNodeBuffer(device, nodes);
+        createVoxelBuffer(device, voxels);
+
+//        SVO svo(worldSize, chunkSize);
+//        // ... populate SVO ...
+//
+//        auto [nodes, voxels] = svo.getFlattenedData();
+//        BufferManager::createSVOBuffers(device, nodes, voxels);
+   }
 }

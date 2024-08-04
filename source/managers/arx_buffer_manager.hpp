@@ -13,6 +13,14 @@
 
 namespace arx {
 
+    // SVO Nodes
+    struct GPUNode {
+        glm::vec3 min;
+        uint32_t childrenStartIndex;
+        glm::vec3 max;
+        uint32_t voxelStartIndex;
+    };
+
     // Per-instance data block
     struct InstanceData {
         glm::vec4 translation{};
@@ -55,6 +63,14 @@ namespace arx {
         
         // face visibility
         static std::shared_ptr<ArxBuffer> faceVisibilityBuffer;
+        
+        // SVO
+        static void createSVOBuffers(ArxDevice &device, 
+                                     const std::vector<GPUNode>& nodes,
+                                     const std::vector<InstanceData>& voxels);
+        
+        static std::shared_ptr<ArxBuffer> nodeBuffer;
+        static std::shared_ptr<ArxBuffer> voxelBuffer;
 
         static std::vector<std::shared_ptr<ArxBuffer>> vertexBuffers;
         static std::vector<VkDeviceSize> vertexOffsets;
@@ -62,5 +78,10 @@ namespace arx {
         static std::vector<VkDeviceSize> indexOffsets;
         static std::vector<std::shared_ptr<ArxBuffer>> instanceBuffers;
         static std::vector<VkDeviceSize> instanceOffsets;
+        
+    private:
+        // SVO
+        static void createNodeBuffer(ArxDevice &device, const std::vector<GPUNode>& nodes);
+        static void createVoxelBuffer(ArxDevice &device, const std::vector<InstanceData>& voxels);
     };
 }

@@ -59,6 +59,7 @@ void main() {
     // where these are set in the drawCommand
     InstanceData instance = instances[gl_InstanceIndex];
     
+    // Left most bit enabled for .vox scenes
     mat4 rotation = (instance.visibilityMask & 0x80000000) != 0 ? rotationX90 : mat4(1.0);
     
     // Transform the normal to world space
@@ -70,7 +71,7 @@ void main() {
 
     // Check visibility
     if ((instance.visibilityMask & (1u << faceIndex)) == 0) {
-        // Face is occluded, move the vertex behind the camera
+        // Face is occluded, move the vertex outside of clip space
         gl_Position = vec4(1, 1, 1, 0);
         return;
     }

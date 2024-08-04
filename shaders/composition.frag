@@ -53,8 +53,8 @@ void main()
         {
 //            outFragColor.rgb = vec3(texture(samplerPosition, inUV).w / 1024.0, 0, 0); // depth
 //            outFragColor.rgb = (uboParams.view * vec4(fragWorldPos, 1.0)).xyz; // fragment position
-            outFragColor.rgb = normal * 0.5 + 0.5; // normal
-//            outFragColor.rgb = baseColor;
+//            outFragColor.rgb = normal * 0.5 + 0.5; // normal
+            outFragColor.rgb = baseColor;
         }
     }
 }
