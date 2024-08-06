@@ -43,7 +43,6 @@ namespace arx {
         RenderPassManager                   rpManager{arxDevice};
         ArxRenderer                         arxRenderer{arxWindow, arxDevice, rpManager, textureManager};
         
-        // Managers
         ChunkManager                        chunkManager{arxDevice};
 
         // note: order of declarations matters

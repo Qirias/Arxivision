@@ -158,8 +158,7 @@ namespace arx {
         }
 
         // Create SVO
-        int maxDepth = static_cast<int>(std::ceil(std::log2(std::max({worldSize.x, worldSize.y, worldSize.z}))));
-        svo = std::make_unique<SVO>(worldSize, maxDepth);
+        svo = std::make_unique<SVO>(worldSize, CHUNK_SIZE);
 
         for (uint32_t instanceIndex = 0; instanceIndex < scene->num_instances; ++instanceIndex) {
             const ogt_vox_instance* instance = &scene->instances[instanceIndex];
@@ -290,7 +289,10 @@ namespace arx {
                 }
             }
         }
-
+        
+        BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
+        BufferManager::printVoxelData(arxDevice);
+        
         ogt_vox_destroy_scene(scene);
     }
 

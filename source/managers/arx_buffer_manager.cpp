@@ -178,7 +178,9 @@ namespace arx {
             device,
             bufferSize,
             1,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         );
 
@@ -203,7 +205,10 @@ namespace arx {
             device,
             bufferSize,
             1,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT | // remove SRC when you delete the printVoxelData()
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         );
 
@@ -213,11 +218,54 @@ namespace arx {
     void BufferManager::createSVOBuffers(ArxDevice &device, const std::vector<GPUNode>& nodes, const std::vector<InstanceData>& voxels) {
         createNodeBuffer(device, nodes);
         createVoxelBuffer(device, voxels);
-
-//        SVO svo(worldSize, chunkSize);
-//        // ... populate SVO ...
-//
-//        auto [nodes, voxels] = svo.getFlattenedData();
-//        BufferManager::createSVOBuffers(device, nodes, voxels);
    }
+
+    void BufferManager::printVoxelData(ArxDevice& device) {
+        if (!voxelBuffer) {
+            std::cout << "Voxel buffer is not initialized." << std::endl;
+            return;
+        }
+
+        VkDeviceSize bufferSize = voxelBuffer->getBufferSize();
+        
+        // Create a staging buffer
+        ArxBuffer stagingBuffer{
+            device,
+            bufferSize,
+            1,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        };
+
+        // Copy data from device local buffer to staging buffer
+        device.copyBuffer(voxelBuffer->getBuffer(), stagingBuffer.getBuffer(), bufferSize);
+
+        // Map the staging buffer
+        void* mappedMemory = nullptr;
+        stagingBuffer.map();
+        mappedMemory = stagingBuffer.getMappedMemory();
+
+        // Read and print the data
+        InstanceData* voxels = reinterpret_cast<InstanceData*>(mappedMemory);
+        size_t voxelCount = bufferSize / sizeof(InstanceData);
+
+        std::cout << "Voxel Data:" << std::endl;
+        for (size_t i = 0; i < voxelCount; ++i) {
+            const auto& voxel = voxels[i];
+            std::cout << "Voxel " << i << ":" << std::endl;
+            std::cout << "  Translation: (" << voxel.translation.x << ", "
+                                            << voxel.translation.y << ", "
+                                            << voxel.translation.z << ", "
+                                            << voxel.translation.w << ")" << std::endl;
+            std::cout << "  Color: (" << voxel.color.x << ", "
+                                      << voxel.color.y << ", "
+                                      << voxel.color.z << ", "
+                                      << voxel.color.w << ")" << std::endl;
+            std::cout << "  Visibility Mask: 0x" << std::hex << voxel.visibilityMask << std::dec << std::endl;
+            std::cout << std::endl;
+        }
+
+        // Unmap the staging buffer
+        stagingBuffer.unmap();
+    }
 }

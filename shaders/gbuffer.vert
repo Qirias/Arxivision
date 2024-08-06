@@ -18,6 +18,20 @@ struct InstanceData {
     uint _padding[3];
 };
 
+struct GPUNode {
+    vec3 min;
+    vec3 max;
+    uint childrenStartIndex;
+    uint voxelStartIndex;
+};
+
+struct GPUVoxel {
+    vec4 translation;
+    vec4 color;
+    uint visibilityMask;
+    uint _padding[3];
+};
+
 layout (set = 0, binding = 0) uniform GlobalUbo {
     mat4 projection;
     mat4 view;
@@ -28,7 +42,15 @@ layout (set = 0, binding = 1) readonly buffer InstanceDataBuffer {
     InstanceData instances[];
 };
 
-//layout(set = 0, binding = 2) readonly buffer FaceVisibilityBuffer {
+layout (set = 0, binding = 2) readonly buffer NodeBuffer {
+    GPUNode nodes[];
+};
+
+layout (set = 0, binding = 3) readonly buffer VoxelBuffer {
+    GPUVoxel voxels[];
+};
+
+//layout(set = 0, binding = 4) readonly buffer FaceVisibilityBuffer {
 //    uint faceVisibility[];
 //};
 
@@ -54,10 +76,23 @@ int getFaceIndex(vec3 normal) {
                                          (normal.z > 0 ? 4 : 5); // Front, Back
 }
 
+GPUVoxel getVoxelFromSVO(uint instanceIndex) {
+    uint nodeIndex = 0;
+    while (true) {
+        GPUNode node = nodes[nodeIndex];
+        if (instanceIndex < node.voxelStartIndex + node.childrenStartIndex) {
+            return voxels[node.voxelStartIndex + instanceIndex];
+        }
+        nodeIndex = node.childrenStartIndex + (instanceIndex - node.voxelStartIndex);
+    }
+}
+
 void main() {
     // gl_InstanceIndex bounds are [firstInstance, firstInstance + baseInstance]
     // where these are set in the drawCommand
     InstanceData instance = instances[gl_InstanceIndex];
+    
+//    GPUVoxel instance = getVoxelFromSVO(gl_InstanceIndex);
     
     // Left most bit enabled for .vox scenes
     mat4 rotation = (instance.visibilityMask & 0x80000000) != 0 ? rotationX90 : mat4(1.0);

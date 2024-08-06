@@ -16,8 +16,8 @@ namespace arx {
     // SVO Nodes
     struct GPUNode {
         glm::vec3 min;
-        uint32_t childrenStartIndex;
         glm::vec3 max;
+        uint32_t childrenStartIndex;
         uint32_t voxelStartIndex;
     };
 
@@ -71,6 +71,8 @@ namespace arx {
         
         static std::shared_ptr<ArxBuffer> nodeBuffer;
         static std::shared_ptr<ArxBuffer> voxelBuffer;
+        
+        static void printVoxelData(ArxDevice &device);
 
         static std::vector<std::shared_ptr<ArxBuffer>> vertexBuffers;
         static std::vector<VkDeviceSize> vertexOffsets;
