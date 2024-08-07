@@ -9,7 +9,7 @@ namespace arx {
 
     class SVONode {
     public:
-        SVONode(const glm::vec3& min, const glm::vec3& max, size_t index);
+        SVONode(const glm::vec3& min, const glm::vec3& max);
         
         bool isLeaf() const { return children.empty(); }
         void split(size_t& nextNodeIndex);
@@ -25,7 +25,8 @@ namespace arx {
 
         glm::vec3                                   min;
         glm::vec3                                   max;
-        size_t                                      index;
+        uint32_t                                    childrenStartIndex;
+        uint32_t                                    voxelStartIndex;
         std::vector<std::unique_ptr<SVONode>>       children;
         std::unique_ptr<std::vector<InstanceData>>  chunkData;
     };
@@ -35,10 +36,12 @@ namespace arx {
         SVO(const glm::vec3& worldSize, int chunkSize);
         
         void insertChunk(const glm::vec3& chunkPosition, const std::vector<InstanceData>& chunkData);
+        uint32_t updateVoxelStartIndices(SVONode* node, uint32_t startIndex);
         void removeChunk(const glm::vec3& chunkPosition);
         const std::vector<InstanceData>* getChunk(const glm::vec3& chunkPosition) const;
         
         void addVoxel(const glm::vec3& worldPosition, const InstanceData& voxelData);
+        void updateChildrenStartIndices();
         void removeVoxel(const glm::vec3& worldPosition);
         const InstanceData* getVoxel(const glm::vec3& worldPosition) const;
 

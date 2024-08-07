@@ -78,21 +78,30 @@ int getFaceIndex(vec3 normal) {
 
 GPUVoxel getVoxelFromSVO(uint instanceIndex) {
     uint nodeIndex = 0;
+    uint childIndex = instanceIndex;
+
     while (true) {
         GPUNode node = nodes[nodeIndex];
-        if (instanceIndex < node.voxelStartIndex + node.childrenStartIndex) {
-            return voxels[node.voxelStartIndex + instanceIndex];
+        
+        if (childIndex < node.voxelStartIndex) {
+            // The instance index falls within the child nodes
+            uint childNodeIndex = (childIndex - node.childrenStartIndex) / 8; // Determine which of the 8 children
+            nodeIndex = node.childrenStartIndex + childNodeIndex;
+            childIndex = childIndex - node.childrenStartIndex - (childNodeIndex * 8); // Adjust childIndex for next iteration
+        } else {
+            // The instance index falls within the voxel range
+            uint voxelIndex = childIndex - node.voxelStartIndex;
+            return voxels[node.voxelStartIndex + voxelIndex];
         }
-        nodeIndex = node.childrenStartIndex + (instanceIndex - node.voxelStartIndex);
     }
 }
 
 void main() {
     // gl_InstanceIndex bounds are [firstInstance, firstInstance + baseInstance]
     // where these are set in the drawCommand
-    InstanceData instance = instances[gl_InstanceIndex];
+//    InstanceData instance = instances[gl_InstanceIndex];
     
-//    GPUVoxel instance = getVoxelFromSVO(gl_InstanceIndex);
+    GPUVoxel instance = getVoxelFromSVO(gl_InstanceIndex);
     
     // Left most bit enabled for .vox scenes
     mat4 rotation = (instance.visibilityMask & 0x80000000) != 0 ? rotationX90 : mat4(1.0);

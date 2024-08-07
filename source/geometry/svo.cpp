@@ -5,8 +5,8 @@
 
 namespace arx {
 
-    SVONode::SVONode(const glm::vec3& min, const glm::vec3& max, size_t index)
-        : min(min), max(max), chunkData(nullptr), index(index) {}
+    SVONode::SVONode(const glm::vec3& min, const glm::vec3& max)
+    : min(min), max(max), chunkData(nullptr), childrenStartIndex(0), voxelStartIndex(0) {}
 
     void SVONode::split(size_t& nextNodeIndex) {
         if (!isLeaf()) return;
@@ -22,8 +22,12 @@ namespace arx {
             if (i & 2) { childMin.y = center.y; childMax.y = max.y; }
             if (i & 4) { childMin.z = center.z; childMax.z = max.z; }
 
-            children.push_back(std::make_unique<SVONode>(childMin, childMax, nextNodeIndex++));
+            auto child = std::make_unique<SVONode>(childMin, childMax);
+            child->voxelStartIndex = this->voxelStartIndex + (this->chunkData ? static_cast<uint32_t>(this->chunkData->size()) : 0);
+            children.push_back(std::move(child));
         }
+        
+        childrenStartIndex = children[0]->voxelStartIndex;
     }
 
     void SVONode::addVoxel(const glm::vec3& localPosition, const InstanceData& voxelData) {
@@ -51,9 +55,32 @@ namespace arx {
         auto [node, localPos] = getChunkNodeAndLocalPosition(worldPosition);
         if (node) {
             node->addVoxel(localPos, voxelData);
-            // Update GPU voxel data
+            
             voxels.push_back(voxelData);
-            nodes[node->index].voxelStartIndex = static_cast<uint32_t>(voxels.size() - node->chunkData->size());
+            
+            auto it = std::find_if(nodes.begin(), nodes.end(), [node](const GPUNode& gpuNode) {
+                return gpuNode.min == node->min && gpuNode.max == node->max;
+            });
+            
+            if (it != nodes.end()) {
+                it->voxelStartIndex = static_cast<uint32_t>(voxels.size() - node->chunkData->size());
+                
+                for (auto nextIt = it + 1; nextIt != nodes.end(); ++nextIt) {
+                    nextIt->voxelStartIndex++;
+                }
+            }
+            
+            updateChildrenStartIndices();
+        }
+    }
+
+    void SVO::updateChildrenStartIndices() {
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            if (i + 1 < nodes.size() && nodes[i + 1].voxelStartIndex > nodes[i].voxelStartIndex) {
+                nodes[i].childrenStartIndex = nodes[i + 1].voxelStartIndex;
+            } else {
+                nodes[i].childrenStartIndex = 0;  // Leaf node
+            }
         }
     }
 
@@ -92,7 +119,7 @@ namespace arx {
 
     SVO::SVO(const glm::vec3& worldSize, int chunkSize)
         : chunkSize(chunkSize), nextNodeIndex(0){
-        root = std::make_unique<SVONode>(glm::vec3(0), worldSize, nextNodeIndex++);
+        root = std::make_unique<SVONode>(glm::vec3(0), worldSize);
         nodes.push_back({root->min, root->max, 0, 0});
     }
 
@@ -119,11 +146,28 @@ namespace arx {
 
             node = node->getChild(childIndex);
         }
-
+        
+        
         node->setChunkData(chunkData);
-        // Update GPU node and voxel data
-        nodes[node->index].voxelStartIndex = static_cast<uint32_t>(voxels.size());
+        node->voxelStartIndex = static_cast<uint32_t>(voxels.size());
         voxels.insert(voxels.end(), chunkData.begin(), chunkData.end());
+
+        // Update voxel start indices for all subsequent nodes
+        updateVoxelStartIndices(root.get(), 0);
+    }
+
+    uint32_t SVO::updateVoxelStartIndices(SVONode* node, uint32_t startIndex) {
+        node->voxelStartIndex = startIndex;
+        if (node->chunkData) {
+            startIndex += node->chunkData->size();
+        }
+        if (!node->isLeaf()) {
+            node->childrenStartIndex = startIndex;
+            for (auto& child : node->children) {
+                startIndex = updateVoxelStartIndices(child.get(), startIndex);
+            }
+        }
+        return startIndex;
     }
 
     void SVO::removeChunk(const glm::vec3& chunkPosition) {
@@ -144,6 +188,7 @@ namespace arx {
 
         if (node) node->setChunkData(std::vector<InstanceData>());  // Set to empty chunk
     }
+
 
     const std::vector<InstanceData>* SVO::getChunk(const glm::vec3& chunkPosition) const {
         SVONode* node = root.get();
@@ -168,14 +213,22 @@ namespace arx {
         auto [node, localPos] = getChunkNodeAndLocalPosition(worldPosition);
         if (node) {
             size_t removedIndex = node->removeVoxel(localPos);
-            if (removedIndex != static_cast<size_t>(-1)) {  // Assuming -1 indicates failure
-                // Remove the voxel from allVoxels
-                size_t globalVoxelIndex = nodes[node->index].voxelStartIndex + removedIndex;
-                voxels.erase(voxels.begin() + globalVoxelIndex);
+            if (removedIndex != static_cast<size_t>(-1)) {
+                
+                auto it = std::find_if(nodes.begin(), nodes.end(), [node](const GPUNode& gpuNode) {
+                    return gpuNode.min == node->min && gpuNode.max == node->max;
+                });
+                
+                if (it != nodes.end()) {
+                    size_t globalVoxelIndex = it->voxelStartIndex + removedIndex;
+                    
+                    voxels.erase(voxels.begin() + globalVoxelIndex);
 
-                // Update voxel start indices for all subsequent nodes
-                for (size_t i = node->index + 1; i < nodes.size(); ++i) {
-                    --nodes[i].voxelStartIndex;
+                    for (auto updateIt = it; updateIt != nodes.end(); ++updateIt) {
+                        --updateIt->voxelStartIndex;
+                    }
+
+                    updateChildrenStartIndices();
                 }
             }
         }

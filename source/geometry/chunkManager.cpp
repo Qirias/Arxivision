@@ -291,7 +291,7 @@ namespace arx {
         }
         
         BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
-        BufferManager::printVoxelData(arxDevice);
+//        BufferManager::printVoxelData(arxDevice);
         
         ogt_vox_destroy_scene(scene);
     }
