@@ -683,6 +683,7 @@ namespace arx {
         drawCommandCountBufferInfo.offset = 0;
         drawCommandCountBufferInfo.range = VK_WHOLE_SIZE;
         
+        
         ArxDescriptorWriter(*cull.cullingDescriptorLayout, *cull.cullingDescriptorPool)
                             .writeBuffer(0, &cameraBufferInfo)
                             .writeBuffer(1, &objectsDataBufferInfo)

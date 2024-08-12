@@ -44,7 +44,7 @@ namespace arx {
             uint32_t pyramidWidth = 0;
             uint32_t pyramidHeight = 0;
             uint32_t chunkCount = 0;
-            uint32_t _padding;
+            uint32_t nodesCount = 0;;
         };
         
         struct alignas(16) GPUObjectDataBuffer {
@@ -118,6 +118,7 @@ namespace arx {
             cullingData.pyramidWidth = width;
             cullingData.pyramidHeight = height;
             cullingData.chunkCount = chunkCount;
+            cullingData.nodesCount = static_cast<uint32_t>(BufferManager::nodeBuffer->getBufferSize() / sizeof(GPUNode));
         }
 
         // Depth pyramid

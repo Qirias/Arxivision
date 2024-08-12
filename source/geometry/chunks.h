@@ -51,7 +51,6 @@ namespace arx {
         int Voxelize(const std::vector<arx::ArxModel::Vertex>& vertices);
         bool CheckVoxelIntersection(const std::vector<arx::ArxModel::Vertex>& vertices, const glm::vec3& voxelPosition);
         bool intersect_aabb_triangle_cgal(const CGAL::Bbox_3& aabb, const Point& p0, const Point& p1, const Point& p2);
-        void deactivateHiddenVoxels();
         
         void applyCARule(glm::ivec3 terrainSize);
         glm::vec3 determineColorBasedOnPosition(glm::vec3 voxelGlobalPos, glm::ivec3 terrainSize);
@@ -60,7 +59,6 @@ namespace arx {
         
     private:
         std::unique_ptr<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>      blocks;
-        std::unique_ptr<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>      culledBlocks;
         std::unique_ptr<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>  colors;
         
         glm::vec3                                                           position;

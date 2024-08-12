@@ -83,46 +83,6 @@ namespace arx {
         }
     }
 
-    void Chunk::deactivateHiddenVoxels() {
-        // First, mark all voxels as active based on the original 'blocks' array.
-        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
-            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
-                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
-                    culledBlocks[x][y][z].setActive(blocks[x][y][z].isActive());
-                }
-            }
-        }
-
-        // Then, iterate through each voxel to check if it's completely occluded by its neighbors.
-        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
-            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
-                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
-                    if (!blocks[x][y][z].isActive()) continue; // Skip inactive blocks
-                    
-                    bool isHidden = true;
-                    // Check negative X neighbor or boundary
-                    isHidden &= (x > 0) ? blocks[x-1][y][z].isActive() : true;
-                    // Check positive X neighbor or boundary
-                    isHidden &= (x < ADJUSTED_CHUNK - 1) ? blocks[x+1][y][z].isActive() : true;
-                    // Check negative Y neighbor or boundary
-                    isHidden &= (y > 0) ? blocks[x][y-1][z].isActive() : true;
-                    // Check positive Y neighbor or boundary
-                    isHidden &= (y < ADJUSTED_CHUNK - 1) ? blocks[x][y+1][z].isActive() : true;
-                    // Check negative Z neighbor or boundary
-                    isHidden &= (z > 0) ? blocks[x][y][z-1].isActive() : true;
-                    // Check positive Z neighbor or boundary
-                    isHidden &= (z < ADJUSTED_CHUNK - 1) ? blocks[x][y][z+1].isActive() : true;
-                    
-                    // If all neighbors are active, mark the voxel as inactive in the 'culledBlocks' array
-                    if (isHidden) {
-                        culledBlocks[x][y][z].setActive(false);
-                        instances--;
-                    }
-                }
-            }
-        }
-    }
-
 
     bool Chunk::CheckVoxelIntersection(const std::vector<arx::ArxModel::Vertex>& vertices, const glm::vec3& voxelPosition) {
 
@@ -196,19 +156,15 @@ namespace arx {
 
     void Chunk::initializeBlocks() {
         blocks = std::make_unique<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>(ADJUSTED_CHUNK);
-        culledBlocks = std::make_unique<std::unique_ptr<std::unique_ptr<Block[]>[]>[]>(ADJUSTED_CHUNK);
         colors = std::make_unique<std::unique_ptr<std::unique_ptr<glm::vec3[]>[]>[]>(ADJUSTED_CHUNK);
         for (int x = 0; x < ADJUSTED_CHUNK; x++) {
             blocks[x] = std::make_unique<std::unique_ptr<Block[]>[]>(ADJUSTED_CHUNK);
-            culledBlocks[x] = std::make_unique<std::unique_ptr<Block[]>[]>(ADJUSTED_CHUNK);
             colors[x] = std::make_unique<std::unique_ptr<glm::vec3[]>[]>(ADJUSTED_CHUNK);
             for (int y = 0; y < ADJUSTED_CHUNK; y++) {
                 blocks[x][y] = std::make_unique<Block[]>(ADJUSTED_CHUNK);
-                culledBlocks[x][y] = std::make_unique<Block[]>(ADJUSTED_CHUNK);
                 colors[x][y] = std::make_unique<glm::vec3[]>(ADJUSTED_CHUNK);
                 for (int z = 0; z < ADJUSTED_CHUNK; z++) {
                     blocks[x][y][z].setActive(false);
-                    culledBlocks[x][y][z].setActive(false);
                     colors[x][y][z] = glm::vec3(0);
                 }
             }
