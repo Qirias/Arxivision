@@ -2,11 +2,11 @@
 #extension GL_ARB_shader_draw_parameters : enable
 
 layout (location = 0) in vec3 inPos;
-layout (location = 1) in vec3 inColor;
+layout (location = 1) in vec4 inColor;
 layout (location = 2) in vec3 inNormal;
 layout (location = 3) in vec2 inUV;
 
-layout (location = 0) out vec3 outColor;
+layout (location = 0) out vec4 outColor;
 layout (location = 1) out vec3 outPosView;
 layout (location = 2) out vec3 outNormalView;
 layout (location = 3) out vec2 outUV;
@@ -35,10 +35,6 @@ layout (set = 0, binding = 0) uniform GlobalUbo {
 layout (set = 0, binding = 1) readonly buffer InstanceDataBuffer {
     InstanceData instances[];
 };
-
-//layout(set = 0, binding = 2) readonly buffer FaceVisibilityBuffer {
-//    uint faceVisibility[];
-//};
 
 // Rotation matrix for the 90-degree flip about the X-axis for the .vox models
 const mat4 rotationX90 = mat4(
@@ -92,6 +88,6 @@ void main() {
     
     outNormalView = normalViewMatrix * inNormal;
     outPosView = vec3(ubo.view * positionWorld);
-    outColor = instance.color.xyz;
+    outColor = instance.color;
     outUV = inUV;
 }

@@ -30,8 +30,6 @@ namespace arx {
             return ArxGameObject{currentId++};
         }
         
-        static ArxGameObject makePointLight(float intensity = 10.f, float radius = .1f, glm::vec3 color = glm::vec3(1.0f));
-        
         ArxGameObject() = default;
         ArxGameObject(const ArxGameObject &) = delete;
         ArxGameObject &operator=(const ArxGameObject &) = delete;

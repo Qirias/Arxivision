@@ -502,6 +502,7 @@ namespace arx {
         textureManager.createAttachment("ssaoBlurColor", arxSwapChain->width(), arxSwapChain->height(),
                                         VK_FORMAT_R8_UNORM,
                                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        
         // G-Pass
         {
             std::array<VkAttachmentDescription, 4> attachmentDescs = {};

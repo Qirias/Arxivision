@@ -22,7 +22,7 @@ namespace arx {
     ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent, std::shared_ptr<ArxSwapChain> previous, RenderPassManager &rp, TextureManager &textures)
     : device{deviceRef}, windowExtent{extent}, oldSwapChain(previous), cull(deviceRef), rpManager{rp}, textureManager{textures} {
         init();
-            
+        
         // clean up old swap chain since it's no longer needed
         oldSwapChain = nullptr;
     }

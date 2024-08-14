@@ -37,9 +37,9 @@ namespace arx {
             maxBounds = glm::max(maxBounds, builder.vertices[i].position);
 //            std::cout << builder.vertices[i].position.x << " " << builder.vertices[i].position.y << " " << builder.vertices[i].position.z << "\n";
         }
-
+        
         glm::vec3 modelSize = glm::ceil(maxBounds - minBounds);
-
+        
         // Calculate chunk dimensions based on scaled model size
         int numChunksX = static_cast<int>(std::ceil(modelSize.x / CHUNK_SIZE));
         int numChunksY = static_cast<int>(std::ceil(modelSize.y / CHUNK_SIZE));
@@ -54,7 +54,7 @@ namespace arx {
                 for (int z = 0; z < numChunksZ; ++z) {
                     glm::vec3 chunkPosition = minBounds + glm::vec3(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE);
 //                    std::cout << "Chunk Position: " << "(" << x << ", " << y << ", " << z << "): " << chunkPosition.x << ", " << chunkPosition.y << ", " << chunkPosition.z << std::endl;
-
+        
                     // Extract vertices within the current chunk
                     std::vector<arx::ArxModel::Vertex> chunkVertices;
                     for (const auto& vertex : builder.vertices) {
@@ -64,6 +64,7 @@ namespace arx {
                             chunkVertices.push_back(vertex);
                         }
                     }
+                    
                     std::cout << "Chunk number: " << ++chunkNum << "\n";
                     Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, chunkVertices);
                     m_vpChunks.push_back(newChunk);
@@ -133,7 +134,7 @@ namespace arx {
     void ChunkManager::vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath) {
         const ogt_vox_scene* scene = loadVoxModel(filepath);
         if (!scene) return;
-            
+        
         // Rotate the model around X because the way I create the chunks is different from MagicaVoxel
         glm::mat4 worldRotation = glm::rotate(glm::mat4(1.f), glm::radians(90.f), glm::vec3(1, 0, 0)); // World space rotation
         
@@ -156,10 +157,11 @@ namespace arx {
             glm::vec4 transformedMax = modelTransform * glm::vec4(maxBounds, 1.0f);
             worldSize = glm::max(worldSize, glm::vec3(transformedMax));
         }
-
+        
         // Create SVO
         svo = std::make_unique<SVO>(worldSize, CHUNK_SIZE);
-
+        std::unordered_map<uint32_t, std::vector<PointLight>> chunkLights;
+        
         for (uint32_t instanceIndex = 0; instanceIndex < scene->num_instances; ++instanceIndex) {
             const ogt_vox_instance* instance = &scene->instances[instanceIndex];
             const ogt_vox_model* model = scene->models[instance->model_index];
@@ -201,7 +203,23 @@ namespace arx {
                             glm::vec4 color = glm::vec4(scene->palette.color[colorIndex].r / 255.0f,
                                                         scene->palette.color[colorIndex].g / 255.0f,
                                                         scene->palette.color[colorIndex].b / 255.0f,
-                                                        scene->palette.color[colorIndex].a / 255.0f);
+                                                        scene->materials.matl[colorIndex].spec);
+                            
+                            int chunkX = voxelX / CHUNK_SIZE;
+                            int chunkY = voxelY / CHUNK_SIZE;
+                            int chunkZ = voxelZ / CHUNK_SIZE;
+                            
+                            ogt_matl_type mat = scene->materials.matl[colorIndex].type;
+                            if (mat == 3) { // Emit
+                                PointLight light;
+                                light.position = glm::vec3(rotatedPosition);
+                                light.color = color;
+                                
+                                // Max values of 1023 for each directions, otherwise I need more that 32bits
+                                uint32_t chunkID = (chunkX & 0x3FF) | ((chunkY & 0x3FF) << 10) | ((chunkZ & 0x3FF) << 20);
+
+                                chunkLights[chunkID].push_back(light);
+                            }
                             
                             uint32_t visibilityMask = 0x3F; // All faces visible by default
 
@@ -222,11 +240,6 @@ namespace arx {
                             
                             // Set the leftmost bit to indicate that the rotationX90 should be applied in the gbuffer vertex shader
                             visibilityMask |= 0x80000000; // Set the 31st bit to 1
-
-                            int chunkX = voxelX / CHUNK_SIZE;
-                            int chunkY = voxelY / CHUNK_SIZE;
-                            int chunkZ = voxelZ / CHUNK_SIZE;
-//                            scene->materials.matl[1].type
         
                             chunks[chunkX][chunkY][chunkZ].push_back({rotatedPosition, color, visibilityMask});
                         }
@@ -243,6 +256,7 @@ namespace arx {
                             svo->insertChunk(chunkPosition, chunks[x][y][z]);
                             
                             Chunk* newChunk = new Chunk(arxDevice, chunkPosition, voxel, chunks[x][y][z]);
+                            
                             m_vpChunks.push_back(newChunk);
                             if (newChunk->getID() != -1) {
                                 setChunkPosition({newChunk->getPosition(), newChunk->getID()});
@@ -260,11 +274,10 @@ namespace arx {
 //                                     +-----------+      ----> x
 //                                X = MAX and O = MIN
                                 
-                                
 // ====================================================================================================
 // Since we rotate the whole .vox around the X axis, we need to adjust the AABB min and max accordingly
-// ====================================================================================================
-                                
+// ===================================================================================================
+                            
 //                                        Altered AABB box
 //                                         X-----------+
 //                                        /|          /|
@@ -290,8 +303,8 @@ namespace arx {
             }
         }
         
+        Materials::initialize(arxDevice, chunkLights);
         BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
-//        BufferManager::printVoxelData(arxDevice);
         
         ogt_vox_destroy_scene(scene);
     }

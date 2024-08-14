@@ -7,6 +7,7 @@
 #include "arx_model.h"
 #include "arx_utils.h"
 #include "svo.hpp"
+#include "blockMaterials.hpp"
 
 #include "ogt_vox.h"
 

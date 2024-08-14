@@ -104,6 +104,27 @@ namespace arx {
         }
     }
 
+/**
+    * Reads data from the buffer into the specified memory location
+    *
+    * @param data Pointer to the memory location where the data should be read into
+    * @param size Size of the data to read
+    * @param offset Offset in the buffer from where to start reading
+    */
+   void ArxBuffer::readFromBuffer(void* data, VkDeviceSize size, VkDeviceSize offset) {
+       assert(mapped && "Cannot read from unmapped buffer");
+
+       if (size == VK_WHOLE_SIZE) {
+           memcpy(data, static_cast<char*>(mapped) + offset, bufferSize - offset);
+       } else {
+           memcpy(data, static_cast<char*>(mapped) + offset, size);
+       }
+
+       if (!(memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+           invalidate(size, offset);
+       }
+   }
+
     /**
         * Flush a memory range of the buffer to make it visible to the device
         *
