@@ -9,8 +9,9 @@ glslangValidator -V fullscreen.vert -o fullscreen.spv
 glslangValidator -V composition.frag -o composition.spv
 glslangValidator -V ssao.frag -o ssao.spv
 glslangValidator -V ssaoBlur.frag -o ssaoBlur.spv
+glslangValidator -V deferred.frag -o deferred.spv
 
-glslangValidator -V faceVisibility.comp -o faceVisibility.spv
+#glslangValidator -V faceVisibility.comp -o faceVisibility.spv
 
 glslangValidator -V gbuffer.vert -o gbuffer_vert.spv
 glslangValidator -V gbuffer.frag -o gbuffer_frag.spv

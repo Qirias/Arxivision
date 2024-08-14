@@ -23,6 +23,7 @@ namespace arx {
             GPass,
             SSAO,
             SSAOBLUR,
+            DEFERRED,
             COMPOSITION,
             Max
         };
@@ -39,33 +40,42 @@ namespace arx {
     void ArxRenderer::createDescriptorSetLayouts() {
         // G-Buffer
         descriptorLayouts[static_cast<uint8_t>(PassName::GPass)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
-                                            .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-                                            .addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-                                            .build());
+                                          .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS) // InstanceBuffer
+                                          .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT) // UBO
+                                          .build());
         
         // SSAO
         descriptorLayouts[static_cast<uint8_t>(PassName::SSAO)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                                          .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                                          .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                                          .addBinding(3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                                          .addBinding(4, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
+                                          .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
+                                          .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // ssaoNoise
+                                          .addBinding(3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBOSSAOKernel
+                                          .addBinding(4, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
                                           .build());
         
         // SSAOBlur
         descriptorLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAO
+                                          .build());
+        
+        // Deferred
+        descriptorLayouts[static_cast<uint8_t>(PassName::DEFERRED)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
+                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
+                                          .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
+                                          .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerAlbedo
+                                          .addBinding(3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
+                                          .addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // PointLightsBuffer
                                           .build());
         
         // Composition
         descriptorLayouts[static_cast<uint8_t>(PassName::COMPOSITION)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                                          .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                                          .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                                          .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                                          .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                                          .addBinding(5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
+                                          .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
+                                          .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerAlbedo
+                                          .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAO
+                                          .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAOBlur
+                                          .addBinding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerDeferred
+                                          .addBinding(6, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
                                           .build());
     }
 
@@ -130,6 +140,24 @@ namespace arx {
         
         if (vkCreatePipelineLayout(arxDevice.device(), &ssaoBlurPipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create ssaoblur pipeline layout!");
+        }
+        
+        // ====================================================================================
+        //                                    DEFERRED
+        // ====================================================================================
+        
+        std::vector<VkDescriptorSetLayout> deferredLayouts;
+        for (const auto& layout : descriptorLayouts[static_cast<size_t>(PassName::DEFERRED)]) {
+            deferredLayouts.push_back(layout->getDescriptorSetLayout());
+        }
+    
+        VkPipelineLayoutCreateInfo deferredPipelineLayoutInfo{};
+        deferredPipelineLayoutInfo.sType                    = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        deferredPipelineLayoutInfo.setLayoutCount           = static_cast<uint32_t>(deferredLayouts.size());
+        deferredPipelineLayoutInfo.pSetLayouts              = deferredLayouts.data();
+        
+        if (vkCreatePipelineLayout(arxDevice.device(), &deferredPipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::DEFERRED)]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create deferred pipeline layout!");
         }
         
         // ====================================================================================
@@ -267,6 +295,30 @@ namespace arx {
                                                                 pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(),
                                                                 "shaders/ssaoBlur.spv",
                                                                 ssaoBlurConfigInfo);
+        
+        // ====================================================================================
+        //                                     Deferred
+        // ====================================================================================
+
+        assert(pipelineLayouts[static_cast<uint8_t>(PassName::DEFERRED)] != nullptr && "Cannot create pipeline before pipeline layout");
+
+        PipelineConfigInfo deferredConfigInfo{};
+        ArxPipeline::defaultPipelineConfigInfo(deferredConfigInfo);
+        deferredConfigInfo.renderPass                    = rpManager.getRenderPass("Deferred");
+        deferredConfigInfo.pipelineLayout                = pipelineLayouts[static_cast<uint8_t>(PassName::DEFERRED)];
+        deferredConfigInfo.useVertexInputState           = false;
+
+        VkPipelineColorBlendAttachmentState deferredColorBlendAttachment = ArxPipeline::createDefaultColorBlendAttachment();
+        deferredConfigInfo.colorBlendAttachments                 = {deferredColorBlendAttachment};
+        deferredConfigInfo.colorBlendInfo.attachmentCount        = 1;
+        deferredConfigInfo.colorBlendInfo.pAttachments           = deferredConfigInfo.colorBlendAttachments.data();
+
+        deferredConfigInfo.vertexShaderStage = pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertexShaderStageInfo();
+
+        pipelines[static_cast<uint8_t>(PassName::DEFERRED)] = std::make_shared<ArxPipeline>(arxDevice,
+                                                                pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(),
+                                                                "shaders/deferred.spv",
+                                                                deferredConfigInfo);
     }
 
 
@@ -288,24 +340,21 @@ namespace arx {
                                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 
-        passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(BufferManager::largeInstanceBuffer);
-
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->writeToBuffer(&ubo);
         
-//        passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(BufferManager::faceVisibilityBuffer);
-
+        passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(BufferManager::largeInstanceBuffer);
+        
+    
         descriptorSets[static_cast<uint8_t>(PassName::GPass)].resize(1);
 
         auto bufferInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->descriptorInfo();
         auto instanceBufferInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][1]->descriptorInfo();
-//        auto faceVibilityInfo = passBuffers[static_cast<uint8_t>(PassName::GPass)][2]->descriptorInfo();
 
         ArxDescriptorWriter(*descriptorLayouts[static_cast<uint8_t>(PassName::GPass)][0],
                            *descriptorPools[static_cast<uint8_t>(PassName::GPass)])
                            .writeBuffer(0, &bufferInfo)
                            .writeBuffer(1, &instanceBufferInfo)
-//                           .writeBuffer(2, &faceVibilityInfo)
                            .build(descriptorSets[static_cast<uint8_t>(PassName::GPass)][0]);
         
         // ====================================================================================
@@ -426,25 +475,66 @@ namespace arx {
                             .build(descriptorSets[static_cast<uint8_t>(PassName::SSAOBLUR)][0]);
         
         // ====================================================================================
-        //                                    COMPOSITION
+        //                                     Deferred
         // ====================================================================================
         
-        descriptorPools[static_cast<uint8_t>(PassName::COMPOSITION)] = ArxDescriptorPool::Builder(arxDevice)
-                                                                .setMaxSets(1)
-                                                                .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5.0f)
-                                                                .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.0f)
-                                                                .build();
+        descriptorPools[static_cast<uint8_t>(PassName::DEFERRED)] = ArxDescriptorPool::Builder(arxDevice)
+                                                                    .setMaxSets(1)
+                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3.0f)
+                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.0f)
+                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1.0f)
+                                                                    .build();
         
         VkDescriptorImageInfo samplerAlbedoInfo{};
         samplerAlbedoInfo.sampler = textureManager.getSampler("colorSampler");
         samplerAlbedoInfo.imageView = textureManager.getAttachment("gAlbedo")->view;
         samplerAlbedoInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(std::make_shared<ArxBuffer>(
+                                                                     arxDevice,
+                                                                     sizeof(GlobalUbo),
+                                                                     1,
+                                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+        
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->map();
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->writeToBuffer(&ubo);
+        
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(Materials::pointLightBuffer);
+        
+        auto uboInfo        = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->descriptorInfo();
+        auto pointLightInfo = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][1]->descriptorInfo();
+        
+        descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)].resize(1);
+        
+        ArxDescriptorWriter(*descriptorLayouts[static_cast<uint8_t>(PassName::DEFERRED)][0],
+                            *descriptorPools[static_cast<uint8_t>(PassName::DEFERRED)])
+                            .writeImage(0, &samplerPosDepthInfo)
+                            .writeImage(1, &samplerNormalInfo)
+                            .writeImage(2, &samplerAlbedoInfo)
+                            .writeBuffer(3, &uboInfo)
+                            .writeBuffer(4, &pointLightInfo)
+                            .build(descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)][0]);
+        
+        // ====================================================================================
+        //                                    COMPOSITION
+        // ====================================================================================
+        
+        descriptorPools[static_cast<uint8_t>(PassName::COMPOSITION)] = ArxDescriptorPool::Builder(arxDevice)
+                                                                .setMaxSets(1)
+                                                                .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6.0f)
+                                                                .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.0f)
+                                                                .build();
         
         VkDescriptorImageInfo samplerSSAOBlurColorInfo{};
         samplerSSAOBlurColorInfo.sampler = textureManager.getSampler("colorSampler");
         samplerSSAOBlurColorInfo.imageView = textureManager.getAttachment("ssaoBlurColor")->view;
         samplerSSAOBlurColorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        
+        VkDescriptorImageInfo samplerDeferredColorInfo{};
+        samplerDeferredColorInfo.sampler = textureManager.getSampler("colorSampler");
+        samplerDeferredColorInfo.imageView = textureManager.getAttachment("deferredShading")->view;
+        samplerDeferredColorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)].push_back(std::make_shared<ArxBuffer>(
                                                                         arxDevice,
@@ -467,7 +557,8 @@ namespace arx {
                             .writeImage(2, &samplerAlbedoInfo)
                             .writeImage(3, &samplerSSAOInfo)
                             .writeImage(4, &samplerSSAOBlurColorInfo)
-                            .writeBuffer(5, &ssaoParamsInfo)
+                            .writeImage(5, &samplerDeferredColorInfo)
+                            .writeBuffer(6, &ssaoParamsInfo)
                             .build(descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)][0]);
     }
 
@@ -503,6 +594,9 @@ namespace arx {
                                         VK_FORMAT_R8_UNORM,
                                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
         
+        textureManager.createAttachment("deferredShading", arxSwapChain->width(), arxSwapChain->height(),
+                                        VK_FORMAT_B8G8R8A8_SRGB,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
         // G-Pass
         {
             std::array<VkAttachmentDescription, 4> attachmentDescs = {};
@@ -685,6 +779,60 @@ namespace arx {
             
             rpManager.createFramebuffer("SSAOBlur", attachments, arxSwapChain->width(), arxSwapChain->height());
         }
+        
+        // Deferred
+        {
+            VkAttachmentDescription attachmentDescription = {};
+            attachmentDescription.format = textureManager.getAttachment("deferredShading")->format;
+            attachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+            attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            attachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            VkAttachmentReference colorReference = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+
+            VkSubpassDescription subpass = {};
+            subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            subpass.pColorAttachments = &colorReference;
+            subpass.colorAttachmentCount = 1;
+
+            std::array<VkSubpassDependency, 2> dependencies;
+
+            dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependencies[0].dstSubpass = 0;
+            dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[0].srcAccessMask = 0;
+            dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+            dependencies[1].srcSubpass = 0;
+            dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+            dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependencies[1].dstAccessMask = 0;
+            dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+            VkRenderPassCreateInfo renderPassInfo = {};
+            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+            renderPassInfo.pAttachments = &attachmentDescription;
+            renderPassInfo.attachmentCount = 1;
+            renderPassInfo.subpassCount = 1;
+            renderPassInfo.pSubpasses = &subpass;
+            renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+            renderPassInfo.pDependencies = dependencies.data();
+
+            rpManager.createRenderPass("Deferred", renderPassInfo);
+
+            std::array<VkImageView, 1> attachments;
+            attachments[0] = textureManager.getAttachment("deferredShading")->view;
+
+            rpManager.createFramebuffer("Deferred", attachments, arxSwapChain->width(), arxSwapChain->height());
+        }
     
         // Shared sampler used for all color attachments
         textureManager.createSampler("colorSampler");
@@ -782,6 +930,26 @@ namespace arx {
         }
         
         // ====================================================================================
+        //                                     Deferred
+        // ====================================================================================
+        
+        beginRenderPass(frameInfo.commandBuffer, "Deferred");
+        
+        pipelines[static_cast<uint8_t>(PassName::DEFERRED)]->bind(frameInfo.commandBuffer);
+        
+        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                pipelineLayouts[static_cast<uint8_t>(PassName::DEFERRED)],
+                                0,
+                                1,
+                                &descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)][0],
+                                0,
+                                nullptr);
+        
+        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+        vkCmdEndRenderPass(frameInfo.commandBuffer);
+                
+        // ====================================================================================
         //                                   COMPOSITION
         // ====================================================================================
 
@@ -823,11 +991,12 @@ namespace arx {
         uboSSAOParams.ssaoBlur      = ssaorhs.ssaoBlur;
         
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->writeToBuffer(&uboSSAOParams);
-        passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->flush();
+        
+        // Deferred
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->writeToBuffer(&ubo);
         
         // COMPOSITION
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->writeToBuffer(&uboSSAOParams);
-        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->flush();
     }
 
     void ArxRenderer::init_Passes() {

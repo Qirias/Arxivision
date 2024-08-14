@@ -37,7 +37,7 @@ namespace arx {
         static void printLights();
         
         // Buffer to store all point lights
-        static std::unique_ptr<ArxBuffer> pointLightBuffer;
+        static std::shared_ptr<ArxBuffer> pointLightBuffer;
 
         // Mapping from chunkID to ChunkLightInfo
         static std::unordered_map<uint32_t, ChunkLightInfo> chunkLightInfos;

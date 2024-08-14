@@ -2,7 +2,7 @@
 
 namespace arx {
 
-    std::unique_ptr<ArxBuffer> Materials::pointLightBuffer;
+    std::shared_ptr<ArxBuffer> Materials::pointLightBuffer;
     std::unordered_map<uint32_t, ChunkLightInfo> Materials::chunkLightInfos;
     std::vector<PointLight> Materials::pointLightsCPU;
     uint32_t Materials::maxPointLights = 0;
@@ -18,7 +18,7 @@ namespace arx {
 
         // Create buffer
         VkDeviceSize bufferSize = sizeof(PointLight) * maxPointLights;
-        pointLightBuffer = std::make_unique<ArxBuffer>(
+        pointLightBuffer = std::make_shared<ArxBuffer>(
             device,
             bufferSize,
             maxPointLights,
@@ -105,7 +105,7 @@ namespace arx {
     void Materials::resizeBuffer(ArxDevice& device, uint32_t newSize) {
         VkDeviceSize newBufferSize = sizeof(PointLight) * newSize;
 
-        auto newBuffer = std::make_unique<ArxBuffer>(
+        auto newBuffer = std::make_shared<ArxBuffer>(
             device,
             newBufferSize,
             newSize,

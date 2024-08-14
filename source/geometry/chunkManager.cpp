@@ -304,6 +304,7 @@ namespace arx {
         }
         
         Materials::initialize(arxDevice, chunkLights);
+        std::cout << "MaxLights: " << Materials::maxPointLights << "\n";
         BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
         
         ogt_vox_destroy_scene(scene);
