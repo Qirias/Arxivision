@@ -14,7 +14,7 @@ layout (binding = 6) uniform UBO
     int ssao;
     int ssaoOnly;
     int ssaoBlur;
-    int _padding;
+    int deferred;
 } uboParams;
 
 layout (location = 0) in vec2 inUV;
@@ -30,7 +30,7 @@ void main()
     float ssao = (uboParams.ssaoBlur == 1) ? texture(samplerSSAOBlur, inUV).r : texture(samplerSSAO, inUV).r;
     vec3 deferredColor = texture(samplerDeferred, inUV).rgb;
 
-    vec3 ambient = vec3(0.0) * albedo.rgb;
+    vec3 ambient = vec3(0.01) * albedo.rgb;
 
     if (uboParams.ssao == 1)
     {
@@ -43,7 +43,9 @@ void main()
     }
     else
     {
-        vec3 finalColor = ambient + deferredColor;
+        vec3 finalColor = ambient;
+        if (uboParams.deferred == 1)
+            finalColor += deferredColor;
         finalColor = clamp(finalColor, 0.0, 1.0);
         outFragColor = vec4(finalColor, 1.0);
     }

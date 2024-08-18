@@ -33,7 +33,7 @@ namespace arx {
         bool showCartesian() const {return isCartesianActive;}
         
         KeyMappings keys{};
-        float moveSpeed{40.f};
+        float moveSpeed{20.f};
         float lookSpeed{0.05f};
         double xpos;
         double ypos;

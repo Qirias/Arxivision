@@ -163,6 +163,7 @@ namespace arx {
         std::unordered_map<uint32_t, std::vector<PointLight>> chunkLights;
         
         for (uint32_t instanceIndex = 0; instanceIndex < scene->num_instances; ++instanceIndex) {
+            
             const ogt_vox_instance* instance = &scene->instances[instanceIndex];
             const ogt_vox_model* model = scene->models[instance->model_index];
 
@@ -209,18 +210,6 @@ namespace arx {
                             int chunkY = voxelY / CHUNK_SIZE;
                             int chunkZ = voxelZ / CHUNK_SIZE;
                             
-                            ogt_matl_type mat = scene->materials.matl[colorIndex].type;
-                            if (mat == 3) { // Emit
-                                PointLight light;
-                                light.position = glm::vec3(rotatedPosition);
-                                light.color = color;
-                                
-                                // Max values of 1023 for each directions, otherwise I need more that 32bits
-                                uint32_t chunkID = (chunkX & 0x3FF) | ((chunkY & 0x3FF) << 10) | ((chunkZ & 0x3FF) << 20);
-
-                                chunkLights[chunkID].push_back(light);
-                            }
-                            
                             uint32_t visibilityMask = 0x3F; // All faces visible by default
 
                             for (int i = 0; i < 6; ++i) {
@@ -236,6 +225,19 @@ namespace arx {
                                     // If there's a solid voxel in this direction, hide this face
                                     visibilityMask &= ~(1u << i);
                                 }
+                            }
+                            
+                            ogt_matl_type mat = scene->materials.matl[colorIndex].type;
+                            if (mat == 3) { // Emit
+                                // Max values of 1023 for each directions, otherwise I need more than 32bits
+                                uint32_t chunkID = (chunkX & 0x3FF) | ((chunkY & 0x3FF) << 10) | ((chunkZ & 0x3FF) << 20);
+                                
+                                PointLight light;
+                                light.position = glm::vec3(rotatedPosition);
+                                light.color = color;
+                                light.visibilityMask = visibilityMask;
+                                
+                                chunkLights[chunkID].push_back(light);
                             }
                             
                             // Set the leftmost bit to indicate that the rotationX90 should be applied in the gbuffer vertex shader
@@ -304,7 +306,7 @@ namespace arx {
         }
         
         Materials::initialize(arxDevice, chunkLights);
-        std::cout << "MaxLights: " << Materials::maxPointLights << "\n";
+        Materials::printLights();
         BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
         
         ogt_vox_destroy_scene(scene);

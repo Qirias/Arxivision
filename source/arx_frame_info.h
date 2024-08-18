@@ -26,14 +26,14 @@ static const float SSAO_RADIUS = 1.0f;
         float zFar{1024.f};
     };
 
-    struct SSAOParams {
+    struct CompositionParams {
         glm::mat4 projection;
         glm::mat4 view;
         glm::mat4 inverseView;
         int32_t ssao = true;
         int32_t ssaoOnly = false;
         int32_t ssaoBlur = true;
-        int32_t padding;
+        int32_t deferred = true;
     };
     
     struct FrameInfo {

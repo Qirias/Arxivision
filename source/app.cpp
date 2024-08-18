@@ -115,6 +115,7 @@ namespace arx {
         bool ssaoEnabled = true;
         bool ssaoOnly = false;
         bool ssaoBlur = true;
+        bool deferred = true;
 
         // Timing variables
         uint64_t cullingTime = 0, renderTime = 0, depthPyramidTime = 0;
@@ -143,8 +144,11 @@ namespace arx {
                 ImGui::Checkbox("SSAO Enabled", &ssaoEnabled);
                 ImGui::Checkbox("SSAO Only", &ssaoOnly);
                 ImGui::Checkbox("SSAO Blur", &ssaoBlur);
+                ImGui::Checkbox("Deferred", &deferred);
+            
                 if (!ssaoEnabled) ssaoOnly = false;
                 if (ssaoOnly || !ssaoEnabled) ssaoBlur = false;
+                if (ssaoOnly) deferred = false;
                 
                 // Display the most recent timings
                 ImGui::Text("Culling Time: %.3f ms", cullingTime / 1e6); // Convert ns to ms
@@ -192,11 +196,12 @@ namespace arx {
                 uboBuffers[frameIndex]->flush();
 
                 // Update misc for the rest of the render passes
-                SSAOParams ssaoParams{};
-                ssaoParams.ssao = ssaoEnabled;
-                ssaoParams.ssaoOnly = ssaoOnly;
-                ssaoParams.ssaoBlur = ssaoBlur;
-                arxRenderer.updateMisc(ubo, ssaoParams);
+                CompositionParams compParams{};
+                compParams.ssao = ssaoEnabled;
+                compParams.ssaoOnly = ssaoOnly;
+                compParams.ssaoBlur = ssaoBlur;
+                compParams.deferred = deferred;
+                arxRenderer.updateMisc(ubo, compParams);
 
                 // Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);

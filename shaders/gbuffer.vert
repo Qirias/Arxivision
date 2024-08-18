@@ -15,15 +15,7 @@ struct InstanceData {
     vec4 translation;
     vec4 color;
     uint visibilityMask;
-    uint isSolid;
-    uint _padding[2];
-};
-
-struct GPUNode {
-    vec3 min;
-    vec3 max;
-    uint childrenStartIndex;
-    uint voxelStartIndex;
+    uint _padding[3];
 };
 
 layout (set = 0, binding = 0) uniform GlobalUbo {

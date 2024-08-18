@@ -12,7 +12,7 @@ namespace arx {
 
     struct PointLight {
         glm::vec3 position;
-        uint32_t chunkID;
+        uint32_t visibilityMask;
         glm::vec4 color;
     };
 
@@ -20,7 +20,6 @@ namespace arx {
         uint32_t offset; // Offset in the buffer (in terms of PointLight instances)
         uint32_t count;
     };
-
 
     class Materials {
     public:
@@ -51,5 +50,13 @@ namespace arx {
     private:
         static void resizeBuffer(ArxDevice& device, uint32_t newSize);
         static void shiftLights(uint32_t startOffset, uint32_t count, int32_t shiftAmount);
+        
+        glm::vec3 revertChunkID(uint32_t chunkID, uint32_t &chunkX, uint32_t &chunkY, uint32_t &chunkZ) {
+            chunkX = chunkID & 0x3FF;
+            chunkY = (chunkID >> 10) & 0x3FF;
+            chunkZ = (chunkID >> 20) & 0x3FF;
+            
+            return glm::vec3(chunkX, chunkY, chunkZ);
+        }
     };
 }

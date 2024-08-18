@@ -10,22 +10,18 @@ namespace arx {
 
     void Materials::initialize(ArxDevice& device, std::unordered_map<uint32_t, std::vector<PointLight>>& chunkLights) {
         
-        // Count total lights
         maxPointLights = 0;
         for (const auto& [chunkID, lights] : chunkLights) {
             maxPointLights += lights.size();
         }
 
-        // Create buffer
-        VkDeviceSize bufferSize = sizeof(PointLight) * maxPointLights;
         pointLightBuffer = std::make_shared<ArxBuffer>(
             device,
-            bufferSize,
+            sizeof(PointLight),
             maxPointLights,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            device.properties.limits.minStorageBufferOffsetAlignment
-        );
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
         pointLightBuffer->map();
 
         // Fill buffer and set up chunkLightInfos
@@ -103,7 +99,7 @@ namespace arx {
     }
 
     void Materials::resizeBuffer(ArxDevice& device, uint32_t newSize) {
-        VkDeviceSize newBufferSize = sizeof(PointLight) * newSize;
+        VkDeviceSize newBufferSize = sizeof(PointLight);
 
         auto newBuffer = std::make_shared<ArxBuffer>(
             device,
@@ -146,7 +142,7 @@ namespace arx {
     void Materials::printLights() {
         std::cout << "==== Point Lights ====\n";
         std::cout << "Total lights: " << currentPointLightCount << "\n\n";
-
+        
         for (const auto& [chunkID, cli] : chunkLightInfos) {
             std::cout << "Chunk ID: " << chunkID << "\n";
             std::cout << "Light count: " << cli.count << "\n";
@@ -156,13 +152,16 @@ namespace arx {
 
             for (size_t i = 0; i < chunkLights.size(); ++i) {
                 const auto& light = chunkLights[i];
-                std::cout << "  Light " << i << ":\n";
-                std::cout << "    Position: (" << light.position.x << ", "
+                std::cout << "\tLight " << i << ":\n";
+                std::cout << "\t\tPosition: (" << light.position.x << ", "
                                                << light.position.y << ", "
                                                << light.position.z << ")\n";
-                std::cout << "    Color: (" << light.color.r << ", "
+                std::cout << "\t\tColor: (" << light.color.r << ", "
                                             << light.color.g << ", "
-                                            << light.color.b << ")\n";
+                                            << light.color.b << ", "
+                                            << light.color.a << ")\n";
+
+                std::cout << "\t\tVisibility: " << light.visibilityMask << "\n";
             }
             std::cout << "\n";
         }

@@ -53,7 +53,7 @@ namespace arx {
         void Passes(FrameInfo &frameInfo);
         void init_Passes();
         
-        void updateMisc(const GlobalUbo &rhs, const SSAOParams &ssaorhs);
+        void updateMisc(const GlobalUbo &rhs, const CompositionParams &ssaorhs);
         void cleanupResources();
     private:
         void createCommandBuffers();
@@ -81,6 +81,6 @@ namespace arx {
         bool                            isFrameStarted = false;
         
         GlobalUbo                       ubo{};
-        SSAOParams                      uboSSAOParams{};
+        CompositionParams               compParams{};
     };
 }

@@ -12,7 +12,7 @@ layout (binding = 3) uniform GlobalUbo {
 
 struct PointLight {
     vec3 position;
-    uint chunkID;
+    uint visibilityMask;
     vec4 color;
 };
 
@@ -24,16 +24,67 @@ layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
 
+// Need 4 points for each face to create area lights
+// Light's position is in the center of each voxel
+const vec3 FACE_OFFSET[6][4] = vec3[6][4] (
+    vec3[4](
+        vec3(-0.5,  0.5, -0.5),
+        vec3(-0.5, -0.5, -0.5),
+        vec3(-0.5, -0.5,  0.5),
+        vec3(-0.5,  0.5,  0.5)
+    ),
+    
+    vec3[4](
+        vec3(0.5,  0.5, -0.5),
+        vec3(0.5, -0.5, -0.5),
+        vec3(0.5, -0.5,  0.5),
+        vec3(0.5,  0.5,  0.5)
+    ),
+    
+    vec3[4](
+        vec3(-0.5, 0.5, -0.5),
+        vec3( 0.5, 0.5, -0.5),
+        vec3( 0.5, 0.5,  0.5),
+        vec3(-0.5, 0.5,  0.5)
+    ),
+    
+    vec3[4](
+        vec3(-0.5, -0.5, -0.5),
+        vec3( 0.5, -0.5, -0.5),
+        vec3( 0.5, -0.5,  0.5),
+        vec3(-0.5, -0.5,  0.5)
+    ),
+    
+    vec3[4](
+        vec3(-0.5, -0.5, 0.5),
+        vec3( 0.5, -0.5, 0.5),
+        vec3( 0.5,  0.5, 0.5),
+        vec3(-0.5,  0.5, 0.5)
+    ),
+    
+    vec3[4](
+        vec3(-0.5, -0.5, -0.5),
+        vec3( 0.5, -0.5, -0.5),
+        vec3( 0.5,  0.5, -0.5),
+        vec3(-0.5,  0.5, -0.5)
+    )
+);
 
-vec3 calculatePointLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo) {
-    vec3 lightPosViewSpace = vec3(ubo.view * vec4(light.position, 1.0));
+// FaceIndex0 Left (negative X)
+// FaceIndex1 Right (positive X)
+// FaceIndex2 Bottom (positive Y)
+// FaceIndex3 Top (negative Y)
+// FaceIndex4 Back (positive Z)
+// FaceIndex5 Front (negative Z)
+
+vec3 calculatePointLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo, vec3 offset) {
+    vec3 lightPosViewSpace = vec3(ubo.view * vec4(light.position + offset, 1.0));
     
     vec3 lightDir = normalize(lightPosViewSpace - fragPos);
     float diff = max(dot(normal, lightDir), 0.0);
     
     float distance = length(lightPosViewSpace - fragPos);
-    float attenuation = 1.0 / (distance * distance);
-    
+    float attenuation = 1.0 / (distance * distance * distance);
     vec3 diffuse = diff * light.color.rgb * light.color.a * albedo;
     return diffuse * attenuation;
 }
@@ -44,12 +95,20 @@ void main() {
     vec3 albedo = texture(samplerAlbedo, inUV).rgb;
 
     vec3 finalColor = vec3(0.0);
+    vec3 offset = vec3(0);
 
     // Temporary length of point lights
     // Storage Buffer don't have length()
-    for (uint i = 0; i < 262; ++i) {
-        finalColor += calculatePointLight(pointLights[i], fragPos, normal, albedo);
-    }
+    for (uint i = 0; i < 262; i++) {
+        if (pointLights[i].visibilityMask == 0) continue;
+         for (int faceIndex = 0; faceIndex < 1; ++faceIndex) {
+             if ((pointLights[i].visibilityMask & (1u << faceIndex)) != 0) {
+                 for (int j = 0; j < 4; j++) {
+                     finalColor += calculatePointLight(pointLights[i], fragPos, normal, albedo, FACE_OFFSET[faceIndex][j]);
+                 }
+             }
+         }
+     }
 
     // Output the final color
     outFragColor = vec4(finalColor, 1.0);

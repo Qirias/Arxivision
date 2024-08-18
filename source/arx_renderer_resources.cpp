@@ -431,13 +431,13 @@ namespace arx {
         // SSAO Params
         passBuffers[static_cast<uint8_t>(PassName::SSAO)].push_back(std::make_shared<ArxBuffer>(
                                                                         arxDevice,
-                                                                        sizeof(uboSSAOParams),
+                                                                        sizeof(CompositionParams),
                                                                         1,
                                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                                                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->map();
-        passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->writeToBuffer(&uboSSAOParams);
+        passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->writeToBuffer(&compParams);
         
         descriptorSets[static_cast<uint8_t>(PassName::SSAO)].resize(1);
         
@@ -538,14 +538,14 @@ namespace arx {
         
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)].push_back(std::make_shared<ArxBuffer>(
                                                                         arxDevice,
-                                                                        sizeof(uboSSAOParams),
+                                                                        sizeof(CompositionParams),
                                                                         1,
                                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                                                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
         
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->map();
-        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->writeToBuffer(&uboSSAOParams);
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->writeToBuffer(&compParams);
         
         
         descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)].resize(1);
@@ -888,7 +888,7 @@ namespace arx {
         //                                      SSAO
         // ====================================================================================
         
-        if (uboSSAOParams.ssao) {
+        if (compParams.ssao) {
             beginRenderPass(frameInfo.commandBuffer, "SSAO");
             
             pipelines[static_cast<uint8_t>(PassName::SSAO)]->bind(frameInfo.commandBuffer);
@@ -910,7 +910,7 @@ namespace arx {
         //                                    SSAOBlur
         // ====================================================================================
         
-        if ((uboSSAOParams.ssao && uboSSAOParams.ssaoBlur && !uboSSAOParams.ssaoOnly)) {
+        if ((compParams.ssao && compParams.ssaoBlur && !compParams.ssaoOnly)) {
             
             beginRenderPass(frameInfo.commandBuffer, "SSAOBlur");
             
@@ -933,21 +933,23 @@ namespace arx {
         //                                     Deferred
         // ====================================================================================
         
-        beginRenderPass(frameInfo.commandBuffer, "Deferred");
-        
-        pipelines[static_cast<uint8_t>(PassName::DEFERRED)]->bind(frameInfo.commandBuffer);
-        
-        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipelineLayouts[static_cast<uint8_t>(PassName::DEFERRED)],
-                                0,
-                                1,
-                                &descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)][0],
-                                0,
-                                nullptr);
-        
-        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
-        vkCmdEndRenderPass(frameInfo.commandBuffer);
+        if (compParams.deferred) {
+            beginRenderPass(frameInfo.commandBuffer, "Deferred");
+            
+            pipelines[static_cast<uint8_t>(PassName::DEFERRED)]->bind(frameInfo.commandBuffer);
+            
+            vkCmdBindDescriptorSets(frameInfo.commandBuffer,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    pipelineLayouts[static_cast<uint8_t>(PassName::DEFERRED)],
+                                    0,
+                                    1,
+                                    &descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)][0],
+                                    0,
+                                    nullptr);
+            
+            vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+            vkCmdEndRenderPass(frameInfo.commandBuffer);
+        }
                 
         // ====================================================================================
         //                                   COMPOSITION
@@ -971,7 +973,7 @@ namespace arx {
         endSwapChainRenderPass(frameInfo.commandBuffer);
     }
 
-    void ArxRenderer::updateMisc(const GlobalUbo &rhs, const SSAOParams &ssaorhs) {
+    void ArxRenderer::updateMisc(const GlobalUbo &rhs, const CompositionParams &params) {
         ubo.projection  = rhs.projection;
         ubo.view        = rhs.view;
         ubo.inverseView = rhs.inverseView;
@@ -983,20 +985,21 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->flush();
         
         // SSAO
-        uboSSAOParams.projection    = rhs.projection;
-        uboSSAOParams.view          = rhs.view;
-        uboSSAOParams.inverseView   = rhs.inverseView;
-        uboSSAOParams.ssao          = ssaorhs.ssao;
-        uboSSAOParams.ssaoOnly      = ssaorhs.ssaoOnly;
-        uboSSAOParams.ssaoBlur      = ssaorhs.ssaoBlur;
+        compParams.projection    = rhs.projection;
+        compParams.view          = rhs.view;
+        compParams.inverseView   = rhs.inverseView;
+        compParams.ssao          = params.ssao;
+        compParams.ssaoOnly      = params.ssaoOnly;
+        compParams.ssaoBlur      = params.ssaoBlur;
+        compParams.deferred      = params.deferred;
         
-        passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->writeToBuffer(&uboSSAOParams);
+        passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->writeToBuffer(&compParams);
         
         // Deferred
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->writeToBuffer(&ubo);
         
         // COMPOSITION
-        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->writeToBuffer(&uboSSAOParams);
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->writeToBuffer(&compParams);
     }
 
     void ArxRenderer::init_Passes() {
