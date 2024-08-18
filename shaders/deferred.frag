@@ -3,8 +3,10 @@
 layout (binding = 0) uniform sampler2D samplerPosition;
 layout (binding = 1) uniform sampler2D samplerNormal;
 layout (binding = 2) uniform sampler2D samplerAlbedo;
+layout (binding = 3) uniform sampler2D samplerLTC1;
+layout (binding = 4) uniform sampler2D samplerLTC2;
 
-layout (binding = 3) uniform GlobalUbo {
+layout (binding = 5) uniform GlobalUbo {
     mat4 projection;
     mat4 view;
     mat4 invView;
@@ -16,7 +18,7 @@ struct PointLight {
     vec4 color;
 };
 
-layout (binding = 4) readonly buffer pointLightsBuffer {
+layout (binding = 6) readonly buffer pointLightsBuffer {
     PointLight pointLights[];
 };
 

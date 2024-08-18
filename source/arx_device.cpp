@@ -126,7 +126,7 @@ namespace arx {
             for (const auto &device : devices) {
                 if (isDeviceSuitable(device)) {
                   physicalDevice = device;
-                  msaaSamples = getMaxUsableSampleCount();
+                  msaaSamples = VK_SAMPLE_COUNT_1_BIT; //getMaxUsableSampleCount();
                   break;
                 }
             }

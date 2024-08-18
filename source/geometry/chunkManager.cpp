@@ -306,7 +306,6 @@ namespace arx {
         }
         
         Materials::initialize(arxDevice, chunkLights);
-        Materials::printLights();
         BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
         
         ogt_vox_destroy_scene(scene);

@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
+#include "LTC.h"
 
 // std
 #include <stdexcept>
@@ -63,8 +64,10 @@ namespace arx {
                                           .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
                                           .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
                                           .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerAlbedo
-                                          .addBinding(3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
-                                          .addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // PointLightsBuffer
+                                          .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                                          .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                                          .addBinding(5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
+                                          .addBinding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // PointLightsBuffer
                                           .build());
         
         // Composition
@@ -480,7 +483,7 @@ namespace arx {
         
         descriptorPools[static_cast<uint8_t>(PassName::DEFERRED)] = ArxDescriptorPool::Builder(arxDevice)
                                                                     .setMaxSets(1)
-                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3.0f)
+                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5.0f)
                                                                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.0f)
                                                                     .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1.0f)
                                                                     .build();
@@ -501,6 +504,43 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->writeToBuffer(&ubo);
         
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(Materials::pointLightBuffer);
+
+        // Create the texture using the LTC1 data
+        textureManager.createTexture2DFromBuffer(
+            "LTC1_Texture",
+            (void*)LTC1,
+            sizeof(LTC1),
+            VK_FORMAT_R32G32B32A32_SFLOAT,
+            64,
+            64,
+            VK_FILTER_NEAREST,
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
+        
+        VkDescriptorImageInfo samplerLTC1Info{};
+        samplerLTC1Info.sampler = textureManager.getTexture("LTC1_Texture")->sampler;
+        samplerLTC1Info.imageView = textureManager.getTexture("LTC1_Texture")->view;
+        samplerLTC1Info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        
+        // Create the texture using the LTC1 data
+        textureManager.createTexture2DFromBuffer(
+            "LTC2_Texture",
+            (void*)LTC2,
+            sizeof(LTC2),
+            VK_FORMAT_R32G32B32A32_SFLOAT,
+            64,
+            64,
+            VK_FILTER_NEAREST,
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
+        
+        VkDescriptorImageInfo samplerLTC2Info{};
+        samplerLTC2Info.sampler = textureManager.getTexture("LTC2_Texture")->sampler;
+        samplerLTC2Info.imageView = textureManager.getTexture("LTC2_Texture")->view;
+        samplerLTC2Info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        
         
         auto uboInfo        = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->descriptorInfo();
         auto pointLightInfo = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][1]->descriptorInfo();
@@ -512,8 +552,10 @@ namespace arx {
                             .writeImage(0, &samplerPosDepthInfo)
                             .writeImage(1, &samplerNormalInfo)
                             .writeImage(2, &samplerAlbedoInfo)
-                            .writeBuffer(3, &uboInfo)
-                            .writeBuffer(4, &pointLightInfo)
+                            .writeImage(3, &samplerLTC1Info)
+                            .writeImage(4, &samplerLTC2Info)
+                            .writeBuffer(5, &uboInfo)
+                            .writeBuffer(6, &pointLightInfo)
                             .build(descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)][0]);
         
         // ====================================================================================
