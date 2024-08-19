@@ -9,8 +9,8 @@ static const int CHUNK_SIZE = 8;
 static const float VOXEL_SIZE = 1;
 static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
 
-static const float SSAO_KERNEL_SIZE = 64;
-static const float SSAO_NOISE_DIM = 8;
+static const float SSAO_KERNEL_SIZE = 32;
+static const float SSAO_NOISE_DIM = 4;
 static const float SSAO_RADIUS = 1.0f;
 
     struct AABB {

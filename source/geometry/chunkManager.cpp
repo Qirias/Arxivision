@@ -135,8 +135,7 @@ namespace arx {
         const ogt_vox_scene* scene = loadVoxModel(filepath);
         if (!scene) return;
         
-        // Rotate the model around X because the way I create the chunks is different from MagicaVoxel
-        glm::mat4 worldRotation = glm::rotate(glm::mat4(1.f), glm::radians(90.f), glm::vec3(1, 0, 0)); // World space rotation
+        glm::mat4 worldPosMatrix = glm::mat4(1.f);
         
         const std::array<glm::ivec3, 6> faceDirections = {
             glm::ivec3(-1,  0,  0), // Left (negative X)
@@ -200,11 +199,10 @@ namespace arx {
                         if (colorIndex != 0) {
                             glm::vec4 position(voxelX, voxelY, voxelZ, 1.0f);
                             glm::vec4 worldPosition = modelTransform * position; // Transform to world space
-                            glm::vec4 rotatedPosition = worldRotation * worldPosition; // Apply world space rotation
                             glm::vec4 color = glm::vec4(scene->palette.color[colorIndex].r / 255.0f,
                                                         scene->palette.color[colorIndex].g / 255.0f,
                                                         scene->palette.color[colorIndex].b / 255.0f,
-                                                        scene->materials.matl[colorIndex].spec);
+                                                        /*scene->materials.matl[colorIndex].spec*/0.5f);
                             
                             int chunkX = voxelX / CHUNK_SIZE;
                             int chunkY = voxelY / CHUNK_SIZE;
@@ -229,21 +227,18 @@ namespace arx {
                             
                             ogt_matl_type mat = scene->materials.matl[colorIndex].type;
                             if (mat == 3) { // Emit
-                                // Max values of 1023 for each directions, otherwise I need more than 32bits
+                                // Values of 0-1023 for each directions, otherwise I need more than 32bits
                                 uint32_t chunkID = (chunkX & 0x3FF) | ((chunkY & 0x3FF) << 10) | ((chunkZ & 0x3FF) << 20);
                                 
                                 PointLight light;
-                                light.position = glm::vec3(rotatedPosition);
+                                light.position = glm::vec3(worldPosition);
                                 light.color = color;
                                 light.visibilityMask = visibilityMask;
-                                
+                                visibilityMask |= (1u << 6);
                                 chunkLights[chunkID].push_back(light);
                             }
-                            
-                            // Set the leftmost bit to indicate that the rotationX90 should be applied in the gbuffer vertex shader
-                            visibilityMask |= 0x80000000; // Set the 31st bit to 1
         
-                            chunks[chunkX][chunkY][chunkZ].push_back({rotatedPosition, color, visibilityMask});
+                            chunks[chunkX][chunkY][chunkZ].push_back({worldPosition, color, visibilityMask});
                         }
                     }
                 }
@@ -253,7 +248,7 @@ namespace arx {
                 for (int y = 0; y < numChunksY; ++y) {
                     for (int z = 0; z < numChunksZ; ++z) {
                         if (!chunks[x][y][z].empty()) {
-                            glm::vec3 chunkPosition = glm::vec3(worldRotation * modelTransform * glm::vec4(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE, 1.0f));
+                            glm::vec3 chunkPosition = glm::vec3(worldPosMatrix * modelTransform * glm::vec4(x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE, 1.0f));
                             
                             svo->insertChunk(chunkPosition, chunks[x][y][z]);
                             
@@ -262,42 +257,7 @@ namespace arx {
                             m_vpChunks.push_back(newChunk);
                             if (newChunk->getID() != -1) {
                                 setChunkPosition({newChunk->getPosition(), newChunk->getID()});
-                                
-//                                        Original AABB box
-//                                         +-----------+
-//                                        /|          /|
-//                                       / |         / |
-//                                      /  |        /  |
-//                                     +-----------O   |
-//                                     |   X-------|---+
-//                                     |  /        |  /    z
-//                                     | /         | /    ^                     
-//                                     |/          |/     |
-//                                     +-----------+      ----> x
-//                                X = MAX and O = MIN
-                                
-// ====================================================================================================
-// Since we rotate the whole .vox around the X axis, we need to adjust the AABB min and max accordingly
-// ===================================================================================================
-                            
-//                                        Altered AABB box
-//                                         X-----------+
-//                                        /|          /|
-//                                       / |         / |
-//                                      /  |        /  |
-//                                     +-----------+   |
-//                                     |   +-------|---+
-//                                     |  /        |  /    z
-//                                     | /         | /    ^
-//                                     |/          |/     |
-//                                     +-----------O      ----> x
-//                                X = MAX and O = MIN
-                                
-                                AABB aabb;
-                                aabb.min = newChunk->getPosition() - glm::vec3(0, CHUNK_SIZE, 0);
-                                aabb.max = newChunk->getPosition() + glm::vec3(CHUNK_SIZE, 0, CHUNK_SIZE);
-                           
-                                chunkAABBs[newChunk->getID()] = aabb;
+                                setChunkAABB(newChunk->getPosition(), newChunk->getID());
                             }
                         }
                     }
@@ -305,7 +265,8 @@ namespace arx {
             }
         }
         
-        Materials::initialize(arxDevice, chunkLights);
+        if (chunkLights.size() > 0)
+            Materials::initialize(arxDevice, chunkLights);
         BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
         
         ogt_vox_destroy_scene(scene);

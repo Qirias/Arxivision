@@ -28,14 +28,6 @@ layout (set = 0, binding = 1) readonly buffer InstanceDataBuffer {
     InstanceData instances[];
 };
 
-// Rotation matrix for the 90-degree flip about the X-axis for the .vox models
-const mat4 rotationX90 = mat4(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, -1.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0
-);
-
 layout (push_constant) uniform Push {
     mat4 modelMatrix;
     mat4 normalMatrix;
@@ -55,11 +47,8 @@ void main() {
     // where these are set in the drawCommand
     InstanceData instance = instances[gl_InstanceIndex];
     
-    // Left most bit enabled for .vox scenes
-    mat4 rotation = (instance.visibilityMask & 0x80000000) != 0 ? rotationX90 : mat4(1.0);
-    
     // Transform the normal to world space
-    mat3 normalWorldMatrix = transpose(inverse(mat3(push.modelMatrix * rotation)));
+    mat3 normalWorldMatrix = transpose(inverse(mat3(push.modelMatrix)));
     vec3 worldNormal = normalize(normalWorldMatrix * inNormal);
 
     // Determine the face index based on the world normal
@@ -67,7 +56,7 @@ void main() {
 
     // Check visibility
     if ((instance.visibilityMask & (1u << faceIndex)) == 0) {
-        // Face is occluded, move the vertex outside of clip space
+        // Face is occluded or voxel is a light source, move the vertex outside of clip space
         gl_Position = vec4(1, 1, 1, 0);
         return;
     }

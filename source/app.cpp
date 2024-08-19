@@ -45,7 +45,7 @@ namespace arx {
         UserInput userController{*this};
 //        chunkManager.obj2vox(gameObjects, "data/models/bunny.obj", 12.f);
 //        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu5Edited.vox");
+        chunkManager.vox2Chunks(gameObjects, "data/scenes/room.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
@@ -62,7 +62,7 @@ namespace arx {
         
         auto viewerObject = ArxGameObject::createGameObject();
         viewerObject.transform.scale = glm::vec3(0.1);
-        viewerObject.transform.translation = glm::vec3(0.0, -60.0, -10.0f);
+        viewerObject.transform.translation = glm::vec3(0.0, -20.0, -10.0f);
         
         camera.lookAtRH(viewerObject.transform.translation,
                         viewerObject.transform.translation + userController.forwardDir,
