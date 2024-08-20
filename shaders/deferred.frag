@@ -28,6 +28,7 @@ layout (location = 0) out vec4 outFragColor;
 
 // Need 4 points for each face to create area lights
 // Light's position is in the center of each voxel
+// Winding order matters for the edge integration
 const vec3 FACE_OFFSET[6][4] = vec3[6][4] (
     vec3[4](
         vec3(-0.5001,  0.5, -0.5),
@@ -38,16 +39,16 @@ const vec3 FACE_OFFSET[6][4] = vec3[6][4] (
     
     vec3[4](
         vec3(0.5001,  0.5, -0.5),
-        vec3(0.5001, -0.5, -0.5),
+        vec3(0.5001,  0.5,  0.5),
         vec3(0.5001, -0.5,  0.5),
-        vec3(0.5001,  0.5,  0.5)
+        vec3(0.5001, -0.5, -0.5)
     ),
     
     vec3[4](
         vec3(-0.5, 0.5001, -0.5),
-        vec3( 0.5, 0.5001, -0.5),
+        vec3(-0.5, 0.5001,  0.5),
         vec3( 0.5, 0.5001,  0.5),
-        vec3(-0.5, 0.5001,  0.5)
+        vec3( 0.5, 0.5001, -0.5)
     ),
     
     vec3[4](
@@ -66,9 +67,9 @@ const vec3 FACE_OFFSET[6][4] = vec3[6][4] (
     
     vec3[4](
         vec3(-0.5, -0.5, -0.5001),
-        vec3( 0.5, -0.5, -0.5001),
+        vec3(-0.5,  0.5, -0.5001),
         vec3( 0.5,  0.5, -0.5001),
-        vec3(-0.5,  0.5, -0.5001)
+        vec3( 0.5, -0.5, -0.5001)
     )
 );
 
@@ -83,6 +84,8 @@ const float LUT_SIZE = 64.0; // ltc_texture size
 const float LUT_SCALE = (LUT_SIZE - 1.0)/LUT_SIZE;
 const float LUT_BIAS = 0.5/LUT_SIZE;
 
+const float EPSILON = 0.001;
+
 vec3 IntegrateEdgeVec(vec3 v1, vec3 v2) {
     float x = dot(v1, v2);
     float y = abs(x);
@@ -96,7 +99,7 @@ vec3 IntegrateEdgeVec(vec3 v1, vec3 v2) {
     return cross(v1, v2) * theta_sintheta;
 }
 
-vec3 LTC_Evaluate(vec3 N, vec3 V, vec3 P, mat3 Minv, vec3 points[4], bool twoSided) {
+vec3 LTC_Evaluate(vec3 N, vec3 V, vec3 P, mat3 Minv, vec3 points[4], int faceIndex, bool twoSided) {
     vec3 T1 = normalize(V - N * dot(V, N));
     vec3 T2 = cross(N, T1);
 
@@ -134,7 +137,7 @@ vec3 LTC_Evaluate(vec3 N, vec3 V, vec3 P, mat3 Minv, vec3 points[4], bool twoSid
     float scale = texture(samplerLTC2, uv).w;
 
     float sum = len * scale;
-    if (!behind && !twoSided) sum = 0.0;
+//    if (!behind && !twoSided) sum = 0.0; // Don't need that in deferred (?)
 
     vec3 Lo_i = vec3(sum, sum, sum);
     return Lo_i;
@@ -146,49 +149,48 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
         translatedPoints[j] = vec3(ubo.view * vec4(light.position + FACE_OFFSET[faceIndex][j], 1.0));
     }
 
-    vec3 viewPos = vec3(ubo.invView[3]); // Camera position in world space
-    vec3 V = normalize(viewPos - fragPos); // View direction
+    vec3 V = normalize(-fragPos);
+    
+    float dotNV = clamp(dot(normal, V), 0.0f, 1.0f);
 
-    vec4 t1 = texture(samplerLTC1, inUV);
+    // use roughness and sqrt(1-cos_theta) to sample M_texture
+    vec2 uv = vec2(0.2, sqrt(1.0f - dotNV));
+    uv = uv*LUT_SCALE + LUT_BIAS;
+
+    vec4 t1 = texture(samplerLTC1, uv);
     mat3 Minv = mat3(
         vec3(t1.x, 0, t1.y),
         vec3(0, 1, 0),
         vec3(t1.z, 0, t1.w)
     );
 
-    vec3 diffuse = LTC_Evaluate(normal, V, fragPos, mat3(1), translatedPoints, false);
-    vec3 specular = LTC_Evaluate(normal, V, fragPos, Minv, translatedPoints, false);
+    vec3 diffuse = LTC_Evaluate(normal, V, fragPos, mat3(1), translatedPoints, faceIndex, false);
+    vec3 specular = LTC_Evaluate(normal, V, fragPos, Minv, translatedPoints, faceIndex, false);
 
     return light.color.rgb * light.color.a * (specular + albedo * diffuse);
-}
-
-vec3 calculatePointLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo, vec3 offset) {
-    vec3 lightPosViewSpace = vec3(ubo.view * vec4(light.position + offset, 1.0));
-    
-    vec3 lightDir = normalize(lightPosViewSpace - fragPos);
-    float diff = max(dot(normal, lightDir), 0.0);
-    
-    float distance = length(lightPosViewSpace - fragPos);
-    float attenuation = 1.0 / (distance * distance * distance);
-    vec3 diffuse = diff * light.color.rgb * light.color.a * albedo;
-    return diffuse * attenuation;
 }
 
 void main() {
     vec3 fragPos = texture(samplerPosition, inUV).rgb;
     vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
-
     vec3 albedo = texture(samplerAlbedo, inUV).rgb;
 
     vec3 finalColor = vec3(0.0);
 
     for (uint i = 0; i < 262; i++) {
         if (pointLights[i].visibilityMask == 0) continue;
-        for (int faceIndex = 0; faceIndex < 1; ++faceIndex) {
+
+        vec3 lightPosViewSpace = (ubo.view * vec4(pointLights[i].position, 1.0)).xyz;
+        float distToLight = length(fragPos - lightPosViewSpace);
+        
+        if (distToLight < EPSILON) {
+            finalColor = pointLights[i].color.rgb * pointLights[i].color.a;
+            break;
+        }
+
+        for (int faceIndex = 0; faceIndex < 6; ++faceIndex) {
             if ((pointLights[i].visibilityMask & (1u << faceIndex)) != 0) {
                 finalColor += calculateAreaLight(pointLights[i], fragPos, normal, albedo, faceIndex);
-//                 for (int j = 0; j < 4; j++)
-//                     finalColor += calculatePointLight(pointLights[i], fragPos, normal, albedo, FACE_OFFSET[faceIndex][j]);
             }
         }
     }
