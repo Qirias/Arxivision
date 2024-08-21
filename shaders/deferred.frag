@@ -22,6 +22,10 @@ layout (binding = 6) readonly buffer pointLightsBuffer {
     PointLight pointLights[];
 };
 
+layout (binding = 7) uniform LightCount {
+    uint lightCount;
+};
+
 layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
@@ -177,7 +181,7 @@ void main() {
 
     vec3 finalColor = vec3(0.0);
 
-    for (uint i = 0; i < 262; i++) {
+    for (uint i = 0; i < lightCount; i++) {
         if (pointLights[i].visibilityMask == 0) continue;
 
         vec3 lightPosViewSpace = (ubo.view * vec4(pointLights[i].position, 1.0)).xyz;
