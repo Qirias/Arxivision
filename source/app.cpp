@@ -4,7 +4,7 @@
 #include "user_input.h"
 #include "arx_buffer.h"
 #include "chunkManager.h"
-#include "systems/face_visibility_system.hpp"
+#include "clustered_shading_system.hpp"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -45,7 +45,7 @@ namespace arx {
         UserInput userController{*this};
 //        chunkManager.obj2vox(gameObjects, "data/models/bunny.obj", 12.f);
 //        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        chunkManager.vox2Chunks(gameObjects, "data/scenes/room.vox");
+        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu9Emit.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
@@ -101,6 +101,7 @@ namespace arx {
                 .build(globalDescriptorSets[i]);
         }
 
+        ClusteredShading::init(arxDevice, WIDTH, HEIGHT);
         arxRenderer.init_Passes();
 
         // Set data for occlusion culling
@@ -202,6 +203,8 @@ namespace arx {
                 compParams.ssaoBlur = ssaoBlur;
                 compParams.deferred = deferred;
                 arxRenderer.updateMisc(ubo, compParams);
+                
+                ClusteredShading::updateMisc(ubo);
 
                 // Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
@@ -245,6 +248,7 @@ namespace arx {
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
+        ClusteredShading::cleanup();
     }
 
     void App::drawCoordinateVectors(const ArxCamera& camera) {

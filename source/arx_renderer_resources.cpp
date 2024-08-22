@@ -68,6 +68,7 @@ namespace arx {
                                           .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
                                           .addBinding(5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
                                           .addBinding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // PointLightsBuffer
+                                          .addBinding(7, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // lightCount
                                           .build());
         
         // Composition
@@ -484,7 +485,7 @@ namespace arx {
         descriptorPools[static_cast<uint8_t>(PassName::DEFERRED)] = ArxDescriptorPool::Builder(arxDevice)
                                                                     .setMaxSets(1)
                                                                     .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5.0f)
-                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.0f)
+                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2.0f)
                                                                     .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1.0f)
                                                                     .build();
         
@@ -504,6 +505,17 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->writeToBuffer(&ubo);
         
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(Materials::pointLightBuffer);
+        
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(std::make_shared<ArxBuffer>(
+                                                                    arxDevice,
+                                                                    sizeof(uint32_t),
+                                                                    1,
+                                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+        
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->map();
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->writeToBuffer(&Materials::maxPointLights);
+        
 
         // Create the texture using the LTC1 data
         textureManager.createTexture2DFromBuffer(
@@ -544,6 +556,7 @@ namespace arx {
         
         auto uboInfo        = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->descriptorInfo();
         auto pointLightInfo = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][1]->descriptorInfo();
+        auto lightCountInfo = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->descriptorInfo();
         
         descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)].resize(1);
         
@@ -556,6 +569,7 @@ namespace arx {
                             .writeImage(4, &samplerLTC2Info)
                             .writeBuffer(5, &uboInfo)
                             .writeBuffer(6, &pointLightInfo)
+                            .writeBuffer(7, &lightCountInfo)
                             .build(descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)][0]);
         
         // ====================================================================================
