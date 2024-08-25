@@ -2,14 +2,27 @@
 
 namespace arx {
     ArxDevice* ClusteredShading::arxDevice = nullptr;
-    std::unique_ptr<ArxDescriptorSetLayout> ClusteredShading::descriptorSetLayout;
-    VkPipelineLayout ClusteredShading::pipelineLayout;
-    std::unique_ptr<ArxPipeline> ClusteredShading::pipeline;
-    std::unique_ptr<ArxDescriptorPool> ClusteredShading::descriptorPool;
-    VkDescriptorSet ClusteredShading::descriptorSet;
 
-    std::unique_ptr<ArxBuffer> ClusteredShading::clusterBuffer;
-    std::unique_ptr<ArxBuffer> ClusteredShading::frustumParams;
+    // Frustum Cluster
+    std::unique_ptr<ArxDescriptorSetLayout> ClusteredShading::descriptorSetLayoutCluster;
+    VkPipelineLayout ClusteredShading::pipelineLayoutCluster;
+    std::unique_ptr<ArxPipeline> ClusteredShading::pipelineCluster;
+    std::unique_ptr<ArxDescriptorPool> ClusteredShading::descriptorPoolCluster;
+    VkDescriptorSet ClusteredShading::descriptorSetCluster;
+
+    std::shared_ptr<ArxBuffer> ClusteredShading::clusterBuffer;
+    std::shared_ptr<ArxBuffer> ClusteredShading::frustumParams;
+
+    // Cluster Culling
+    std::unique_ptr<ArxDescriptorSetLayout> ClusteredShading::descriptorSetLayoutCulling;
+    VkPipelineLayout ClusteredShading::pipelineLayoutCulling;
+    std::unique_ptr<ArxPipeline> ClusteredShading::pipelineCulling;
+    std::unique_ptr<ArxDescriptorPool> ClusteredShading::descriptorPoolCulling;
+    VkDescriptorSet ClusteredShading::descriptorSetCulling;
+
+    std::shared_ptr<ArxBuffer> ClusteredShading::pointLightsBuffer;
+    std::shared_ptr<ArxBuffer> ClusteredShading::lightCountBuffer;
+    std::shared_ptr<ArxBuffer> ClusteredShading::viewMatrixBuffer;
 
 
     unsigned int ClusteredShading::width;
@@ -33,58 +46,105 @@ namespace arx {
     }
 
     void ClusteredShading::cleanup() {
-        vkDestroyPipelineLayout(arxDevice->device(), pipelineLayout, nullptr);
-        descriptorSetLayout.reset();
-        pipeline.reset();
-        descriptorPool.reset();
+        vkDestroyPipelineLayout(arxDevice->device(), pipelineLayoutCluster, nullptr);
+        descriptorSetLayoutCluster.reset();
+        pipelineCluster.reset();
+        descriptorPoolCluster.reset();
         arxDevice = nullptr;
+        
+        vkDestroyPipelineLayout(arxDevice->device(), pipelineLayoutCulling, nullptr);
+        descriptorSetLayoutCulling.reset();
+        pipelineCulling.reset();
+        descriptorPoolCulling.reset();
     }
 
     void ClusteredShading::createDescriptorSetLayout() {
-        descriptorSetLayout = ArxDescriptorSetLayout::Builder(*arxDevice)
+        // Frustum Cluster
+        descriptorSetLayoutCluster = ArxDescriptorSetLayout::Builder(*arxDevice)
             .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
             .addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
             .build();
+        
+        // Cluster Culling
+        descriptorSetLayoutCulling = ArxDescriptorSetLayout::Builder(*arxDevice)
+            .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+            .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+            .addBinding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+            .addBinding(3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+            .build();
     }
-    
 
     void ClusteredShading::createPipelineLayout() {
-        std::vector<VkDescriptorSetLayout> descriptorSetLayouts{descriptorSetLayout->getDescriptorSetLayout()};
+        // Frustum Cluster
+        {
+            std::vector<VkDescriptorSetLayout> descriptorSetLayouts{descriptorSetLayoutCluster->getDescriptorSetLayout()};
+            
+            VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+            pipelineLayoutInfo.sType            = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+            pipelineLayoutInfo.setLayoutCount   = static_cast<uint32_t>(descriptorSetLayouts.size());
+            pipelineLayoutInfo.pSetLayouts      = descriptorSetLayouts.data();
+            
+            if (vkCreatePipelineLayout(arxDevice->device(), &pipelineLayoutInfo, nullptr, &pipelineLayoutCluster) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create frustum cluster pipeline layout!");
+            }
+        }
         
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-        pipelineLayoutInfo.sType            = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount   = static_cast<uint32_t>(descriptorSetLayouts.size());
-        pipelineLayoutInfo.pSetLayouts      = descriptorSetLayouts.data();
-        
-        if (vkCreatePipelineLayout(arxDevice->device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create tiled shading pipeline layout!");
+        // Cluster Culling
+        {
+            std::vector<VkDescriptorSetLayout> descriptorSetLayouts{descriptorSetLayoutCulling->getDescriptorSetLayout()};
+            
+            VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+            pipelineLayoutInfo.sType            = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+            pipelineLayoutInfo.setLayoutCount   = static_cast<uint32_t>(descriptorSetLayouts.size());
+            pipelineLayoutInfo.pSetLayouts      = descriptorSetLayouts.data();
+            
+            if (vkCreatePipelineLayout(arxDevice->device(), &pipelineLayoutInfo, nullptr, &pipelineLayoutCulling) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create cluster culling pipeline layout!");
+            }
         }
     }
 
     void ClusteredShading::createPipeline() {
-        assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
+        // Frustum Cluster
+        assert(pipelineLayoutCluster != nullptr && "Cannot create pipeline before pipeline layout");
         
-        pipeline = std::make_unique<ArxPipeline>(*arxDevice,
+        pipelineCluster = std::make_unique<ArxPipeline>(*arxDevice,
                                                  "shaders/frustum_clusters.spv",
-                                                 pipelineLayout);
+                                                 pipelineLayoutCluster);
+        
+        // Cluster Culling
+        assert(pipelineLayoutCulling != nullptr && "Cannot create pipeline before pipeline layout");
+        
+        pipelineCulling = std::make_unique<ArxPipeline>(*arxDevice,
+                                                 "shaders/cluster_cullLight.spv",
+                                                 pipelineLayoutCulling);
     }
 
     void ClusteredShading::createDescriptorPool() {
-        descriptorPool = ArxDescriptorPool::Builder(*arxDevice)
+        // Frustum Cluster
+        descriptorPoolCluster = ArxDescriptorPool::Builder(*arxDevice)
             .setMaxSets(1)
             .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1.0f)
             .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.0f)
             .build();
+        
+        // Cluster Culling
+        descriptorPoolCulling = ArxDescriptorPool::Builder(*arxDevice)
+            .setMaxSets(1)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.0f)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2.0f)
+            .build();
     }
 
     void ClusteredShading::createDescriptorSets() {
-        clusterBuffer = std::make_unique<ArxBuffer>(*arxDevice,
+        // Frustum Cluster
+        clusterBuffer = std::make_shared<ArxBuffer>(*arxDevice,
                                                     sizeof(Cluster),
                                                     numClusters,
                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         
-        frustumParams = std::make_unique<ArxBuffer>(*arxDevice,
+        frustumParams = std::make_shared<ArxBuffer>(*arxDevice,
                                                     sizeof(frustum),
                                                     1,
                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -95,10 +155,39 @@ namespace arx {
         auto clusterBufferInfo = clusterBuffer->descriptorInfo();
         auto frustumParamsInfo = frustumParams->descriptorInfo();
         
-        ArxDescriptorWriter(*descriptorSetLayout, *descriptorPool)
+        ArxDescriptorWriter(*descriptorSetLayoutCluster, *descriptorPoolCluster)
             .writeBuffer(0, &clusterBufferInfo)
             .writeBuffer(1, &frustumParamsInfo)
-            .build(descriptorSet);
+            .build(descriptorSetCluster);
+        
+        // Cluster Culling
+        pointLightsBuffer = Materials::pointLightBuffer;
+        
+        lightCountBuffer = std::make_shared<ArxBuffer>(*arxDevice,
+                                                       sizeof(uint32_t),
+                                                       1,
+                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        lightCountBuffer->map();
+        lightCountBuffer->writeToBuffer(&Materials::currentPointLightCount);
+        
+        viewMatrixBuffer = std::make_shared<ArxBuffer>(*arxDevice,
+                                                       sizeof(glm::mat4),
+                                                       1,
+                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        viewMatrixBuffer->map();
+        
+        auto pointLightBufferInfo = pointLightsBuffer->descriptorInfo();
+        auto lightCountBufferInfo = lightCountBuffer->descriptorInfo();
+        auto viewMatrixBufferInfo = viewMatrixBuffer->descriptorInfo();
+        
+        ArxDescriptorWriter(*descriptorSetLayoutCulling, *descriptorPoolCulling)
+            .writeBuffer(0, &clusterBufferInfo)
+            .writeBuffer(1, &pointLightBufferInfo)
+            .writeBuffer(2, &viewMatrixBufferInfo)
+            .writeBuffer(3, &lightCountBufferInfo)
+            .build(descriptorSetCulling);
     }
 
     void ClusteredShading::updateMisc(GlobalUbo &rhs) {
@@ -110,13 +199,34 @@ namespace arx {
         params.screenDimensions = {width, height};
         
         frustumParams->writeToBuffer(&params);
+        
+        viewMatrixBuffer->writeToBuffer(&rhs.view);
     }
 
-    void ClusteredShading::dispatchCompute(VkCommandBuffer commandBuffer) {
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->computePipeline);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+    void ClusteredShading::dispatchComputeFrustumCluster(VkCommandBuffer commandBuffer) {
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineCluster->computePipeline);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayoutCluster, 0, 1, &descriptorSetCluster, 0, nullptr);
 
         vkCmdDispatch(commandBuffer, gridSizeX, gridSizeY, gridSizeZ);
+
+        VkMemoryBarrier barrier = {};
+        barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+        barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        vkCmdPipelineBarrier(commandBuffer,
+                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                            0,
+                            1, &barrier,
+                            0, nullptr,
+                            0, nullptr);
+    }
+
+    void ClusteredShading::dispatchComputeClusterCulling(VkCommandBuffer commandBuffer) {
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineCulling->computePipeline);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayoutCulling, 0, 1, &descriptorSetCulling, 0, nullptr);
+
+        vkCmdDispatch(commandBuffer, 27, 1, 1);
 
         VkMemoryBarrier barrier = {};
         barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;

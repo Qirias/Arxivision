@@ -1,0 +1,75 @@
+// Based on https://github.com/DaveH355/clustered-shading
+
+#version 450
+
+#define LOCAL_SIZE 128
+layout (local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+
+struct PointLight {
+    vec3 position;
+    uint visibilityMask;
+    vec4 color;
+};
+
+struct Cluster {
+    vec4 minPoint;
+    vec4 maxPoint;
+    uint count;
+    uint lightIndices[100];
+};
+
+layout (binding = 0) restrict buffer ClusterBuffer {
+    Cluster clusters[];
+};
+
+layout (binding = 1) readonly buffer PointLightsBuffer {
+    PointLight pointLights[];
+};
+
+layout (binding = 2) uniform ViewMatrix {
+    mat4 viewMatrix;
+};
+
+layout (binding = 3) uniform LightCountBuffer {
+    uint lightCount;
+}
+
+bool sphereAABBIntersection(vec3 center, float radius, vec3 aabbMin, vec3 aabbMax)
+{
+    // closest point on the AABB to the sphere center
+    vec3 closestPoint = clamp(center, aabbMin, aabbMax);
+    // squared distance between the sphere center and closest point
+    float distanceSquared = dot(closestPoint - center, closestPoint - center);
+    return distanceSquared <= radius * radius;
+}
+
+// this just unpacks data for sphereAABBIntersection
+bool testSphereAABB(uint i, Cluster cluster)
+{
+    vec3 center = vec3(viewMatrix * pointLight[i].position);
+    float radius = 0.5f;
+
+    vec3 aabbMin = cluster.minPoint.xyz;
+    vec3 aabbMax = cluster.maxPoint.xyz;
+
+    return sphereAABBIntersection(center, radius, aabbMin, aabbMax);
+}
+
+void main()
+{
+    uint index = gl_WorkGroupID.x * LOCAL_SIZE + gl_LocalInvocationID.x;
+    Cluster cluster = clusters[index];
+
+    cluster.count = 0;
+
+    for (uint i = 0; i < lightCount; ++i)
+    {
+        if (testSphereAABB(i, cluster) && cluster.count < 100)
+        {
+            cluster.lightIndices[cluster.count] = i;
+            cluster.count++;
+        }
+    }
+    clusters[index] = cluster;
+}

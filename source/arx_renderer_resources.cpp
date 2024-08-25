@@ -511,7 +511,7 @@ namespace arx {
                                                                     sizeof(uint32_t),
                                                                     1,
                                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+                                                                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
         
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->map();
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->writeToBuffer(&Materials::maxPointLights);
@@ -990,6 +990,9 @@ namespace arx {
         // ====================================================================================
         
         if (compParams.deferred) {
+            ClusteredShading::dispatchComputeFrustumCluster(frameInfo.commandBuffer);
+            ClusteredShading::dispatchComputeClusterCulling(frameInfo.commandBuffer);
+            
             beginRenderPass(frameInfo.commandBuffer, "Deferred");
             
             pipelines[static_cast<uint8_t>(PassName::DEFERRED)]->bind(frameInfo.commandBuffer);

@@ -7,6 +7,7 @@
 #include "arx_render_pass_manager.hpp"
 #include "arx_texture_manager.hpp"
 #include "chunks.h"
+#include "systems/clustered_shading_system.hpp"
 
 // std
 #include <memory>

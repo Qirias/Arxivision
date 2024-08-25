@@ -31,7 +31,8 @@ namespace arx {
         
         static void updateMisc(GlobalUbo &rhs);
         
-        static void dispatchCompute(VkCommandBuffer commandBuffer);
+        static void dispatchComputeFrustumCluster(VkCommandBuffer commandBuffer);
+        static void dispatchComputeClusterCulling(VkCommandBuffer commandBuffer);
         
     private:
         ClusteredShading() = delete;
@@ -45,14 +46,26 @@ namespace arx {
         
         static ArxDevice*                               arxDevice;
 
-        static std::unique_ptr<ArxDescriptorSetLayout>  descriptorSetLayout;
-        static VkPipelineLayout                         pipelineLayout;
-        static std::unique_ptr<ArxPipeline>             pipeline;
-        static std::unique_ptr<ArxDescriptorPool>       descriptorPool;
-        static VkDescriptorSet                          descriptorSet;
+        // Frustum Cluster
+        static std::unique_ptr<ArxDescriptorSetLayout>  descriptorSetLayoutCluster;
+        static VkPipelineLayout                         pipelineLayoutCluster;
+        static std::unique_ptr<ArxPipeline>             pipelineCluster;
+        static std::unique_ptr<ArxDescriptorPool>       descriptorPoolCluster;
+        static VkDescriptorSet                          descriptorSetCluster;
         
-        static std::unique_ptr<ArxBuffer>               clusterBuffer;
-        static std::unique_ptr<ArxBuffer>               frustumParams;
+        static std::shared_ptr<ArxBuffer>               clusterBuffer;
+        static std::shared_ptr<ArxBuffer>               frustumParams;
+        
+        // Cluster Culling
+        static std::unique_ptr<ArxDescriptorSetLayout>  descriptorSetLayoutCulling;
+        static VkPipelineLayout                         pipelineLayoutCulling;
+        static std::unique_ptr<ArxPipeline>             pipelineCulling;
+        static std::unique_ptr<ArxDescriptorPool>       descriptorPoolCulling;
+        static VkDescriptorSet                          descriptorSetCulling;
+        
+        static std::shared_ptr<ArxBuffer>               pointLightsBuffer;
+        static std::shared_ptr<ArxBuffer>               lightCountBuffer;
+        static std::shared_ptr<ArxBuffer>               viewMatrixBuffer;
         
         static constexpr unsigned int                   gridSizeX = 12;
         static constexpr unsigned int                   gridSizeY = 12;

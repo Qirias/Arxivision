@@ -18,7 +18,7 @@ struct PointLight {
     vec4 color;
 };
 
-layout (binding = 6) readonly buffer pointLightsBuffer {
+layout (binding = 6) readonly buffer PointLightsBuffer {
     PointLight pointLights[];
 };
 
