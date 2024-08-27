@@ -197,7 +197,6 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     return light.color.rgb * light.color.a * (specular + albedo * diffuse);
 }
 
-
 vec3 getClusterColor(uint tileIndex) {
     vec4 aabbPoint = clusters[tileIndex].minPoint;
     
@@ -211,7 +210,6 @@ vec3 getClusterColor(uint tileIndex) {
     
     return color;
 }
-
 
 void main() {
     vec3 fragPos = texture(samplerPosition, inUV).rgb;
@@ -228,7 +226,7 @@ void main() {
     
     vec3 finalColor = vec3(0.0);
     
-    vec3 clusterColor = getClusterColor(tileIndex);
+//    vec3 clusterColor = getClusterColor(tileIndex);
 
     for (uint i = 0; i < clusterLightCount; i++) {
         

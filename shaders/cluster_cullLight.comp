@@ -32,7 +32,6 @@ layout (binding = 3) uniform LightCountBuffer {
     uint lightCount;
 };
 
-// AABB-AABB intersection test
 bool aabbIntersection(vec3 minA, vec3 maxA, vec3 minB, vec3 maxB) {
     return (minA.x <= maxB.x && maxA.x >= minB.x) &&
            (minA.y <= maxB.y && maxA.y >= minB.y) &&
