@@ -64,11 +64,12 @@ namespace arx {
                                           .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
                                           .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
                                           .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerAlbedo
-                                          .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                                          .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                                          .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // LTC1
+                                          .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // LTC2
                                           .addBinding(5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
                                           .addBinding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // PointLightsBuffer
-                                          .addBinding(7, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // lightCount
+                                          .addBinding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Frustum Clusters
+                                          .addBinding(8, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // lightCount
                                           .build());
         
         // Composition
@@ -273,7 +274,7 @@ namespace arx {
         ssaoConfigInfo.vertexShaderStage = pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertexShaderStageInfo();
 
         pipelines[static_cast<uint8_t>(PassName::SSAO)] = std::make_shared<ArxPipeline>(arxDevice,
-                                                            pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(),
+                                                            pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(), // Fullscreen triangle
                                                             "shaders/ssao.spv",
                                                             ssaoConfigInfo);
 
@@ -296,7 +297,7 @@ namespace arx {
         ssaoBlurConfigInfo.vertexShaderStage = pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertexShaderStageInfo();
 
         pipelines[static_cast<uint8_t>(PassName::SSAOBLUR)] = std::make_shared<ArxPipeline>(arxDevice,
-                                                                pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(),
+                                                                pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(), // Fullscreen triangle
                                                                 "shaders/ssaoBlur.spv",
                                                                 ssaoBlurConfigInfo);
         
@@ -320,7 +321,7 @@ namespace arx {
         deferredConfigInfo.vertexShaderStage = pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertexShaderStageInfo();
 
         pipelines[static_cast<uint8_t>(PassName::DEFERRED)] = std::make_shared<ArxPipeline>(arxDevice,
-                                                                pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(),
+                                                                pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(), // Fullscreen triangle
                                                                 "shaders/deferred.spv",
                                                                 deferredConfigInfo);
     }
@@ -486,7 +487,7 @@ namespace arx {
                                                                     .setMaxSets(1)
                                                                     .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5.0f)
                                                                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2.0f)
-                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1.0f)
+                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.0f)
                                                                     .build();
         
         VkDescriptorImageInfo samplerAlbedoInfo{};
@@ -516,7 +517,8 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->map();
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->writeToBuffer(&Materials::maxPointLights);
         
-
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(ClusteredShading::clusterBuffer);
+        
         // Create the texture using the LTC1 data
         textureManager.createTexture2DFromBuffer(
             "LTC1_Texture",
@@ -535,7 +537,7 @@ namespace arx {
         samplerLTC1Info.imageView = textureManager.getTexture("LTC1_Texture")->view;
         samplerLTC1Info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         
-        // Create the texture using the LTC1 data
+        // Create the texture using the LTC2 data
         textureManager.createTexture2DFromBuffer(
             "LTC2_Texture",
             (void*)LTC2,
@@ -554,9 +556,10 @@ namespace arx {
         samplerLTC2Info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         
         
-        auto uboInfo        = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->descriptorInfo();
-        auto pointLightInfo = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][1]->descriptorInfo();
-        auto lightCountInfo = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->descriptorInfo();
+        auto uboInfo            = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->descriptorInfo();
+        auto pointLightInfo     = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][1]->descriptorInfo();
+        auto lightCountInfo     = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->descriptorInfo();
+        auto clusterInfo        = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][3]->descriptorInfo();
         
         descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)].resize(1);
         
@@ -569,7 +572,8 @@ namespace arx {
                             .writeImage(4, &samplerLTC2Info)
                             .writeBuffer(5, &uboInfo)
                             .writeBuffer(6, &pointLightInfo)
-                            .writeBuffer(7, &lightCountInfo)
+                            .writeBuffer(7, &clusterInfo)
+                            .writeBuffer(8, &lightCountInfo)
                             .build(descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)][0]);
         
         // ====================================================================================
@@ -1032,7 +1036,7 @@ namespace arx {
         endSwapChainRenderPass(frameInfo.commandBuffer);
     }
 
-    void ArxRenderer::updateMisc(const GlobalUbo &rhs, const CompositionParams &params) {
+    void ArxRenderer::updateUnirofms(const GlobalUbo &rhs, const CompositionParams &params) {
         ubo.projection  = rhs.projection;
         ubo.view        = rhs.view;
         ubo.inverseView = rhs.inverseView;
@@ -1041,7 +1045,6 @@ namespace arx {
         
         // G-Buffer
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->writeToBuffer(&ubo);
-        passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->flush();
         
         // SSAO
         compParams.projection    = rhs.projection;
@@ -1068,7 +1071,7 @@ namespace arx {
         createPipelines();
         createUniformBuffers();
         
-        // Initialize culling resources after G-Pass created the depth texture
+        // Initialize culling resources after the G-Pass has created the depth texture
         arxSwapChain->Init_OcclusionCulling();
     }
 }

@@ -35,7 +35,7 @@ static const float SSAO_RADIUS = 1.0f;
         int32_t ssaoBlur = true;
         int32_t deferred = true;
     };
-    
+
     struct FrameInfo {
         int frameIndex;
         float frameTime;

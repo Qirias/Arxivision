@@ -45,7 +45,7 @@ namespace arx {
         UserInput userController{*this};
 //        chunkManager.obj2vox(gameObjects, "data/models/bunny.obj", 12.f);
 //        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu9Emit.vox");
+        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu7Emit.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
@@ -70,7 +70,7 @@ namespace arx {
 
         float aspect = arxRenderer.getAspectRatio();
 
-        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 400.f);
         chunkManager.setCamera(camera);
         
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -192,7 +192,7 @@ namespace arx {
                 ubo.view            = camera.getView();
                 ubo.inverseView     = camera.getInverseView();
                 ubo.zNear           = .1f;
-                ubo.zFar            = 1024.f;
+                ubo.zFar            = 400.f;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
 
@@ -202,9 +202,9 @@ namespace arx {
                 compParams.ssaoOnly = ssaoOnly;
                 compParams.ssaoBlur = ssaoBlur;
                 compParams.deferred = deferred;
-                arxRenderer.updateMisc(ubo, compParams);
                 
-                ClusteredShading::updateMisc(ubo);
+                arxRenderer.updateUnirofms(ubo, compParams);
+                ClusteredShading::updateUnirofms(ubo);
 
                 // Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);

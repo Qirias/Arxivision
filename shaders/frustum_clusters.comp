@@ -2,35 +2,39 @@
 
 #version 450
 
+#extension GL_EXT_scalar_block_layout : enable
+
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 struct Cluster {
     vec4 minPoint;
     vec4 maxPoint;
     uint count;
-    uint lightIndices[100];
+    uint lightIndices[127];
 };
 
-struct Frustum {
+layout (std430, binding = 0) restrict buffer ClusterBuffer {
+    Cluster clusters[];
+};
+
+layout (std430, binding = 1) uniform FrustumBuffer {
     mat4 inverseProjection;
     uvec3 gridSize;
+    uint padding0;
     uvec2 screenDimensions;
     float zNear;
     float zFar;
 };
 
-layout (binding = 0) restrict buffer ClusterBuffer {
-    Cluster clusters[];
-};
-
-layout (binding = 1) uniform FrustumBuffer {
-    Frustum frustum;
-};
-
 vec3 screenToView(vec2 screenCoord) {
-    vec4 ndc = vec4(screenCoord / frustum.screenDimensions * 2.0 - 1.0, 1.0, 1.0);
-    
-    vec4 viewCoord = frustum.inverseProjection * ndc;
+    // Flip the y-coordinate
+    //vec2 flippedCoord = vec2(screenCoord.x, screenDimensions.y - screenCoord.y);
+
+    // Convert to NDC
+    vec4 ndc = vec4(screenCoord / screenDimensions * 2.0 - 1.0, -1.0, 1.0);
+
+    // Convert to view coordinates
+    vec4 viewCoord = inverseProjection * ndc;
     viewCoord /= viewCoord.w;
     return viewCoord.xyz;
 }
@@ -39,18 +43,23 @@ vec3 screenToView(vec2 screenCoord) {
 // plane perpendicular to the Z-axis
 vec3 lineIntersectionWithZPlane(vec3 startPoint, vec3 endPoint, float zDistance) {
     vec3 direction = endPoint - startPoint;
-    vec3 normal = vec3(0.0, 0.0, -1.0); // plane normal
+    vec3 normal = vec3(0.0, 0.0, 1.0); 
     
-    // skip check if the line is paralle to the plane
+    float denominator = dot(normal, direction);
+    if (abs(denominator) < 1e-6) {
+        return vec3(0.0);
+    }
     
-    float t = (zDistance - dot(normal, startPoint)) / dot(normal, direction);
-    return startPoint + t * direction; // the parametric form of the line equation
+    float t = (zDistance - dot(normal, startPoint)) / denominator;
+    return startPoint + t * direction;
 }
 
 void main() {
-    uint tileIndex = gl_WorkGroupID.x + (gl_WorkGroupID.y * frustum.gridSize.x) +
-                    (gl_WorkGroupID.z * frustum.gridSize.x * frustum.gridSize.y);
-    vec2 tileSize = frustum.screenDimensions / frustum.gridSize.xy;
+    uint tileIndex = gl_WorkGroupID.x +
+                    (gl_WorkGroupID.y * gl_NumWorkGroups.x) +
+                    (gl_WorkGroupID.z * gl_NumWorkGroups.x * gl_NumWorkGroups.y);
+                    
+    vec2 tileSize = screenDimensions / gridSize.xy;
     
     // tile in screen-space
     vec2 minTile_screenspace = gl_WorkGroupID.xy * tileSize;
@@ -60,8 +69,8 @@ void main() {
     vec3 minTile = screenToView(minTile_screenspace);
     vec3 maxTile = screenToView(maxTile_screenspace);
     
-    float planeNear = frustum.zNear * pow(frustum.zFar / frustum.zNear, gl_WorkGroupID.z / float(frustum.gridSize.z));
-    float planeFar = frustum.zNear * pow(frustum.zFar / frustum.zNear, (gl_WorkGroupID.z + 1) / float(frustum.gridSize.z));
+    float planeNear = zNear * pow(zFar / zNear, gl_WorkGroupID.z / float(gl_NumWorkGroups.z));
+    float planeFar  = zNear * pow(zFar / zNear, (gl_WorkGroupID.z + 1) / float(gl_NumWorkGroups.z));
     
     // the line goes from the eye position in view space (0, 0, 0)
     // through the min/max points of a tile to intersect with a given cluster's near-far planes
@@ -74,6 +83,9 @@ void main() {
     vec3 maxPointFar =
         lineIntersectionWithZPlane(vec3(0, 0, 0), maxTile, planeFar);
 
-    clusters[tileIndex].minPoint = vec4(min(minPointNear, minPointFar), 0.0);
-    clusters[tileIndex].maxPoint = vec4(max(maxPointNear, maxPointFar), 0.0);
+    vec3 minPointAABB = min(min(minPointNear, minPointFar), min(maxPointNear, maxPointFar));
+    vec3 maxPointAABB = max(max(minPointNear, minPointFar), max(maxPointNear, maxPointFar));
+
+    clusters[tileIndex].minPoint  = vec4(minPointAABB , planeNear);
+    clusters[tileIndex].maxPoint  = vec4(maxPointAABB , planeFar);
 }

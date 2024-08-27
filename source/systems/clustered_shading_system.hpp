@@ -15,12 +15,13 @@ namespace arx {
             glm::vec4 minPoint;
             glm::vec4 maxPoint;
             unsigned int count;
-            unsigned int lightIndices[100];
+            unsigned int lightIndices[127];
         };
         
-        struct frustum {
+        struct Frustum {
             glm::mat4 inverseProjection;
             glm::uvec3 gridSize;
+            uint32_t padding0;
             glm::uvec2 screenDimensions;
             float zNear;
             float zFar;
@@ -29,15 +30,30 @@ namespace arx {
         static void init(ArxDevice &device, const int WIDTH, const int HEIGHT);
         static void cleanup();
         
-        static void updateMisc(GlobalUbo &rhs);
+        static void updateUnirofms(GlobalUbo &rhs);
         
         static void dispatchComputeFrustumCluster(VkCommandBuffer commandBuffer);
         static void dispatchComputeClusterCulling(VkCommandBuffer commandBuffer);
         
-    private:
+        static std::shared_ptr<ArxBuffer>               clusterBuffer;
+        static std::shared_ptr<ArxBuffer>               frustumParams;
+        static std::shared_ptr<ArxBuffer>               pointLightsBuffer;
+        static std::shared_ptr<ArxBuffer>               lightCountBuffer;
+        static std::shared_ptr<ArxBuffer>               viewMatrixBuffer;
+        
+        static constexpr unsigned int                   gridSizeX = 12;
+        static constexpr unsigned int                   gridSizeY = 12;
+        static constexpr unsigned int                   gridSizeZ = 24;
+        static constexpr unsigned int                   numClusters = gridSizeX *
+                                                                      gridSizeY *
+                                                                      gridSizeZ;
+        
+        static unsigned int                             width;
+        static unsigned int                             height;
+        
         ClusteredShading() = delete;
         ~ClusteredShading() = delete;
-        
+    private:
         static void createDescriptorSetLayout();
         static void createPipelineLayout();
         static void createPipeline();
@@ -53,8 +69,6 @@ namespace arx {
         static std::unique_ptr<ArxDescriptorPool>       descriptorPoolCluster;
         static VkDescriptorSet                          descriptorSetCluster;
         
-        static std::shared_ptr<ArxBuffer>               clusterBuffer;
-        static std::shared_ptr<ArxBuffer>               frustumParams;
         
         // Cluster Culling
         static std::unique_ptr<ArxDescriptorSetLayout>  descriptorSetLayoutCulling;
@@ -63,18 +77,5 @@ namespace arx {
         static std::unique_ptr<ArxDescriptorPool>       descriptorPoolCulling;
         static VkDescriptorSet                          descriptorSetCulling;
         
-        static std::shared_ptr<ArxBuffer>               pointLightsBuffer;
-        static std::shared_ptr<ArxBuffer>               lightCountBuffer;
-        static std::shared_ptr<ArxBuffer>               viewMatrixBuffer;
-        
-        static constexpr unsigned int                   gridSizeX = 12;
-        static constexpr unsigned int                   gridSizeY = 12;
-        static constexpr unsigned int                   gridSizeZ = 24;
-        static constexpr unsigned int                   numClusters = gridSizeX *
-                                                                      gridSizeY *
-                                                                      gridSizeZ;
-        
-        static unsigned int                                      width;
-        static unsigned int                                      height;
     };
 }

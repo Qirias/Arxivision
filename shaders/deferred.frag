@@ -18,17 +18,40 @@ struct PointLight {
     vec4 color;
 };
 
+struct Cluster {
+    vec4 minPoint;
+    vec4 maxPoint;
+    uint count;
+    uint lightIndices[127];
+};
+
 layout (binding = 6) readonly buffer PointLightsBuffer {
     PointLight pointLights[];
 };
 
-layout (binding = 7) uniform LightCount {
+layout (std430, binding = 7) restrict buffer ClusterBuffer {
+    Cluster clusters[];
+};
+
+layout (binding = 8) uniform LightCount {
     uint lightCount;
 };
 
 layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
+
+
+// Temporal
+#define gridSizeX 12
+#define gridSizeY 12
+#define gridSizeZ 24
+
+#define zNear 0.1
+#define zFar 400.0
+
+#define width 1920
+#define height 1080
 
 // Need 4 points for each face to create area lights
 // Light's position is in the center of each voxel
@@ -174,27 +197,57 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     return light.color.rgb * light.color.a * (specular + albedo * diffuse);
 }
 
+
+vec3 getClusterColor(uint tileIndex) {
+    vec4 aabbPoint = clusters[tileIndex].minPoint;
+    
+    // Adjust hue calculation to prevent excessively large or small values
+    float hue = float(tileIndex) / (aabbPoint.x * aabbPoint.y * aabbPoint.z);
+    
+    vec3 color = vec3(0.0);
+    color.r = abs(sin(hue * 3.14));
+    color.g = abs(sin((hue + 0.33) * 3.14));
+    color.b = abs(sin((hue + 0.66) * 3.14));
+    
+    return color;
+}
+
+
 void main() {
     vec3 fragPos = texture(samplerPosition, inUV).rgb;
     vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
     vec3 albedo = texture(samplerAlbedo, inUV).rgb;
+    
+    // Locating which cluster this fragment is part of
+    uint zTile = uint((log(abs(fragPos.z) / zNear) * gridSizeZ) / log(zFar / zNear));
+    vec2 tileSize = vec2(width, height) / vec2(gridSizeX, gridSizeY);
+    uvec3 tile = uvec3(gl_FragCoord.xy / tileSize, zTile);
+    uint tileIndex = tile.x + (tile.y * gridSizeX) + (tile.z * gridSizeX * gridSizeY);
 
+    uint clusterLightCount = clusters[tileIndex].count;
+    
     vec3 finalColor = vec3(0.0);
+    
+    vec3 clusterColor = getClusterColor(tileIndex);
 
-    for (uint i = 0; i < lightCount; i++) {
-        if (pointLights[i].visibilityMask == 0) continue;
+    for (uint i = 0; i < clusterLightCount; i++) {
+        
+        uint lightIndex = clusters[tileIndex].lightIndices[i];
+        PointLight light = pointLights[lightIndex];
+        
+        if (light.visibilityMask == 0) continue;
 
-        vec3 lightPosViewSpace = (ubo.view * vec4(pointLights[i].position, 1.0)).xyz;
+        vec3 lightPosViewSpace = (ubo.view * vec4(light.position, 1.0)).xyz;
         float distToLight = length(fragPos - lightPosViewSpace);
         
         if (distToLight < EPSILON) {
-            finalColor = pointLights[i].color.rgb * pointLights[i].color.a;
+            finalColor = light.color.rgb * light.color.a;
             break;
         }
 
         for (int faceIndex = 0; faceIndex < 6; ++faceIndex) {
-            if ((pointLights[i].visibilityMask & (1u << faceIndex)) != 0) {
-                finalColor += calculateAreaLight(pointLights[i], fragPos, normal, albedo, faceIndex);
+            if ((light.visibilityMask & (1u << faceIndex)) != 0) {
+                finalColor += calculateAreaLight(light, fragPos, normal, albedo, faceIndex);
             }
         }
     }
