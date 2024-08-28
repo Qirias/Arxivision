@@ -1,14 +1,6 @@
-#include "arx_swap_chain.h"
+#include "engine_pch.hpp"
 
-// std
-#include <array>
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <limits>
-#include <set>
-#include <stdexcept>
-#include <fstream>
+#include "arx_swap_chain.h"
 
 #define ARRAYSIZE(a) (sizeof(a) / sizeof(*(a)))
 

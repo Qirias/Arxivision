@@ -1,7 +1,6 @@
+#include "../engine_pch.hpp"
+
 #include "svo.hpp"
-#include <algorithm>
-#include <stdexcept>
-#include <iostream>
 
 namespace arx {
 

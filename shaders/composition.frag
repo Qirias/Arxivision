@@ -20,6 +20,23 @@ layout (binding = 6) uniform UBO {
 layout (location = 0) in vec2 inUV;
 layout (location = 0) out vec4 outFragColor;
 
+vec3 kelvinToRGB(float kelvin) {
+    float temp = kelvin / 100.0;
+    float r, g, b;
+
+    if (temp <= 66.0) {
+        r = 1.0;
+        g = clamp(0.39008157876901960784 * log(temp) - 0.63184144378862745098, 0.0, 1.0);
+        b = temp <= 19.0 ? 0.0 : clamp(0.54320678911019607843 * log(temp - 10.0) - 1.19625408914, 0.0, 1.0);
+    } else {
+        r = clamp(1.29293618606274509804 * pow(temp - 60.0, -0.1332047592), 0.0, 1.0);
+        g = clamp(1.12989086089529411765 * pow(temp - 60.0, -0.0755148492), 0.0, 1.0);
+        b = 1.0;
+    }
+
+    return vec3(r, g, b);
+}
+
 void main() {
     vec3 fragPos = texture(samplerPosition, inUV).rgb;
     vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
@@ -29,7 +46,7 @@ void main() {
     vec3 deferredColor = texture(samplerDeferred, inUV).rgb;
 
     vec3 sunDirectionWorld = normalize(vec3(1.0, 1.0, -1.0));
-    vec3 sunColor = vec3(1.0, 0.80, 0.65);
+    vec3 sunColor = kelvinToRGB(8000.0);
     float sunIntensity = 0.5;
 
     vec3 sunDirectionView = normalize((uboParams.view * vec4(sunDirectionWorld, 0.0)).xyz);
@@ -37,7 +54,7 @@ void main() {
     float diff = max(dot(normal, -sunDirectionView), 0.0);
     vec3 diffuse = diff * sunColor * sunIntensity * albedo.rgb;
 
-    vec3 ambient = vec3(0.02) * albedo.rgb;
+    vec3 ambient = vec3(0.01) * albedo.rgb;
     vec3 finalColor;
     
     if (uboParams.ssaoOnly == 1) {

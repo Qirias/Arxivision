@@ -3,16 +3,8 @@
 #include "arx_window.h"
 #include "arx_device.h"
 #include "arx_swap_chain.h"
-#include "arx_frame_info.h"
 #include "arx_render_pass_manager.hpp"
 #include "arx_texture_manager.hpp"
-#include "chunks.h"
-#include "systems/clustered_shading_system.hpp"
-
-// std
-#include <memory>
-#include <vector>
-#include <cassert>
 
 namespace arx {
 

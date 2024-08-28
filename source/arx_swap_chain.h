@@ -5,11 +5,6 @@
 #include "arx_render_pass_manager.hpp"
 #include "arx_texture_manager.hpp"
 
-// std lib headers
-#include <string>
-#include <vector>
-#include <memory>
-
 namespace arx {
 
 class ArxSwapChain {

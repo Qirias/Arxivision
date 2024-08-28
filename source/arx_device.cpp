@@ -1,11 +1,6 @@
-#include "arx_device.h"
+#include "engine_pch.hpp"
 
-// std headers
-#include <cstring>
-#include <iostream>
-#include <set>
-#include <unordered_set>
-#include <cassert>
+#include "arx_device.h"
 
 namespace arx {
 

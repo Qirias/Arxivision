@@ -2,9 +2,6 @@
 
 #include "arx_device.h"
 
-#include <string>
-#include <vector>
-
 namespace arx {
 
     struct PipelineConfigInfo {

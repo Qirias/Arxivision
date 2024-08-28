@@ -37,23 +37,20 @@ layout (binding = 8) uniform LightCount {
     uint lightCount;
 };
 
+layout (binding = 9) uniform FrustumParams {
+    mat4 notUsed;
+    uvec3 gridSize;
+    uint padding0;
+    uvec2 screenDimensions;
+    float zNear;
+    float zFar;
+};
+
 layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
 
-
-// Temporal
-#define gridSizeX 16
-#define gridSizeY 9
-#define gridSizeZ 24
-
-#define zNear 0.1
-#define zFar 400.0
-
-#define width 1920
-#define height 1080
-
-#define maxDistance 7.0
+#define maxDistance 5.0
 
 // Need 4 points for each face to create area lights
 // Light's position is in the center of each voxel
@@ -242,10 +239,10 @@ void main() {
     vec3 albedo = texture(samplerAlbedo, inUV).rgb;
     
     // Locating which cluster this fragment is part of
-    uint zTile = uint((log(abs(fragPos.z) / zNear) * gridSizeZ) / log(zFar / zNear));
-    vec2 tileSize = vec2(width, height) / vec2(gridSizeX, gridSizeY);
+    uint zTile = uint((log(abs(fragPos.z) / zNear) * gridSize.z) / log(zFar / zNear));
+    vec2 tileSize = screenDimensions / vec2(gridSize.x, gridSize.y);
     uvec3 tile = uvec3(gl_FragCoord.xy / tileSize, zTile);
-    uint tileIndex = tile.x + (tile.y * gridSizeX) + (tile.z * gridSizeX * gridSizeY);
+    uint tileIndex = tile.x + (tile.y * gridSize.x) + (tile.z * gridSize.x * gridSize.y);
 
     uint clusterLightCount = clusters[tileIndex].count;
     

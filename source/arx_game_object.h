@@ -2,13 +2,6 @@
 
 #include "arx_model.h"
 
-// libs
-#include <glm/gtc/matrix_transform.hpp>
-
-// std
-#include <memory>
-#include <unordered_map>
-
 namespace arx {
     
     struct TransformComponent {

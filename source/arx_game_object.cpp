@@ -1,3 +1,5 @@
+#include "engine_pch.hpp"
+
 #include "arx_game_object.h"
 
 namespace arx {

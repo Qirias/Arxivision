@@ -1,5 +1,6 @@
-#include "arx_model.h"
+#include "engine_pch.hpp"
 
+#include "arx_model.h"
 #include "arx_utils.h"
 
 // libs
@@ -7,13 +8,6 @@
 #include "tiny_obj_loader.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/hash.hpp>
-
-// std
-#include <cassert>
-#include <cstring>
-#include <unordered_map>
-#include <iostream>
 
 namespace std {
     template<>

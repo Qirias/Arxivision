@@ -33,17 +33,13 @@ layout (binding = 3) uniform LightCountBuffer {
 };
 
 bool testLightAABB(uint i, Cluster cluster) {
-    vec3 lightPos = pointLights[i].position;
     float radius = 3.5;
 
-    // Transform light position to view space
-    vec3 viewLightPos = vec3(viewMatrix * vec4(lightPos, 1.0));
-
-    vec3 clusterMin = cluster.minPoint.xyz;
-    vec3 clusterMax = cluster.maxPoint.xyz;
+    vec3 viewLightPos = vec3(viewMatrix * vec4(pointLights[i].position, 1.0));
 
     // Check if the light's bounding sphere intersects the cluster's AABB
-    vec3 closestPoint = max(clusterMin, min(viewLightPos, clusterMax));
+    // Basically clamping
+    vec3 closestPoint = max(cluster.minPoint.xyz, min(viewLightPos, cluster.maxPoint.xyz));
     float distanceSquared = dot(closestPoint - viewLightPos, closestPoint - viewLightPos);
 
     return distanceSquared <= (radius * radius);
@@ -60,7 +56,7 @@ void main()
     {
         if (pointLights[i].visibilityMask == 0) continue;
         
-        if (testLightAABB(i, cluster) && cluster.count < 255)
+        if (testLightAABB(i, cluster) && cluster.count < 311)
         {
             cluster.lightIndices[cluster.count] = i;
             cluster.count++;

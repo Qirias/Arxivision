@@ -1,5 +1,6 @@
+#include "../engine_pch.hpp"
+
 #include "arx_buffer_manager.hpp"
-#include <iostream>
 
 namespace arx {
 

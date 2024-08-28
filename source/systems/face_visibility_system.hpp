@@ -4,13 +4,6 @@
 #include "arx_pipeline.h"
 #include "arx_descriptors.h"
 #include "arx_buffer_manager.hpp"
-#include "arx_model.h"
-#include "arx_frame_info.h"
-
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
 
 namespace arx {
 

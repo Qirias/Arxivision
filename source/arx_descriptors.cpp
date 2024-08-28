@@ -1,8 +1,6 @@
-#include "arx_descriptors.h"
+#include "engine_pch.hpp"
 
-// std
-#include <cassert>
-#include <stdexcept>
+#include "arx_descriptors.h"
 
 namespace arx {
 

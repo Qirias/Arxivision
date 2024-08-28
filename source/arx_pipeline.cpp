@@ -1,12 +1,7 @@
-#include <stdio.h>
+#include "engine_pch.hpp"
+
 #include "arx_pipeline.h"
 #include "arx_model.h"
-
-// std
-#include <fstream>
-#include <stdexcept>
-#include <iostream>
-#include <cassert>
 
 namespace arx {
 

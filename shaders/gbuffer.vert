@@ -60,7 +60,7 @@ void main() {
         gl_Position = vec4(1, 1, 1, 0);
         return;
     }
-
+    
     vec4 positionWorld = push.modelMatrix * vec4(inPos, 1.0);
     positionWorld.xyz += instance.translation.xyz;
     gl_Position = ubo.projection * ubo.view * positionWorld;

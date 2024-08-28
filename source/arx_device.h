@@ -1,10 +1,6 @@
 #pragma once
 
 #include "arx_window.h"
-
-// std lib headers
-#include <string>
-#include <vector>
 #include "threadpool.h"
 
 namespace arx {

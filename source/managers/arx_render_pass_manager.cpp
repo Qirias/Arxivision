@@ -1,3 +1,5 @@
+#include "../engine_pch.hpp"
+
 #include "arx_render_pass_manager.hpp"
 
 

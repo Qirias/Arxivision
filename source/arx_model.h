@@ -4,14 +4,6 @@
 #include "arx_buffer.h"
 #include "arx_buffer_manager.hpp"
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-
-// std
-#include <vector>
-#include <memory>
-
 namespace arx {
     
     class OcclusionSystem;

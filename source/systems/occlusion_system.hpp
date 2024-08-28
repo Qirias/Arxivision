@@ -8,9 +8,6 @@
 #include "arx_frame_info.h"
 #include "chunkManager.h"
 
-// std
-#include <memory>
-#include <vector>
 
 namespace arx {
 

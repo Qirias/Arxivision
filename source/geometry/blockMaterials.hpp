@@ -2,11 +2,6 @@
 
 #include "arx_buffer.h"
 
-#include <iostream>
-#include <unordered_map>
-#include <vector>
-
-#include <glm/glm.hpp>
 
 namespace arx {
 

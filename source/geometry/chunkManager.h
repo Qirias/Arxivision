@@ -2,28 +2,16 @@
 
 #include "chunks.h"
 #include "arx_pipeline.h"
-#include "arx_frame_info.h"
 #include "arx_camera.h"
 #include "arx_model.h"
-#include "arx_utils.h"
-#include "svo.hpp"
-#include "blockMaterials.hpp"
 
 #include "ogt_vox.h"
-
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/transform.hpp>
-
-// std
-#include <cassert>
-#include <cstring>
-#include <unordered_map>
-#include <iostream>
-#include <random>
 
 namespace arx {
 
     class ArxModel;
+    class SVO;
+    class Materials;
 
     struct VoxelData {
         uint32_t colorIndex;

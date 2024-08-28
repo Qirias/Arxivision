@@ -2,10 +2,11 @@
 
 #include "arx_pipeline.h"
 #include "arx_descriptors.h"
-#include "arx_frame_info.h"
-#include "blockMaterials.hpp"
 
 namespace arx {
+
+    class ArxBuffer;
+    struct GlobalUbo;
 
     class ClusteredShading {
     public:

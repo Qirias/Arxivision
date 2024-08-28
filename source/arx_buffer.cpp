@@ -4,13 +4,9 @@
  * Initially based off VulkanBuffer by Sascha Willems -
  * https://github.com/SaschaWillems/Vulkan/blob/master/base/VulkanBuffer.h
  */
+#include "engine_pch.hpp"
 
 #include "arx_buffer.h"
-
-// std
-#include <cassert>
-#include <cstring>
-#include <iostream>
 
 namespace arx {
 

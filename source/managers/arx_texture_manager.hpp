@@ -1,8 +1,6 @@
 #pragma once
 #include "arx_device.h"
 
-// std
-#include <cassert>
 
 namespace arx {
 

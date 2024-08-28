@@ -1,8 +1,5 @@
 #pragma once
 
-#include <glm/glm.hpp>
-#include <vector>
-#include <memory>
 #include "arx_buffer_manager.hpp"
 
 namespace arx {

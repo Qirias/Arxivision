@@ -1,4 +1,10 @@
+#include "../engine_pch.hpp"
+
 #include "chunkManager.h"
+#include "svo.hpp"
+#include "blockMaterials.hpp"
+#include "arx_frame_info.h"
+#include "arx_utils.h"
 
 namespace arx {
     

@@ -2,11 +2,6 @@
 
 #include "arx_device.h"
 
-// std
-#include <memory>
-#include <unordered_map>
-#include <vector>
-
 namespace arx {
 
     class ArxDescriptorSetLayout {

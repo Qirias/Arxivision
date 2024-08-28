@@ -1,4 +1,5 @@
-#include <stdio.h>
+#include "engine_pch.hpp"
+
 #include "app.h"
 #include "arx_camera.h"
 #include "user_input.h"
@@ -15,16 +16,6 @@
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
-
-// std
-#include <stdexcept>
-#include <array>
-#include <cassert>
-#include <chrono>
-#include <iostream>
-#include <numeric>
 
 namespace arx {
 
@@ -45,7 +36,7 @@ namespace arx {
         UserInput userController{*this};
 //        chunkManager.obj2vox(gameObjects, "data/models/bunny.obj", 12.f);
 //        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu7Emit.vox");
+        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu9Emit.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount

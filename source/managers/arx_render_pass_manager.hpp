@@ -2,11 +2,6 @@
 
 #include "arx_device.h"
 
-// std
-#include <unordered_map>
-#include <string>
-#include <iostream>
-
 namespace arx {
 
     class RenderPassManager {

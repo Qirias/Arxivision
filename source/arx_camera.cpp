@@ -1,9 +1,6 @@
-#include <stdio.h>
-#include "arx_camera.h"
+#include "engine_pch.hpp"
 
-// std
-#include <cassert>
-#include <limits>
+#include "arx_camera.h"
 
 namespace arx {
     void ArxCamera::setOrthographicProjection(float left, float right, float top, float bottom, float near, float far) {

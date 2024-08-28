@@ -27,9 +27,6 @@ layout (std430, binding = 1) uniform FrustumBuffer {
 };
 
 vec3 screenToView(vec2 screenCoord) {
-    // Flip the y-coordinate
-    //vec2 flippedCoord = vec2(screenCoord.x, screenDimensions.y - screenCoord.y);
-
     // Convert to NDC
     vec4 ndc = vec4(screenCoord / screenDimensions * 2.0 - 1.0, -1.0, 1.0);
 
@@ -43,14 +40,16 @@ vec3 screenToView(vec2 screenCoord) {
 // plane perpendicular to the Z-axis
 vec3 lineIntersectionWithZPlane(vec3 startPoint, vec3 endPoint, float zDistance) {
     vec3 direction = endPoint - startPoint;
-    vec3 normal = vec3(0.0, 0.0, 1.0); 
+    vec3 normal = vec3(0.0, 0.0, 1.0);
     
     float denominator = dot(normal, direction);
     if (abs(denominator) < 1e-6) {
         return vec3(0.0);
     }
     
-    float t = (zDistance - dot(normal, startPoint)) / denominator;
+    // Since startPoint is 0,0,0 we can skip finding its Z position
+    // and we can simplify the (zDistance - dot(normal, startPoint))
+    float t = zDistance / denominator;
     return startPoint + t * direction;
 }
 
@@ -69,10 +68,11 @@ void main() {
     vec3 minTile = screenToView(minTile_screenspace);
     vec3 maxTile = screenToView(maxTile_screenspace);
     
+    // Tiago Sousa’s DOOM 2016 Siggraph presentation
     float planeNear = zNear * pow(zFar / zNear, gl_WorkGroupID.z / float(gl_NumWorkGroups.z));
     float planeFar  = zNear * pow(zFar / zNear, (gl_WorkGroupID.z + 1) / float(gl_NumWorkGroups.z));
     
-    // the line goes from the eye position in view space (0, 0, 0)
+    // The line goes from the eye position in view space (0, 0, 0)
     // through the min/max points of a tile to intersect with a given cluster's near-far planes
     vec3 minPointNear =
         lineIntersectionWithZPlane(vec3(0, 0, 0), minTile, planeNear);
@@ -86,6 +86,7 @@ void main() {
     vec3 minPointAABB = min(min(minPointNear, minPointFar), min(maxPointNear, maxPointFar));
     vec3 maxPointAABB = max(max(minPointNear, minPointFar), max(maxPointNear, maxPointFar));
 
+    // planeNear and planeFar are not needed I just put them there
     clusters[tileIndex].minPoint  = vec4(minPointAABB , planeNear);
     clusters[tileIndex].maxPoint  = vec4(maxPointAABB , planeFar);
 }

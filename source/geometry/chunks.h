@@ -1,12 +1,5 @@
 #pragma once
 
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/noise.hpp>
-
-#include <vector>
-#include <atomic>
-#include <random>
-
 #include "arx_pipeline.h"
 #include "arx_frame_info.h"
 #include "arx_game_object.h"

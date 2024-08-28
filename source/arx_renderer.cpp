@@ -1,11 +1,9 @@
-#include <stdio.h>
+#include "engine_pch.hpp"
+
+#include "arx_frame_info.h"
 #include "arx_renderer.h"
-
-
-// std
-#include <stdexcept>
-#include <array>
-#include <cassert>
+#include "chunks.h"
+#include "systems/clustered_shading_system.hpp"
 
 namespace arx {
 

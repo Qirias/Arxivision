@@ -1,4 +1,9 @@
+#include "../engine_pch.hpp"
+
 #include "face_visibility_system.hpp"
+#include "arx_model.h"
+#include "arx_frame_info.h"
+
 
 namespace arx {
 
