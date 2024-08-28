@@ -15,7 +15,7 @@ namespace arx {
             glm::vec4 minPoint;
             glm::vec4 maxPoint;
             unsigned int count;
-            unsigned int lightIndices[127];
+            unsigned int lightIndices[311];
         };
         
         struct Frustum {
@@ -41,8 +41,8 @@ namespace arx {
         static std::shared_ptr<ArxBuffer>               lightCountBuffer;
         static std::shared_ptr<ArxBuffer>               viewMatrixBuffer;
         
-        static constexpr unsigned int                   gridSizeX = 12;
-        static constexpr unsigned int                   gridSizeY = 12;
+        static constexpr unsigned int                   gridSizeX = 16;
+        static constexpr unsigned int                   gridSizeY = 9;
         static constexpr unsigned int                   gridSizeZ = 24;
         static constexpr unsigned int                   numClusters = gridSizeX *
                                                                       gridSizeY *

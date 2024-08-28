@@ -22,7 +22,7 @@ struct Cluster {
     vec4 minPoint;
     vec4 maxPoint;
     uint count;
-    uint lightIndices[127];
+    uint lightIndices[311];
 };
 
 layout (binding = 6) readonly buffer PointLightsBuffer {
@@ -43,8 +43,8 @@ layout (location = 0) out vec4 outFragColor;
 
 
 // Temporal
-#define gridSizeX 12
-#define gridSizeY 12
+#define gridSizeX 16
+#define gridSizeY 9
 #define gridSizeZ 24
 
 #define zNear 0.1
@@ -52,6 +52,8 @@ layout (location = 0) out vec4 outFragColor;
 
 #define width 1920
 #define height 1080
+
+#define maxDistance 7.0
 
 // Need 4 points for each face to create area lights
 // Light's position is in the center of each voxel
@@ -171,18 +173,25 @@ vec3 LTC_Evaluate(vec3 N, vec3 V, vec3 P, mat3 Minv, vec3 points[4], int faceInd
 }
 
 vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo, int faceIndex) {
+    vec3 lightPosViewSpace = (ubo.view * vec4(light.position, 1.0)).xyz;
+    float distanceToLight = length(lightPosViewSpace - fragPos);
+
+    // Early exit if the fragment is beyond the light's maximum distance
+    if (distanceToLight > maxDistance) {
+        return vec3(0.0);
+    }
+
     vec3 translatedPoints[4];
     for (int j = 0; j < 4; ++j) {
         translatedPoints[j] = vec3(ubo.view * vec4(light.position + FACE_OFFSET[faceIndex][j], 1.0));
     }
 
     vec3 V = normalize(-fragPos);
-    
+
     float dotNV = clamp(dot(normal, V), 0.0f, 1.0f);
 
-    // use roughness and sqrt(1-cos_theta) to sample M_texture
     vec2 uv = vec2(0.2, sqrt(1.0f - dotNV));
-    uv = uv*LUT_SCALE + LUT_BIAS;
+    uv = uv * LUT_SCALE + LUT_BIAS;
 
     vec4 t1 = texture(samplerLTC1, uv);
     mat3 Minv = mat3(
@@ -194,7 +203,23 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     vec3 diffuse = LTC_Evaluate(normal, V, fragPos, mat3(1), translatedPoints, faceIndex, false);
     vec3 specular = LTC_Evaluate(normal, V, fragPos, Minv, translatedPoints, faceIndex, false);
 
-    return light.color.rgb * light.color.a * (specular + albedo * diffuse);
+    // Calculate attenuation based on distance
+    float attenuation = 1.0 - smoothstep(0.0, maxDistance, distanceToLight);
+
+    return light.color.rgb * light.color.a * (specular + albedo * diffuse) * attenuation;
+}
+
+vec3 calculatePointLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo) {
+    vec3 lightPosViewSpace = vec3(ubo.view * vec4(light.position, 1.0));
+    
+    vec3 lightDir = normalize(lightPosViewSpace - fragPos);
+    float diff = max(dot(normal, lightDir), 0.0);
+    
+    float distance = length(lightPosViewSpace - fragPos);
+    float attenuation = 1.0 / (distance * distance);
+    
+    vec3 diffuse = diff * light.color.rgb * light.color.a * albedo;
+    return diffuse * attenuation;
 }
 
 vec3 getClusterColor(uint tileIndex) {
@@ -237,12 +262,14 @@ void main() {
 
         vec3 lightPosViewSpace = (ubo.view * vec4(light.position, 1.0)).xyz;
         float distToLight = length(fragPos - lightPosViewSpace);
-        
+        if (distToLight > maxDistance) continue;
         if (distToLight < EPSILON) {
             finalColor = light.color.rgb * light.color.a;
             break;
         }
-
+            
+//        finalColor += calculatePointLight(light, fragPos, normal, albedo);
+        
         for (int faceIndex = 0; faceIndex < 6; ++faceIndex) {
             if ((light.visibilityMask & (1u << faceIndex)) != 0) {
                 finalColor += calculateAreaLight(light, fragPos, normal, albedo, faceIndex);
