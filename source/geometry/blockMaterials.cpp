@@ -1,6 +1,6 @@
-#include "../engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "blockMaterials.hpp"
+#include "../source/geometry/blockMaterials.hpp"
 
 namespace arx {
 

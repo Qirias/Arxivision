@@ -1,6 +1,6 @@
-#include "engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "user_input.h"
+#include "../source/user_input.h"
 
 namespace arx {
     bool UserInput::wasImGuiActiveLastFrame = false;

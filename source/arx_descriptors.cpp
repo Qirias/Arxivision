@@ -1,6 +1,6 @@
-#include "engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "arx_descriptors.h"
+#include "../source/arx_descriptors.h"
 
 namespace arx {
 

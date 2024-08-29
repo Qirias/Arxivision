@@ -1,11 +1,11 @@
-#include "engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "arx_model.h"
-#include "arx_utils.h"
+#include "../source/arx_model.h"
+#include "../source/arx_utils.h"
 
 // libs
 #define TINYOBJLOADER_IMPLEMENTATION
-#include "tiny_obj_loader.h"
+#include "../libs/tiny_obj_loader.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 

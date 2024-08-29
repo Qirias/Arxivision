@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <iostream>
-#include <glm/glm.hpp>
+#include "../libs/glm/glm.hpp"
 
 namespace arx {
 

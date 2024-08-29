@@ -1,10 +1,10 @@
 #pragma once
 
-#include "arx_window.h"
-#include "arx_device.h"
-#include "arx_swap_chain.h"
-#include "arx_render_pass_manager.hpp"
-#include "arx_texture_manager.hpp"
+#include "../source/arx_window.h"
+#include "../source/arx_device.h"
+#include "../source/arx_swap_chain.h"
+#include "../source/managers/arx_render_pass_manager.hpp"
+#include "../source/managers/arx_texture_manager.hpp"
 
 namespace arx {
 

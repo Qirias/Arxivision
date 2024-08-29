@@ -1,10 +1,10 @@
 #pragma once
 
-#include "arx_game_object.h"
-#include "app.h"
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
+#include "../source/arx_game_object.h"
+#include "../source/app.h"
+#include "../libs/imgui/imgui.h"
+#include "../libs/imgui/backends/imgui_impl_glfw.h"
+#include "../libs/imgui/backends/imgui_impl_vulkan.h"
 
 namespace arx {
     class UserInput {

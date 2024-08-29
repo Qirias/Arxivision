@@ -1,6 +1,6 @@
-#include "../engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "arx_texture_manager.hpp"
+#include "../source/managers/arx_texture_manager.hpp"
 
 namespace arx {
 

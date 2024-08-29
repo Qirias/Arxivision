@@ -1,14 +1,14 @@
-#include "engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "arx_renderer.h"
+#include "../source/arx_renderer.h"
 
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
-#include "LTC.h"
+#include "../libs/imgui/imgui.h"
+#include "../libs/imgui/backends/imgui_impl_glfw.h"
+#include "../libs/imgui/backends/imgui_impl_vulkan.h"
+#include "geometry/LTC.h"
 
-#include "systems/clustered_shading_system.hpp"
-#include "geometry/blockMaterials.hpp"
+#include "../source/systems/clustered_shading_system.hpp"
+#include "../source/geometry/blockMaterials.hpp"
 
 namespace arx {
 
@@ -930,7 +930,7 @@ namespace arx {
         
         PushConstantData push{};
 
-        frameInfo.voxel[0].transform.scale = glm::vec3(VOXEL_SIZE*0.5);
+        frameInfo.voxel[0].transform.scale = glm::vec3(VOXEL_SIZE);
         push.modelMatrix    = frameInfo.voxel[0].transform.mat4();
         push.normalMatrix   = frameInfo.voxel[0].transform.normalMatrix();
 

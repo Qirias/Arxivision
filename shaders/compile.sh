@@ -1,4 +1,3 @@
-cd /Users/kiri/Documents/ArXivision/ArXivision/shaders
 echo "Compiling shaders..."
 
 glslangValidator -V depth_pyramid.comp -o depth_pyramid.spv

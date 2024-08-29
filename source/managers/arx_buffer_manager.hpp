@@ -1,7 +1,7 @@
 #pragma once
 
-#include "arx_device.h"
-#include "arx_buffer.h"
+#include "../../source/arx_device.h"
+#include "../../source/arx_buffer.h"
 
 namespace arx {
 

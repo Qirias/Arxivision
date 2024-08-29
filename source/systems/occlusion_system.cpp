@@ -1,6 +1,6 @@
-#include "../engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "occlusion_system.hpp"
+#include "../source/systems/occlusion_system.hpp"
 
 namespace arx {
 

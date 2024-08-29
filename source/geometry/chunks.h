@@ -1,27 +1,11 @@
 #pragma once
 
-#include "arx_pipeline.h"
-#include "arx_frame_info.h"
-#include "arx_game_object.h"
-#include "block.h"
-#include "arx_model.h"
-#include "threadpool.h"
-
-// cgal
-#include <CGAL/Simple_cartesian.h>
-#include <CGAL/AABB_triangle_primitive.h>
-#include <CGAL/AABB_tree.h>
-#include <CGAL/AABB_traits.h>
-
-typedef CGAL::Simple_cartesian<double> K;
-typedef K::FT FT;
-typedef K::Point_3 Point;
-typedef K::Triangle_3 Triangle;
-typedef std::vector<Triangle>::iterator Iterator;
-typedef CGAL::AABB_triangle_primitive<K, Iterator> Primitive;
-typedef CGAL::AABB_traits<K, Primitive> AABB_triangle_traits;
-typedef CGAL::AABB_tree<AABB_triangle_traits> Tree;
-
+#include "../../source/arx_pipeline.h"
+#include "../../source/arx_frame_info.h"
+#include "../../source/arx_game_object.h"
+#include "../../source/geometry/block.h"
+#include "../../source/arx_model.h"
+#include "../../source/threadpool.h"
 
 namespace arx {
     
@@ -29,8 +13,6 @@ namespace arx {
     
     class Chunk {
     public:
-
-        Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices);
         Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, glm::ivec3 terrainSize);
         Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, const std::vector<InstanceData>& instanceDataVec);
         ~Chunk();
@@ -40,10 +22,6 @@ namespace arx {
         glm::vec3 getPosition() const { return position; }
         unsigned int getID() const { return id; }
         uint32_t getInstanceCount() const { return instances; }
-
-        int Voxelize(const std::vector<arx::ArxModel::Vertex>& vertices);
-        bool CheckVoxelIntersection(const std::vector<arx::ArxModel::Vertex>& vertices, const glm::vec3& voxelPosition);
-        bool intersect_aabb_triangle_cgal(const CGAL::Bbox_3& aabb, const Point& p0, const Point& p1, const Point& p2);
         
         void applyCARule(glm::ivec3 terrainSize);
         glm::vec3 determineColorBasedOnPosition(glm::vec3 voxelGlobalPos, glm::ivec3 terrainSize);

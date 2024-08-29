@@ -1,8 +1,8 @@
-#include "../engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "clustered_shading_system.hpp"
-#include "arx_frame_info.h"
-#include "blockMaterials.hpp"
+#include "../source/systems/clustered_shading_system.hpp"
+#include "../source/arx_frame_info.h"
+#include "../source/geometry/blockMaterials.hpp"
 
 namespace arx {
     ArxDevice* ClusteredShading::arxDevice = nullptr;

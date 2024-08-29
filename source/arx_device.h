@@ -1,7 +1,7 @@
 #pragma once
 
-#include "arx_window.h"
-#include "threadpool.h"
+#include "../source/arx_window.h"
+#include "../source/threadpool.h"
 
 namespace arx {
 

@@ -1,43 +1,8 @@
-#include "../engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "chunks.h"
-
+#include "../source/geometry/chunks.h"
 
 namespace arx {
-
-    Chunk::Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, std::vector<ArxModel::Vertex>& vertices) : position{pos} {
-        initializeBlocks();
-        
-        std::vector<InstanceData> tmpInstance;
-        instances = Voxelize(vertices);
-        tmpInstance.resize(instances);
-        
-        uint32_t index = 0;
-        for (int x = 0; x < ADJUSTED_CHUNK; x++) {
-            for (int y = 0; y < ADJUSTED_CHUNK; y++) {
-                for (int z = 0; z < ADJUSTED_CHUNK; z++) {
-                    if (!blocks[x][y][z].isActive()) continue;
-                    glm::vec3 translation = glm::vec3(x*VOXEL_SIZE, y*VOXEL_SIZE, z*VOXEL_SIZE) + position;
-                    tmpInstance[index].color = glm::vec4(x / static_cast<float>(ADJUSTED_CHUNK),
-                                                         y / static_cast<float>(ADJUSTED_CHUNK),
-                                                         z / static_cast<float>(ADJUSTED_CHUNK), 1.0f);
-                    tmpInstance[index].translation = glm::vec4(translation, 1.0f);
-                    index++;
-                }
-            }
-        }
-
-        if (instances > 0)
-        {
-            std::shared_ptr<ArxModel> cubeModel = ArxModel::createModelFromFile(device, "data/models/cube.obj", instances, tmpInstance);
-            auto cube = ArxGameObject::createGameObject();
-            id = cube.getId();
-            cube.model = cubeModel;
-            voxel.emplace(id, std::move(cube));
-            instanceData[id] = tmpInstance;
-        }
-    }
-
     Chunk::Chunk(ArxDevice &device, const glm::vec3& pos, ArxGameObject::Map& voxel, glm::ivec3 terrainSize) : position{pos} {
         initializeBlocks();
 
@@ -82,77 +47,6 @@ namespace arx {
             voxel.emplace(id, std::move(cube));
             instanceData[id] = instanceDataVec;
         }
-    }
-
-
-    bool Chunk::CheckVoxelIntersection(const std::vector<arx::ArxModel::Vertex>& vertices, const glm::vec3& voxelPosition) {
-
-        CGAL::Bbox_3 aabb(voxelPosition.x, voxelPosition.y, voxelPosition.z,
-                          voxelPosition.x + 1, voxelPosition.y + 1, voxelPosition.z + 1);
-
-        for (size_t i = 0; i < vertices.size(); i += 3) {
-            // Convert to CGAL Point
-            Point v0(vertices[i].position.x, vertices[i].position.y, vertices[i].position.z);
-            Point v1(vertices[i + 1].position.x, vertices[i + 1].position.y, vertices[i + 1].position.z);
-            Point v2(vertices[i + 2].position.x, vertices[i + 2].position.y, vertices[i + 2].position.z);
-            
-            if (intersect_aabb_triangle_cgal(aabb, v0, v1, v2)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-
-    int Chunk::Voxelize(const std::vector<arx::ArxModel::Vertex>& vertices) {
-        ThreadPool threadPool;
-        unsigned int numThreads = std::thread::hardware_concurrency();
-        threadPool.setThreadCount(numThreads);
-
-        std::atomic<int> inst(0);
-
-        int adjustedChunk = CHUNK_SIZE / VOXEL_SIZE;
-        int totalVoxels = adjustedChunk * adjustedChunk * adjustedChunk;
-        int voxelsPerThread = totalVoxels / numThreads;
-
-        for (unsigned int t = 0; t < numThreads; ++t) {
-            int startIdx = t * voxelsPerThread;
-            int endIdx = (t + 1) * voxelsPerThread;
-            if (t == numThreads - 1) {
-                endIdx = totalVoxels;
-            }
-            
-            threadPool.threads[t]->addJob([this, startIdx, endIdx, &vertices, &inst, adjustedChunk]() {
-                for (int idx = startIdx; idx < endIdx; ++idx) {
-                    int x = idx / (adjustedChunk * adjustedChunk);
-                    int y = (idx / adjustedChunk) % adjustedChunk;
-                    int z = idx % adjustedChunk;
-
-                    // Calculate the voxel position considering the VOXEL_SIZE
-                    glm::vec3 voxelPosition = position + glm::vec3(x * VOXEL_SIZE, y * VOXEL_SIZE, z * VOXEL_SIZE);
-                    if (CheckVoxelIntersection(vertices, voxelPosition)) {
-                        // Properly index into the blocks array based on VOXEL_SIZE
-                        blocks[x][y][z].setActive(true);
-                        inst.fetch_add(1, std::memory_order_relaxed);
-                    }
-                }
-            });
-        }
-
-        threadPool.wait();
-
-        // Convert atomic<int> to int for the return value
-        return inst.load(std::memory_order_relaxed);
-    }
-
-
-    bool Chunk::intersect_aabb_triangle_cgal(const CGAL::Bbox_3& aabb, const Point& p0, const Point& p1, const Point& p2) {
-        std::vector<Triangle> triangles;
-        triangles.push_back(Triangle(p0, p1, p2));
-
-        Tree tree(triangles.begin(), triangles.end());
-
-        return tree.do_intersect(aabb);
     }
 
     void Chunk::initializeBlocks() {

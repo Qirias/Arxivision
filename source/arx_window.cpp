@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "arx_window.h"
+#include "../source/arx_window.h"
 #include <stdexcept>
 
 namespace arx {

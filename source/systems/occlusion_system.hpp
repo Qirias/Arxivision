@@ -1,13 +1,12 @@
 #pragma once
 
-#include "arx_camera.h"
-#include "arx_descriptors.h"
-#include "arx_pipeline.h"
-#include "arx_device.h"
-#include "arx_game_object.h"
-#include "arx_frame_info.h"
-#include "chunkManager.h"
-
+#include "../../source/arx_camera.h"
+#include "../../source/arx_descriptors.h"
+#include "../../source/arx_pipeline.h"
+#include "../../source/arx_device.h"
+#include "../../source/arx_game_object.h"
+#include "../../source/arx_frame_info.h"
+#include "../../source/geometry/chunkManager.h"
 
 namespace arx {
 

@@ -1,18 +1,14 @@
 #pragma once
 
-#include "arx_window.h"
-#include "arx_device.h"
-#include "arx_renderer.h"
-#include "arx_game_object.h"
-#include "arx_descriptors.h"
-#include "arx_texture_manager.hpp"
-#include "arx_render_pass_manager.hpp"
+#include "../source/arx_window.h"
+#include "../source/arx_device.h"
+#include "../source/arx_renderer.h"
+#include "../source/arx_game_object.h"
+#include "../source/arx_descriptors.h"
+#include "../source/managers/arx_texture_manager.hpp"
+#include "../source/managers/arx_render_pass_manager.hpp"
 
-#include "chunkManager.h"
-
-// std
-#include <memory>
-#include <vector>
+#include "../source/geometry/chunkManager.h"
 
 namespace arx {
 

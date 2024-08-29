@@ -1,6 +1,6 @@
 #pragma once
 
-#include "arx_buffer_manager.hpp"
+#include "../source/managers/arx_buffer_manager.hpp"
 
 namespace arx {
 

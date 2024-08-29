@@ -1,7 +1,7 @@
 #pragma once
 
-#include "arx_pipeline.h"
-#include "arx_descriptors.h"
+#include "../source/arx_pipeline.h"
+#include "../source/arx_descriptors.h"
 
 namespace arx {
 

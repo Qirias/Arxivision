@@ -1,6 +1,6 @@
 #pragma once
 
-#include "arx_model.h"
+#include "../source/arx_model.h"
 
 namespace arx {
     

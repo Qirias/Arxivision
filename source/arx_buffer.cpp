@@ -4,9 +4,9 @@
  * Initially based off VulkanBuffer by Sascha Willems -
  * https://github.com/SaschaWillems/Vulkan/blob/master/base/VulkanBuffer.h
  */
-#include "engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "arx_buffer.h"
+#include "../source/arx_buffer.h"
 
 namespace arx {
 

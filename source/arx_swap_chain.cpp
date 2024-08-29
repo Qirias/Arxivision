@@ -1,6 +1,6 @@
-#include "engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "arx_swap_chain.h"
+#include "../source/arx_swap_chain.h"
 
 #define ARRAYSIZE(a) (sizeof(a) / sizeof(*(a)))
 

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "arx_camera.h"
-#include "arx_game_object.h"
+#include "../source/arx_camera.h"
+#include "../source/arx_game_object.h"
 
 namespace arx {
     
 static const int CHUNK_SIZE = 8;
-static const float VOXEL_SIZE = 1;
+static const float VOXEL_SIZE = 0.5;
 static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
 
 static const float SSAO_KERNEL_SIZE = 32;

@@ -1,7 +1,7 @@
-#include "engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "arx_pipeline.h"
-#include "arx_model.h"
+#include "../source/arx_pipeline.h"
+#include "../source/arx_model.h"
 
 namespace arx {
 

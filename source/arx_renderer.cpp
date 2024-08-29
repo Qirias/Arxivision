@@ -1,9 +1,9 @@
-#include "engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "arx_frame_info.h"
-#include "arx_renderer.h"
-#include "chunks.h"
-#include "systems/clustered_shading_system.hpp"
+#include "../source/arx_frame_info.h"
+#include "../source/arx_renderer.h"
+#include "../source/geometry/chunks.h"
+#include "../source/systems/clustered_shading_system.hpp"
 
 namespace arx {
 

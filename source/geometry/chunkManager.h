@@ -1,11 +1,11 @@
 #pragma once
 
-#include "chunks.h"
-#include "arx_pipeline.h"
-#include "arx_camera.h"
-#include "arx_model.h"
+#include "../../source/geometry/chunks.h"
+#include "../../source/arx_pipeline.h"
+#include "../../source/arx_camera.h"
+#include "../../source/arx_model.h"
 
-#include "ogt_vox.h"
+#include "../../libs/ogt_vox.h"
 
 namespace arx {
 
@@ -25,7 +25,6 @@ namespace arx {
         
         void setCamera(ArxCamera& camera) { this->camera = camera; }
         const std::vector<Chunk*>& GetChunks() const { return m_vpChunks; }
-        void obj2vox(ArxGameObject::Map& voxel, const std::string& path, const float scaleFactor);
         std::vector<std::pair<glm::vec3, unsigned int>> GetChunkPositions() { return chunkPositions; }
         void MengerSponge(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize);
         void setChunkAABB(const glm::vec3& position, const unsigned int chunkId);

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "arx_device.h"
-#include "arx_buffer.h"
-#include "arx_buffer_manager.hpp"
+#include "../source/arx_device.h"
+#include "../source/arx_buffer.h"
+#include "../source/managers/arx_buffer_manager.hpp"
 
 namespace arx {
     

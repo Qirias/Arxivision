@@ -1,6 +1,6 @@
-#include "engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "arx_game_object.h"
+#include "../source/arx_game_object.h"
 
 namespace arx {
     // Matrix corrsponds to Translate * Ry * Rx * Rz * Scale

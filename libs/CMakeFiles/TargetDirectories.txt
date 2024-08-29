@@ -1,0 +1,4 @@
+/Users/kiri/Documents/ArXivision/ArXivision/libs/CMakeFiles/ArXivision.dir
+/Users/kiri/Documents/ArXivision/ArXivision/libs/CMakeFiles/shaders.dir
+/Users/kiri/Documents/ArXivision/ArXivision/libs/CMakeFiles/edit_cache.dir
+/Users/kiri/Documents/ArXivision/ArXivision/libs/CMakeFiles/rebuild_cache.dir

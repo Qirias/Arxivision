@@ -1,9 +1,9 @@
 #pragma once
 
-#include "arx_device.h"
-#include "systems/occlusion_system.hpp"
-#include "arx_render_pass_manager.hpp"
-#include "arx_texture_manager.hpp"
+#include "../source/arx_device.h"
+#include "../source/systems/occlusion_system.hpp"
+#include "../source/managers/arx_render_pass_manager.hpp"
+#include "../source/managers/arx_texture_manager.hpp"
 
 namespace arx {
 

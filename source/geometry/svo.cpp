@@ -1,6 +1,6 @@
-#include "../engine_pch.hpp"
+#include "../source/engine_pch.hpp"
 
-#include "svo.hpp"
+#include "../source/geometry/svo.hpp"
 
 namespace arx {
 
