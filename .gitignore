@@ -1,4 +1,8 @@
 // Ignore SPIR-V executables
 *.spv
 
+// Xcode
 .DS_Store
+
+// ignore cmake build directory
+build/
