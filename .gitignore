@@ -6,3 +6,6 @@
 
 // ignore cmake build directory
 build/
+
+// vscode
+.vscode
