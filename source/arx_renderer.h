@@ -46,7 +46,7 @@ namespace arx {
         void Passes(FrameInfo &frameInfo);
         void init_Passes();
         
-        void updateUnirofms(const GlobalUbo &rhs, const CompositionParams &ssaorhs);
+        void updateUniforms(const GlobalUbo &rhs, const CompositionParams &ssaorhs);
         void cleanupResources();
     private:
         void createCommandBuffers();

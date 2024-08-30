@@ -196,7 +196,7 @@ namespace arx {
             .build(descriptorSetCulling);
     }
 
-    void ClusteredShading::updateUnirofms(GlobalUbo &rhs) {
+    void ClusteredShading::updateUniforms(GlobalUbo &rhs) {
         Frustum params{};
         params.inverseProjection = glm::inverse(rhs.projection);
         params.zNear = rhs.zNear;

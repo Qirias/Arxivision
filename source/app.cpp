@@ -35,7 +35,7 @@ namespace arx {
         ArxCamera camera{};
         UserInput userController{*this};
 //        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu5Edited.vox");
+        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu9Emit.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
@@ -193,8 +193,8 @@ namespace arx {
                 compParams.ssaoBlur = ssaoBlur;
                 compParams.deferred = deferred;
                 
-                arxRenderer.updateUnirofms(ubo, compParams);
-                ClusteredShading::updateUnirofms(ubo);
+                arxRenderer.updateUniforms(ubo, compParams);
+                ClusteredShading::updateUniforms(ubo);
 
                 // Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);

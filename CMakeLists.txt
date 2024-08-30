@@ -105,27 +105,22 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     BUILD_WITH_INSTALL_RPATH TRUE
 )
 
-# Compile shaders
-file(GLOB SHADER_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.vert ${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.frag ${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.comp)
-foreach(SHADER ${SHADER_SOURCES})
-    get_filename_component(SHADER_NAME ${SHADER} NAME)
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/shaders/${SHADER_NAME}.spv
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/shaders
-        COMMAND glslc ${SHADER} -o ${CMAKE_CURRENT_BINARY_DIR}/shaders/${SHADER_NAME}.spv
-        DEPENDS ${SHADER}
-        COMMENT "Compiling shader ${SHADER_NAME}"
-    )
-    list(APPEND SHADER_BINARIES ${CMAKE_CURRENT_BINARY_DIR}/shaders/${SHADER_NAME}.spv)
-endforeach()
-
+# Always compile shaders using compile.sh
 add_custom_target(
-    shaders ALL
-    DEPENDS ${SHADER_BINARIES}
-    COMMENT "Compiling all shaders"
+    compile_shaders ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "Compiling shaders..."
+    COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_CURRENT_SOURCE_DIR}/shaders bash ${CMAKE_CURRENT_SOURCE_DIR}/shaders/compile.sh
+    COMMENT "Running compile.sh to generate SPIR-V shader files"
 )
 
-add_dependencies(${PROJECT_NAME} shaders)
+# Copy compiled shaders (.spv files) to the build directory
+add_custom_command(TARGET compile_shaders POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders
+    ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/shaders
+)
+
+add_dependencies(${PROJECT_NAME} compile_shaders)
 
 # Copy project structure to the output directory
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

@@ -1046,7 +1046,7 @@ namespace arx {
         endSwapChainRenderPass(frameInfo.commandBuffer);
     }
 
-    void ArxRenderer::updateUnirofms(const GlobalUbo &rhs, const CompositionParams &params) {
+    void ArxRenderer::updateUniforms(const GlobalUbo &rhs, const CompositionParams &params) {
         ubo.projection  = rhs.projection;
         ubo.view        = rhs.view;
         ubo.inverseView = rhs.inverseView;

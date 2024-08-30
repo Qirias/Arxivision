@@ -1,5 +1,3 @@
-echo "Compiling shaders..."
-
 glslangValidator -V depth_pyramid.comp -o depth_pyramid.spv
 glslangValidator -V occlusion_culling.comp -o occlusion_culling.spv
 glslangValidator -V occlusionEarly_culling.comp -o occlusionEarly_culling.spv

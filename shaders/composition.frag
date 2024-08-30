@@ -46,7 +46,7 @@ void main() {
     vec3 deferredColor = texture(samplerDeferred, inUV).rgb;
 
     vec3 sunDirectionWorld = normalize(vec3(1.0, 1.0, -1.0));
-    vec3 sunColor = kelvinToRGB(8000.0);
+    vec3 sunColor = kelvinToRGB(10000.0);
     float sunIntensity = 0.5;
 
     vec3 sunDirectionView = normalize((uboParams.view * vec4(sunDirectionWorld, 0.0)).xyz);
