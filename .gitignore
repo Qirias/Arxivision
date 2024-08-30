@@ -4,8 +4,9 @@
 // Xcode
 .DS_Store
 
-// ignore cmake build directory
-build/
+// ignore cmake build directories
+general_build/
+xcode_build/
 
 // vscode
 .vscode
