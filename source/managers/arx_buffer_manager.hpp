@@ -43,10 +43,10 @@ namespace arx {
         static VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
         
         // occlusion_culling.comp
-        static std::unique_ptr<ArxBuffer> drawIndirectBuffer;
-        static std::unique_ptr<ArxBuffer> drawCommandCountBuffer;
-        static std::unique_ptr<ArxBuffer> instanceOffsetBuffer;
-        static std::unique_ptr<ArxBuffer> visibilityBuffer;
+        static std::shared_ptr<ArxBuffer> drawIndirectBuffer;
+        static std::shared_ptr<ArxBuffer> drawCommandCountBuffer;
+        static std::shared_ptr<ArxBuffer> instanceOffsetBuffer;
+        static std::shared_ptr<ArxBuffer> visibilityBuffer;
         static std::vector<GPUIndirectDrawCommand> indirectDrawData;
         static std::vector<uint32_t> visibilityData;
         

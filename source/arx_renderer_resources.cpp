@@ -644,27 +644,27 @@ namespace arx {
         VkFormat depthFormat = arxSwapChain->findDepthFormat();
         
         // attachments
-        textureManager.createAttachment("gPosDepth", arxSwapChain->width(), arxSwapChain->height(),
+        textureManager.createAttachment("gPosDepth", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
                                         VK_FORMAT_R32G32B32A32_SFLOAT,
                                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("gNormals", arxSwapChain->width(), arxSwapChain->height(),
+        textureManager.createAttachment("gNormals", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
                                         VK_FORMAT_R8G8B8A8_UNORM,
                                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("gAlbedo", arxSwapChain->width(), arxSwapChain->height(),
+        textureManager.createAttachment("gAlbedo", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
                                         VK_FORMAT_R8G8B8A8_UNORM,
                                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("gDepth", arxSwapChain->width(), arxSwapChain->height(),
+        textureManager.createAttachment("gDepth", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
                                         depthFormat,
                                         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
         
-        textureManager.createAttachment("ssaoColor", arxSwapChain->width(), arxSwapChain->height(),
+        textureManager.createAttachment("ssaoColor", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
                                         VK_FORMAT_R8_UNORM,
                                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("ssaoBlurColor", arxSwapChain->width(), arxSwapChain->height(),
+        textureManager.createAttachment("ssaoBlurColor", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
                                         VK_FORMAT_R8_UNORM,
                                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
         
-        textureManager.createAttachment("deferredShading", arxSwapChain->width(), arxSwapChain->height(),
+        textureManager.createAttachment("deferredShading", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
                                         VK_FORMAT_B8G8R8A8_SRGB,
                                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
         // G-Pass
@@ -738,7 +738,7 @@ namespace arx {
             attachments[2] = textureManager.getAttachment("gAlbedo")->view;
             attachments[3] = textureManager.getAttachment("gDepth")->view;
             
-            rpManager.createFramebuffer("GBuffer", attachments, arxSwapChain->width(), arxSwapChain->height());
+            rpManager.createFramebuffer("GBuffer", attachments, arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height);
         }
         
         // SSAO
@@ -793,7 +793,7 @@ namespace arx {
             std::array<VkImageView, 1> attachments;
             attachments[0] = textureManager.getAttachment("ssaoColor")->view;
 
-            rpManager.createFramebuffer("SSAO", attachments, arxSwapChain->width(), arxSwapChain->height());
+            rpManager.createFramebuffer("SSAO", attachments, arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height);
         }
         
         // SSAO Blur
@@ -847,7 +847,7 @@ namespace arx {
             std::array<VkImageView, 1> attachments;
             attachments[0] = textureManager.getAttachment("ssaoBlurColor")->view;
             
-            rpManager.createFramebuffer("SSAOBlur", attachments, arxSwapChain->width(), arxSwapChain->height());
+            rpManager.createFramebuffer("SSAOBlur", attachments, arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height);
         }
         
         // Deferred
@@ -901,7 +901,7 @@ namespace arx {
             std::array<VkImageView, 1> attachments;
             attachments[0] = textureManager.getAttachment("deferredShading")->view;
 
-            rpManager.createFramebuffer("Deferred", attachments, arxSwapChain->width(), arxSwapChain->height());
+            rpManager.createFramebuffer("Deferred", attachments, arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height);
         }
     
         // Shared sampler used for all color attachments
@@ -1070,7 +1070,7 @@ namespace arx {
         // Deferred
         ClusteredShading::Frustum frustumParams;
         frustumParams.gridSize = glm::uvec3(ClusteredShading::gridSizeX, ClusteredShading::gridSizeY, ClusteredShading::gridSizeZ);
-        frustumParams.screenDimensions = glm::uvec2(ClusteredShading::width, ClusteredShading::height);
+        frustumParams.screenDimensions = glm::uvec2(arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height);
         frustumParams.zFar = rhs.zFar;
         frustumParams.zNear = rhs.zNear;
         

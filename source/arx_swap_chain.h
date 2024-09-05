@@ -105,7 +105,8 @@ class ArxSwapChain {
         TextureManager&                 textureManager;        
     
     public:
-        OcclusionSystem cull;
+        std::shared_ptr<OcclusionSystem>   cull;
+    
         void createDepthPyramid();
         void createDepthSampler();
         void createDepthPyramidDescriptors();

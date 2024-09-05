@@ -48,6 +48,7 @@ namespace arx {
         
         void updateUniforms(const GlobalUbo &rhs, const CompositionParams &ssaorhs);
         void cleanupResources();
+        VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities, VkExtent2D windowExtent);
     private:
         void createCommandBuffers();
         void freeCommandBuffers();

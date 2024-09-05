@@ -31,7 +31,7 @@ namespace arx {
         static void init(ArxDevice &device, const int WIDTH, const int HEIGHT);
         static void cleanup();
         
-        static void updateUniforms(GlobalUbo &rhs);
+        static void updateUniforms(GlobalUbo &rhs, glm::vec2 extent);
         
         static void dispatchComputeFrustumCluster(VkCommandBuffer commandBuffer);
         static void dispatchComputeClusterCulling(VkCommandBuffer commandBuffer);

@@ -7,6 +7,10 @@ namespace arx {
     TextureManager::TextureManager(ArxDevice& device) : device(device) {}
 
     TextureManager::~TextureManager() {
+        cleanup();
+    }
+
+    void TextureManager::cleanup() {
         for (auto& pair : textures) {
             pair.second->destroy(device.device());
         }
@@ -21,6 +25,24 @@ namespace arx {
             vkDestroySampler(device.device(), pair.second, nullptr);
         }
         samplers.clear();
+    }
+
+    void TextureManager::resizeWindowReset() {
+        deleteAttachment("gPosDepth");
+        deleteAttachment("gNormals");
+        deleteAttachment("gAlbedo");
+        deleteAttachment("gDepth");
+        deleteAttachment("ssaoColor");
+        deleteAttachment("ssaoBlurColor");
+        deleteAttachment("deferredShading");
+    }
+
+    void TextureManager::deleteAttachment(const std::string& name) {
+        auto it = textures.find(name);
+        if (it != textures.end()) {
+            it->second->destroy(device.device());
+            textures.erase(it);
+        }
     }
 
     void TextureManager::createTexture2D(

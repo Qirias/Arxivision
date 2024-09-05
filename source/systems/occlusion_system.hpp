@@ -116,6 +116,8 @@ namespace arx {
             cullingData.chunkCount = chunkCount;
             cullingData.nodesCount = static_cast<uint32_t>(BufferManager::nodeBuffer->getBufferSize() / sizeof(GPUNode));
         }
+        
+        void cleanup();
 
         // Depth pyramid
         std::unique_ptr<ArxDescriptorPool>          depthDescriptorPool;
@@ -158,10 +160,10 @@ namespace arx {
         void createEarlyCullingPipeline();
         
         // Buffers for the compute shaders
-        std::unique_ptr<ArxBuffer>                  cameraBuffer;
-        std::unique_ptr<ArxBuffer>                  objectsDataBuffer;
-        std::unique_ptr<ArxBuffer>                  globalDataBuffer;
-        std::unique_ptr<ArxBuffer>                  miscBuffer;
+        std::shared_ptr<ArxBuffer>                  cameraBuffer;
+        std::shared_ptr<ArxBuffer>                  objectsDataBuffer;
+        std::shared_ptr<ArxBuffer>                  globalDataBuffer;
+        std::shared_ptr<ArxBuffer>                  miscBuffer;
         
         // Buffers data
         GPUCameraData                               cameraData;

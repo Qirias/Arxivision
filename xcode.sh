@@ -10,4 +10,3 @@ cd "$BUILD_DIR"
 
 # Generate the Xcode project using CMake
 cmake -G Xcode ..
-

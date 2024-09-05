@@ -40,8 +40,36 @@ namespace arx {
 
     OcclusionSystem::~OcclusionSystem() {
         vkDestroyPipelineLayout(arxDevice.device(), depthPyramidPipelineLayout, nullptr);
+        depthPyramidPipeline.reset();
+        depthDescriptorPool.reset();
+        depthDescriptorLayout.reset();
+        
+        
+        // Destroy culling resources
         vkDestroyPipelineLayout(arxDevice.device(), cullingPipelineLayout, nullptr);
+        cullingPipeline.reset();
+        cullingDescriptorPool.reset();
+        cullingDescriptorLayout.reset();
+
+        // Destroy early culling resources
         vkDestroyPipelineLayout(arxDevice.device(), earlyCullingPipelineLayout, nullptr);
+        earlyCullingPipeline.reset();
+
+        // Destroy buffers
+        cameraBuffer.reset();
+        objectsDataBuffer.reset();
+        globalDataBuffer.reset();
+        miscBuffer.reset();
+    }
+
+    void OcclusionSystem::cleanup() {
+        // Destroy depth pyramid resources
+        vkDestroyImageView(arxDevice.device(), depthPyramidImageView, nullptr);
+        for (auto& mipView : depthPyramidMips) {
+            vkDestroyImageView(arxDevice.device(), mipView, nullptr);
+        }
+        vkDestroyImage(arxDevice.device(), depthPyramidImage, nullptr);
+        vkFreeMemory(arxDevice.device(), depthPyramidMemory, nullptr);
     }
     
     void OcclusionSystem::createDepthPyramidPipelineLayout() {

@@ -67,6 +67,10 @@ namespace arx {
         std::shared_ptr<Texture> getAttachment(const std::string& name) const;
         VkSampler getSampler(const std::string& name) const;
         
+        void cleanup();
+        void resizeWindowReset();
+        void deleteAttachment(const std::string& name);
+        
     private:
         ArxDevice& device;
         std::unordered_map<std::string, std::shared_ptr<Texture>> textures;

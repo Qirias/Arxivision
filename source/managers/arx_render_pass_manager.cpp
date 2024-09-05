@@ -9,6 +9,10 @@ namespace arx {
     }
 
     RenderPassManager::~RenderPassManager() {
+        cleanup();
+    }
+
+    void RenderPassManager::cleanup() {
         for (auto& pair : renderPasses) {
             vkDestroyRenderPass(device.device(), pair.second, nullptr);
         }

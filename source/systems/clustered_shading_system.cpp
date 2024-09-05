@@ -148,8 +148,6 @@ namespace arx {
                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         
-        std::cout << "Cluster size: " << sizeof(Cluster) << " bytes\n";
-        
         frustumParams = std::make_shared<ArxBuffer>(*arxDevice,
                                                     sizeof(Frustum),
                                                     1,
@@ -196,13 +194,13 @@ namespace arx {
             .build(descriptorSetCulling);
     }
 
-    void ClusteredShading::updateUniforms(GlobalUbo &rhs) {
+    void ClusteredShading::updateUniforms(GlobalUbo &rhs, glm::vec2 extent) {
         Frustum params{};
         params.inverseProjection = glm::inverse(rhs.projection);
         params.zNear = rhs.zNear;
         params.zFar = rhs.zFar;
         params.gridSize = glm::uvec3(gridSizeX, gridSizeY, gridSizeZ);
-        params.screenDimensions = glm::uvec2(width, height);
+        params.screenDimensions = glm::uvec2(extent.x, extent.y);
             
         frustumParams->writeToBuffer(&params);
         

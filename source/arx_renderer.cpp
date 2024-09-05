@@ -39,12 +39,17 @@ namespace arx {
             arxSwapChain = std::make_unique<ArxSwapChain>(arxDevice, extent, rpManager, textureManager);
         }
         else {
+            textureManager.resizeWindowReset();
+            rpManager.cleanup();
+
             std::shared_ptr<ArxSwapChain> oldSwapChain = std::move(arxSwapChain);
             arxSwapChain = std::make_unique<ArxSwapChain>(arxDevice, extent, oldSwapChain, rpManager, textureManager);
             
             if (!oldSwapChain->compareSwapFormats(*arxSwapChain.get())) {
                 throw std::runtime_error("Swap chain image(or depth) format has changed");
             }
+            
+            createRenderPasses();
         }
     }
 

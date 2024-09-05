@@ -30,6 +30,8 @@ namespace arx {
         
         VkFramebuffer getFrameBuffer(const std::string& name) const;
         VkRenderPass getRenderPass(const std::string& name) const;
+        
+        void cleanup();
     private:
         ArxDevice& device;
         std::unordered_map<std::string, VkRenderPass> renderPasses;

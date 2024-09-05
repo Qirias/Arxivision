@@ -96,9 +96,9 @@ namespace arx {
 
         // Set data for occlusion culling
         {
-            arxRenderer.getSwapChain()->cull.setObjectDataFromAABBs(chunkManager);
-            arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
-            arxRenderer.getSwapChain()->cull.setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->cull.depthPyramidWidth, arxRenderer.getSwapChain()->cull.depthPyramidHeight, chunkCount);
+            arxRenderer.getSwapChain()->cull->setObjectDataFromAABBs(chunkManager);
+            arxRenderer.getSwapChain()->cull->setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+            arxRenderer.getSwapChain()->cull->setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->height(), arxRenderer.getSwapChain()->height(), chunkCount);
             arxRenderer.getSwapChain()->loadGeometryToDevice();
         }
 
@@ -129,8 +129,8 @@ namespace arx {
                 
                 ImGui::Text("Press I for ImGui, O for game");
                 ImGui::Text("Chunks %d", static_cast<uint32_t>(BufferManager::readDrawCommandCount()));
-                ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.frustumCulling));
-                ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull.miscData.occlusionCulling));
+                ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull->miscData.frustumCulling));
+                ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull->miscData.occlusionCulling));
                 ImGui::Checkbox("Freeze Culling", &enableCulling);
                 ImGui::Checkbox("SSAO Enabled", &ssaoEnabled);
                 ImGui::Checkbox("SSAO Only", &ssaoOnly);
@@ -194,7 +194,7 @@ namespace arx {
                 compParams.deferred = deferred;
                 
                 arxRenderer.updateUniforms(ubo, compParams);
-                ClusteredShading::updateUniforms(ubo);
+                ClusteredShading::updateUniforms(ubo, glm::vec2(arxWindow.getExtend().width, arxWindow.getExtend().height));
 
                 // Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
@@ -203,7 +203,8 @@ namespace arx {
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 3);
                 if (!enableCulling) {
                     // Calculate the depth pyramid
-                    arxRenderer.getSwapChain()->cull.setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+                    arxRenderer.getSwapChain()->cull->setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+                    arxRenderer.getSwapChain()->cull->setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->height(), arxRenderer.getSwapChain()->height(), chunkCount);
                     arxRenderer.getSwapChain()->updateDynamicData();
                     arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
                 }

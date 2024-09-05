@@ -7,14 +7,21 @@
 namespace arx {
 
     ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent, RenderPassManager &rp, TextureManager &textures)
-    : device{deviceRef}, windowExtent{extent}, cull(deviceRef), rpManager{rp}, textureManager{textures} {
+    : device{deviceRef}, windowExtent{extent}, cull(std::make_shared<OcclusionSystem>(deviceRef)), rpManager{rp}, textureManager{textures} {
         init();
     }
 
     ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent, std::shared_ptr<ArxSwapChain> previous, RenderPassManager &rp, TextureManager &textures)
-    : device{deviceRef}, windowExtent{extent}, oldSwapChain(previous), cull(deviceRef), rpManager{rp}, textureManager{textures} {
+    : device{deviceRef}, windowExtent{extent}, oldSwapChain(previous), cull(std::make_shared<OcclusionSystem>(deviceRef)), rpManager{rp}, textureManager{textures} {
         init();
-        
+        if (previous) {
+            cull->cameraBuffer = previous->cull->cameraBuffer;
+            cull->objectsDataBuffer = previous->cull->objectsDataBuffer;
+            cull->globalDataBuffer = previous->cull->globalDataBuffer;
+            cull->miscBuffer = previous->cull->miscBuffer;
+        }
+        Init_OcclusionCulling();
+
         // clean up old swap chain since it's no longer needed
         oldSwapChain = nullptr;
     }
@@ -69,32 +76,14 @@ namespace arx {
             vkDestroyFence(device.device(), inFlightFences[i], nullptr);
         }
         
-        // depth pyramid
-        for (VkImageView view : cull.depthPyramidMips) {
-            vkDestroyImageView(device.device(), view, nullptr);
-        }
-        cull.depthPyramidMips.clear();
-        
-        vkDestroyImage(device.device(), cull.depthPyramidImage, nullptr);
-        vkFreeMemory(device.device(), cull.depthPyramidMemory, nullptr);
-        
-        vkDestroyPipeline(device.device(), cull.depthPyramidPipeline->computePipeline, nullptr);
-        cull.depthPyramidPipeline->computePipeline = VK_NULL_HANDLE;
-        
-        vkDestroyPipelineLayout(device.device(), cull.depthPyramidPipelineLayout, nullptr);
-        cull.depthPyramidPipelineLayout = VK_NULL_HANDLE;
-        
-        cull.depthDescriptorSets.clear();
-        
-        // culling
-        cull.cullingDescriptorSet = VK_NULL_HANDLE;
-        cull.cullingDescriptorLayout = VK_NULL_HANDLE;
+        cull->cleanup();
     }
 
     void ArxSwapChain::Init_OcclusionCulling() {
         createDepthSampler();
         createDepthPyramid();
         createDepthPyramidDescriptors();
+        if (oldSwapChain != nullptr) createCullingDescriptors();
         createBarriers();
     }
 
@@ -547,37 +536,37 @@ namespace arx {
     }
 
     void ArxSwapChain::createDepthPyramid() {
-        cull.depthPyramidWidth = cull.previousPow2(swapChainExtent.width);
-        cull.depthPyramidHeight = cull.previousPow2(swapChainExtent.height);
+        cull->depthPyramidWidth = cull->previousPow2(swapChainExtent.width);
+        cull->depthPyramidHeight = cull->previousPow2(swapChainExtent.height);
         
         uint32_t depthPyramidLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(swapChainExtent.width, swapChainExtent.height)))) + 1;
-        cull.depthPyramidLevels = depthPyramidLevels;
+        cull->depthPyramidLevels = depthPyramidLevels;
         
-        createImage(cull.depthPyramidWidth, cull.depthPyramidHeight, depthPyramidLevels,
+        createImage(cull->depthPyramidWidth, cull->depthPyramidHeight, depthPyramidLevels,
                     VK_SAMPLE_COUNT_1_BIT,
                     VK_FORMAT_R32_SFLOAT,
                     VK_IMAGE_TILING_OPTIMAL,
                     VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                    cull.depthPyramidImage,
-                    cull.depthPyramidMemory);
+                    cull->depthPyramidImage,
+                    cull->depthPyramidMemory);
         
-        cull.depthPyramidImageView = createImageView(cull.depthPyramidImage, VK_FORMAT_R32_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT, cull.depthPyramidLevels);
+        cull->depthPyramidImageView = createImageView(cull->depthPyramidImage, VK_FORMAT_R32_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT, cull->depthPyramidLevels);
 
         VkCommandBuffer cmd = device.beginSingleTimeCommands();
         VkImageMemoryBarrier depthPyramidLayoutBarrier = createImageBarrier(VK_IMAGE_LAYOUT_UNDEFINED,
                                                                            VK_IMAGE_LAYOUT_GENERAL,
-                                                                           cull.depthPyramidImage,
+                                                                           cull->depthPyramidImage,
                                                                            VK_IMAGE_ASPECT_COLOR_BIT,
                                                                            0, 0, 0,
-                                                                           cull.depthPyramidLevels);
+                                                                           cull->depthPyramidLevels);
         
         vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &depthPyramidLayoutBarrier);
         device.endSingleTimeCommands(cmd);
         
-        cull.depthPyramidMips.resize(cull.depthPyramidLevels, VK_NULL_HANDLE);
-        for (uint32_t i = 0; i < cull.depthPyramidLevels; ++i) {
-            cull.depthPyramidMips[i] = createImageView(cull.depthPyramidImage, VK_FORMAT_R32_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT, 1, i);
+        cull->depthPyramidMips.resize(cull->depthPyramidLevels, VK_NULL_HANDLE);
+        for (uint32_t i = 0; i < cull->depthPyramidLevels; ++i) {
+            cull->depthPyramidMips[i] = createImageView(cull->depthPyramidImage, VK_FORMAT_R32_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT, 1, i);
         }
     }
 
@@ -623,7 +612,7 @@ namespace arx {
     }
 
     void ArxSwapChain::createCullingDescriptors() {
-        cull.cullingDescriptorPool = ArxDescriptorPool::Builder(device)
+        cull->cullingDescriptorPool = ArxDescriptorPool::Builder(device)
             .setMaxSets(1)
             .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3.f)
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f)
@@ -631,18 +620,18 @@ namespace arx {
             .build();
     
         VkDescriptorBufferInfo cameraBufferInfo{};
-        cameraBufferInfo.buffer = cull.cameraBuffer->getBuffer();
+        cameraBufferInfo.buffer = cull->cameraBuffer->getBuffer();
         cameraBufferInfo.offset = 0;
         cameraBufferInfo.range = VK_WHOLE_SIZE;
         
         VkDescriptorBufferInfo objectsDataBufferInfo{};
-        objectsDataBufferInfo.buffer = cull.objectsDataBuffer->getBuffer();
+        objectsDataBufferInfo.buffer = cull->objectsDataBuffer->getBuffer();
         objectsDataBufferInfo.offset = 0;
         objectsDataBufferInfo.range = VK_WHOLE_SIZE;
         
         VkDescriptorImageInfo depthPyramidInfo{};
         depthPyramidInfo.sampler = depthSampler;
-        depthPyramidInfo.imageView = cull.depthPyramidImageView;
+        depthPyramidInfo.imageView = cull->depthPyramidImageView;
         depthPyramidInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         
         VkDescriptorBufferInfo visibilityInfo{};
@@ -651,12 +640,12 @@ namespace arx {
         visibilityInfo.range = VK_WHOLE_SIZE;
         
         VkDescriptorBufferInfo globalDataBufferInfo{};
-        globalDataBufferInfo.buffer = cull.globalDataBuffer->getBuffer();
+        globalDataBufferInfo.buffer = cull->globalDataBuffer->getBuffer();
         globalDataBufferInfo.offset = 0;
         globalDataBufferInfo.range = VK_WHOLE_SIZE;
         
         VkDescriptorBufferInfo miscBufferInfo{};
-        miscBufferInfo.buffer = cull.miscBuffer->getBuffer();
+        miscBufferInfo.buffer = cull->miscBuffer->getBuffer();
         miscBufferInfo.offset = 0;
         miscBufferInfo.range = VK_WHOLE_SIZE;
         
@@ -676,7 +665,7 @@ namespace arx {
         drawCommandCountBufferInfo.range = VK_WHOLE_SIZE;
         
         
-        ArxDescriptorWriter(*cull.cullingDescriptorLayout, *cull.cullingDescriptorPool)
+        ArxDescriptorWriter(*cull->cullingDescriptorLayout, *cull->cullingDescriptorPool)
                             .writeBuffer(0, &cameraBufferInfo)
                             .writeBuffer(1, &objectsDataBufferInfo)
                             .writeImage(2, &depthPyramidInfo)
@@ -686,20 +675,20 @@ namespace arx {
                             .writeBuffer(6, &indirectBufferInfo)
                             .writeBuffer(7, &instanceOffsetsInfo)
                             .writeBuffer(8, &drawCommandCountBufferInfo)
-                            .build(cull.cullingDescriptorSet);
+                            .build(cull->cullingDescriptorSet);
     }
 
     void ArxSwapChain::createDepthPyramidDescriptors() {
-        cull.depthDescriptorSets.resize(cull.depthPyramidLevels, VK_NULL_HANDLE);
+        cull->depthDescriptorSets.resize(cull->depthPyramidLevels, VK_NULL_HANDLE);
         
-        cull.depthDescriptorPool = ArxDescriptorPool::Builder(device)
-                            .setMaxSets(cull.depthPyramidLevels)
-                            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, cull.depthPyramidLevels)
-                            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, cull.depthPyramidLevels)
+        cull->depthDescriptorPool = ArxDescriptorPool::Builder(device)
+                            .setMaxSets(cull->depthPyramidLevels)
+                            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, cull->depthPyramidLevels)
+                            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, cull->depthPyramidLevels)
                             .build();
 
         
-        for (uint32_t i = 0; i < cull.depthPyramidLevels; i++) {
+        for (uint32_t i = 0; i < cull->depthPyramidLevels; i++) {
             VkDescriptorImageInfo srcInfo = {};
             if (i == 0) {
                 srcInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -707,52 +696,52 @@ namespace arx {
             }
             else {
                 srcInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-                srcInfo.imageView = cull.depthPyramidMips[i-1];
+                srcInfo.imageView = cull->depthPyramidMips[i-1];
             }
             srcInfo.sampler = depthSampler;
 
             VkDescriptorImageInfo dstInfo;
             dstInfo.sampler = depthSampler;
-            dstInfo.imageView = cull.depthPyramidMips[i];
+            dstInfo.imageView = cull->depthPyramidMips[i];
             dstInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
             
-            ArxDescriptorWriter(*cull.depthDescriptorLayout, *cull.depthDescriptorPool)
+            ArxDescriptorWriter(*cull->depthDescriptorLayout, *cull->depthDescriptorPool)
                 .writeImage(0, &dstInfo)
                 .writeImage(1, &srcInfo)
-                .build(cull.depthDescriptorSets[i]);
+                .build(cull->depthDescriptorSets[i]);
         }
     }
 
     void ArxSwapChain::computeDepthPyramid(VkCommandBuffer commandBuffer) {
-        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &cull.framebufferDepthWriteBarrier);
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &cull->framebufferDepthWriteBarrier);
         
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cull.depthPyramidPipeline->computePipeline);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cull->depthPyramidPipeline->computePipeline);
         
-        for (uint32_t i = 0; i < cull.depthPyramidLevels; ++i)
+        for (uint32_t i = 0; i < cull->depthPyramidLevels; ++i)
         {
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cull.depthPyramidPipelineLayout, 0, 1, &cull.depthDescriptorSets[i], 0, nullptr);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cull->depthPyramidPipelineLayout, 0, 1, &cull->depthDescriptorSets[i], 0, nullptr);
 
-            uint32_t levelWidth = glm::max(1u, cull.depthPyramidWidth >> i);
-            uint32_t levelHeight = glm::max(1u, cull.depthPyramidHeight >> i);
+            uint32_t levelWidth = glm::max(1u, cull->depthPyramidWidth >> i);
+            uint32_t levelHeight = glm::max(1u, cull->depthPyramidHeight >> i);
 
             glm::vec2 levelSize(levelWidth, levelHeight);
 
             uint32_t groupCountX = (levelWidth + 32 - 1) / 32;
             uint32_t groupCountY = (levelHeight + 32 - 1) / 32;
-            vkCmdPushConstants(commandBuffer, cull.depthPyramidPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(glm::vec2), &levelSize);
+            vkCmdPushConstants(commandBuffer, cull->depthPyramidPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(glm::vec2), &levelSize);
             vkCmdDispatch(commandBuffer, groupCountX, groupCountY, 1);
 
-            vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &cull.depthPyramidMipLevelBarriers[i]);
+            vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &cull->depthPyramidMipLevelBarriers[i]);
         }
 
-        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &cull.framebufferDepthReadBarrier);
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &cull->framebufferDepthReadBarrier);
     }
 
     void ArxSwapChain::createBarriers() {
         // Barriers for layout transition between read and write access of the depth pyramid's levels
-        cull.depthPyramidMipLevelBarriers.resize(cull.depthPyramidLevels, {});
-        for (uint32_t i = 0; i < cull.depthPyramidLevels; ++i) {
-            VkImageMemoryBarrier& barrier = cull.depthPyramidMipLevelBarriers[i];
+        cull->depthPyramidMipLevelBarriers.resize(cull->depthPyramidLevels, {});
+        for (uint32_t i = 0; i < cull->depthPyramidLevels; ++i) {
+            VkImageMemoryBarrier& barrier = cull->depthPyramidMipLevelBarriers[i];
             barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -760,7 +749,7 @@ namespace arx {
             barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
             barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.image = cull.depthPyramidImage;
+            barrier.image = cull->depthPyramidImage;
             barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             barrier.subresourceRange.baseMipLevel = i;
             barrier.subresourceRange.levelCount = 1;
@@ -769,35 +758,35 @@ namespace arx {
         }
 
         // Barriers for read/write access of the single sampled depth image attached to the framebuffers
-        cull.framebufferDepthWriteBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        cull.framebufferDepthWriteBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        cull.framebufferDepthWriteBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        cull.framebufferDepthWriteBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        cull.framebufferDepthWriteBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        cull.framebufferDepthWriteBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        cull.framebufferDepthWriteBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        cull.framebufferDepthWriteBarrier.image = textureManager.getAttachment("gDepth")->image;
-        cull.framebufferDepthWriteBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        cull.framebufferDepthWriteBarrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-        cull.framebufferDepthWriteBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+        cull->framebufferDepthWriteBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        cull->framebufferDepthWriteBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        cull->framebufferDepthWriteBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        cull->framebufferDepthWriteBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        cull->framebufferDepthWriteBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        cull->framebufferDepthWriteBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        cull->framebufferDepthWriteBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        cull->framebufferDepthWriteBarrier.image = textureManager.getAttachment("gDepth")->image;
+        cull->framebufferDepthWriteBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        cull->framebufferDepthWriteBarrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        cull->framebufferDepthWriteBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
-        cull.framebufferDepthReadBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        cull.framebufferDepthReadBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        cull.framebufferDepthReadBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        cull.framebufferDepthReadBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        cull.framebufferDepthReadBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        cull.framebufferDepthReadBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        cull.framebufferDepthReadBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        cull.framebufferDepthReadBarrier.image = textureManager.getAttachment("gDepth")->image;
-        cull.framebufferDepthReadBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        cull.framebufferDepthReadBarrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-        cull.framebufferDepthReadBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+        cull->framebufferDepthReadBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        cull->framebufferDepthReadBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        cull->framebufferDepthReadBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        cull->framebufferDepthReadBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        cull->framebufferDepthReadBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        cull->framebufferDepthReadBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        cull->framebufferDepthReadBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        cull->framebufferDepthReadBarrier.image = textureManager.getAttachment("gDepth")->image;
+        cull->framebufferDepthReadBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        cull->framebufferDepthReadBarrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        cull->framebufferDepthReadBarrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
     }
 
     void ArxSwapChain::computeCulling(VkCommandBuffer commandBuffer, const uint32_t chunkCount, bool early) {
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, early ? cull.earlyCullingPipeline->computePipeline : cull.cullingPipeline->computePipeline);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, early ? cull->earlyCullingPipeline->computePipeline : cull->cullingPipeline->computePipeline);
 
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, early ? cull.earlyCullingPipelineLayout : cull.cullingPipelineLayout, 0, 1, &cull.cullingDescriptorSet, 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, early ? cull->earlyCullingPipelineLayout : cull->cullingPipelineLayout, 0, 1, &cull->cullingDescriptorSet, 0, nullptr);
         
         uint32_t groupCountX = static_cast<uint32_t>((chunkCount / 256) + 1);
         vkCmdDispatch(commandBuffer, groupCountX, 1, 1);
@@ -816,19 +805,18 @@ namespace arx {
     }
 
     void ArxSwapChain::loadGeometryToDevice() {
-        
         // ObjectBuffer
-        cull.objectsDataBuffer = std::make_unique<ArxBuffer>(device,
+        cull->objectsDataBuffer = std::make_shared<ArxBuffer>(device,
                                                              sizeof(OcclusionSystem::GPUObjectDataBuffer::GPUObjectData),
-                                                             cull.objectData.size(),
+                                                             cull->objectData.size(),
                                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        cull.objectsDataBuffer->map();
-        cull.objectsDataBuffer->writeToBuffer(cull.objectData.dataPtr(), cull.objectData.bufferSize());
+        cull->objectsDataBuffer->map();
+        cull->objectsDataBuffer->writeToBuffer(cull->objectData.dataPtr(), cull->objectData.bufferSize());
         
         // VisibleIndices
-        BufferManager::visibilityBuffer = std::make_unique<ArxBuffer>(device,
+        BufferManager::visibilityBuffer = std::make_shared<ArxBuffer>(device,
                                                             sizeof(uint32_t),
                                                             BufferManager::visibilityData.size(),
                                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -838,38 +826,38 @@ namespace arx {
         BufferManager::visibilityBuffer->writeToBuffer(BufferManager::visibilityData.data());
         
         // Global data
-        cull.globalDataBuffer = std::make_unique<ArxBuffer>(device,
+        cull->globalDataBuffer = std::make_shared<ArxBuffer>(device,
                                                             sizeof(OcclusionSystem::GPUCullingGlobalData),
                                                             1,
                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
-        cull.globalDataBuffer->map();
-        cull.globalDataBuffer->writeToBuffer(&cull.cullingData);
+        cull->globalDataBuffer->map();
+        cull->globalDataBuffer->writeToBuffer(&cull->cullingData);
                 
         // GPUCameraData
-        cull.cameraBuffer = std::make_unique<ArxBuffer>(device,
+        cull->cameraBuffer = std::make_shared<ArxBuffer>(device,
                                                         sizeof(OcclusionSystem::GPUCameraData),
                                                         1,
                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
-        cull.cameraBuffer->map();
-        cull.cameraBuffer->writeToBuffer(&cull.cameraData);
+        cull->cameraBuffer->map();
+        cull->cameraBuffer->writeToBuffer(&cull->cameraData);
         
         // GPUMiscData
-        cull.miscBuffer = std::make_unique<ArxBuffer>(device,
+        cull->miscBuffer = std::make_shared<ArxBuffer>(device,
                                                       sizeof(OcclusionSystem::GPUMiscData),
                                                       1,
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
-        cull.miscBuffer->map();
-        cull.miscBuffer->writeToBuffer(&cull.miscData);
+        cull->miscBuffer->map();
+        cull->miscBuffer->writeToBuffer(&cull->miscData);
         
         // Draw Indirect Buffer
         // indirectDrawData is initialized in the App.cpp
-        BufferManager::drawIndirectBuffer = std::make_unique<ArxBuffer>(device,
+        BufferManager::drawIndirectBuffer = std::make_shared<ArxBuffer>(device,
                                                                         sizeof(GPUIndirectDrawCommand),
                                                                         BufferManager::indirectDrawData.size(),
                                                                         VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -880,7 +868,7 @@ namespace arx {
         BufferManager::drawIndirectBuffer->writeToBuffer(BufferManager::indirectDrawData.data());
         
         // Instance Offset Buffer
-        BufferManager::instanceOffsetBuffer = std::make_unique<ArxBuffer>(device,
+        BufferManager::instanceOffsetBuffer = std::make_shared<ArxBuffer>(device,
                                                                           sizeof(uint64_t),
                                                                           static_cast<uint32_t>(BufferManager::instanceOffsets.size()),
                                                                           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
@@ -893,7 +881,7 @@ namespace arx {
         BufferManager::instanceOffsetBuffer->writeToBuffer(BufferManager::instanceOffsets.data());
         
         // Draw Command Count Buffer
-        BufferManager::drawCommandCountBuffer = std::make_unique<ArxBuffer>(device,
+        BufferManager::drawCommandCountBuffer = std::make_shared<ArxBuffer>(device,
                                                                             sizeof(uint32_t),
                                                                             1,
                                                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
@@ -911,12 +899,15 @@ namespace arx {
     }
 
     void ArxSwapChain::updateDynamicData() {
+        // Culling Data
+        cull->globalDataBuffer->writeToBuffer(&cull->cullingData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCullingGlobalData)));
+        
         // Update camera
-        cull.cameraBuffer->writeToBuffer(&cull.cameraData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCameraData)));
-        cull.cameraBuffer->flush();
+        cull->cameraBuffer->writeToBuffer(&cull->cameraData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCameraData)));
+        cull->cameraBuffer->flush();
         
         // Update misc data
-        cull.miscBuffer->writeToBuffer(&cull.miscData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUMiscData)));
-        cull.miscBuffer->flush();
+        cull->miscBuffer->writeToBuffer(&cull->miscData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUMiscData)));
+        cull->miscBuffer->flush();
     }
 }

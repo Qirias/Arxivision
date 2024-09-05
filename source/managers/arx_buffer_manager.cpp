@@ -15,10 +15,10 @@ namespace arx {
     // Occlusion Culling
     std::shared_ptr<ArxBuffer> BufferManager::largeInstanceBuffer = nullptr;
     std::shared_ptr<ArxBuffer> BufferManager::faceVisibilityBuffer = nullptr;
-    std::unique_ptr<ArxBuffer> BufferManager::drawIndirectBuffer = nullptr;
-    std::unique_ptr<ArxBuffer> BufferManager::drawCommandCountBuffer = nullptr;
-    std::unique_ptr<ArxBuffer> BufferManager::visibilityBuffer = nullptr;
-    std::unique_ptr<ArxBuffer> BufferManager::instanceOffsetBuffer = nullptr;
+    std::shared_ptr<ArxBuffer> BufferManager::drawIndirectBuffer = nullptr;
+    std::shared_ptr<ArxBuffer> BufferManager::drawCommandCountBuffer = nullptr;
+    std::shared_ptr<ArxBuffer> BufferManager::visibilityBuffer = nullptr;
+    std::shared_ptr<ArxBuffer> BufferManager::instanceOffsetBuffer = nullptr;
 
     std::vector<GPUIndirectDrawCommand> BufferManager::indirectDrawData;
     std::vector<uint32_t> BufferManager::visibilityData;
