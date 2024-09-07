@@ -27,7 +27,7 @@ namespace arx {
         samplers.clear();
     }
 
-    void TextureManager::resizeWindowReset() {
+    void TextureManager::cleanAttachments() {
         deleteAttachment("gPosDepth");
         deleteAttachment("gNormals");
         deleteAttachment("gAlbedo");
@@ -38,12 +38,15 @@ namespace arx {
     }
 
     void TextureManager::deleteAttachment(const std::string& name) {
-        auto it = textures.find(name);
-        if (it != textures.end()) {
+        auto it = attachments.find(name);
+        if (it != attachments.end()) {
             it->second->destroy(device.device());
-            textures.erase(it);
+            attachments.erase(it);
+        } else {
+            std::cout << "Attachment not found: " << name << "\n";
         }
     }
+
 
     void TextureManager::createTexture2D(
         const std::string& name,
@@ -272,6 +275,8 @@ namespace arx {
         VkFilter filter,
         VkImageUsageFlags imageUsageFlags,
         VkImageLayout imageLayout) {
+
+        if (textures.find(name) != textures.end()) return;
 
         assert(buffer);
 

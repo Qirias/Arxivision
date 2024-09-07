@@ -56,6 +56,7 @@ namespace arx {
         
         // Resources
         void createRenderPasses();
+        void createFramebuffers();
         void createDescriptorSetLayouts();
         void createPipelineLayouts();
         void createPipelines();

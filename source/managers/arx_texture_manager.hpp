@@ -68,7 +68,7 @@ namespace arx {
         VkSampler getSampler(const std::string& name) const;
         
         void cleanup();
-        void resizeWindowReset();
+        void cleanAttachments();
         void deleteAttachment(const std::string& name);
         
     private:

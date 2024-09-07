@@ -24,6 +24,13 @@ namespace arx {
         framebuffers.clear();
     }
 
+    void RenderPassManager::cleanFrameBuffers() {
+        for (auto& pair : framebuffers) {
+            vkDestroyFramebuffer(device.device(), pair.second, nullptr);
+        }
+        framebuffers.clear();
+    }
+
     void RenderPassManager::createRenderPass(const std::string& name, const VkRenderPassCreateInfo& createInfo) {
         VkRenderPass renderPass;
         if (vkCreateRenderPass(device.device(), &createInfo, nullptr, &renderPass) != VK_SUCCESS) {

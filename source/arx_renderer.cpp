@@ -39,9 +39,7 @@ namespace arx {
             arxSwapChain = std::make_unique<ArxSwapChain>(arxDevice, extent, rpManager, textureManager);
         }
         else {
-            textureManager.resizeWindowReset();
-            rpManager.cleanup();
-
+            
             std::shared_ptr<ArxSwapChain> oldSwapChain = std::move(arxSwapChain);
             arxSwapChain = std::make_unique<ArxSwapChain>(arxDevice, extent, oldSwapChain, rpManager, textureManager);
             
@@ -49,7 +47,18 @@ namespace arx {
                 throw std::runtime_error("Swap chain image(or depth) format has changed");
             }
             
-            createRenderPasses();
+            // Clean framebuffers and attachments on resize
+            rpManager.cleanFrameBuffers();
+            textureManager.cleanAttachments();
+            
+            // Recreate only the framebuffers
+            createFramebuffers();
+            // Attachments have new adresses, so we reinitialize the descrioptors
+            createUniformBuffers();
+            
+            // Call this after you have the depth texture
+            // Flag to create the descriptors again
+            arxSwapChain->Init_OcclusionCulling(true);
         }
     }
 

@@ -14,13 +14,14 @@ namespace arx {
     ArxSwapChain::ArxSwapChain(ArxDevice &deviceRef, VkExtent2D extent, std::shared_ptr<ArxSwapChain> previous, RenderPassManager &rp, TextureManager &textures)
     : device{deviceRef}, windowExtent{extent}, oldSwapChain(previous), cull(std::make_shared<OcclusionSystem>(deviceRef)), rpManager{rp}, textureManager{textures} {
         init();
+        
+        // Need to manually copy occlusion culling buffers
         if (previous) {
             cull->cameraBuffer = previous->cull->cameraBuffer;
             cull->objectsDataBuffer = previous->cull->objectsDataBuffer;
             cull->globalDataBuffer = previous->cull->globalDataBuffer;
             cull->miscBuffer = previous->cull->miscBuffer;
         }
-        Init_OcclusionCulling();
 
         // clean up old swap chain since it's no longer needed
         oldSwapChain = nullptr;
@@ -79,11 +80,11 @@ namespace arx {
         cull->cleanup();
     }
 
-    void ArxSwapChain::Init_OcclusionCulling() {
+    void ArxSwapChain::Init_OcclusionCulling(bool rebuild) {
         createDepthSampler();
         createDepthPyramid();
         createDepthPyramidDescriptors();
-        if (oldSwapChain != nullptr) createCullingDescriptors();
+        if (rebuild) createCullingDescriptors();
         createBarriers();
     }
 

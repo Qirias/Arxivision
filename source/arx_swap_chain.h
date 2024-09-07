@@ -30,7 +30,7 @@ class ArxSwapChain {
         uint32_t width() { return swapChainExtent.width; }
         uint32_t height() { return swapChainExtent.height; }
     
-        void Init_OcclusionCulling();
+        void Init_OcclusionCulling(bool rebuild = false);
 
         float extentAspectRatio() {
             return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height);

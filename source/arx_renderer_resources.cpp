@@ -346,9 +346,9 @@ namespace arx {
 
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->writeToBuffer(&ubo);
+        passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->unmap();
         
         passBuffers[static_cast<uint8_t>(PassName::GPass)].push_back(BufferManager::largeInstanceBuffer);
-        
     
         descriptorSets[static_cast<uint8_t>(PassName::GPass)].resize(1);
 
@@ -407,6 +407,7 @@ namespace arx {
         
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][0]->writeToBuffer(ssaoKernel.data());
+        passBuffers[static_cast<uint8_t>(PassName::SSAO)][0]->unmap();
         
         // Random noise
         std::vector<glm::vec4> noiseValues(SSAO_NOISE_DIM * SSAO_NOISE_DIM);
@@ -442,6 +443,7 @@ namespace arx {
                                                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->map();
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->writeToBuffer(&compParams);
+        passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->unmap();
         
         descriptorSets[static_cast<uint8_t>(PassName::SSAO)].resize(1);
         
@@ -503,6 +505,7 @@ namespace arx {
         
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->writeToBuffer(&ubo);
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->unmap();
         
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(Materials::pointLightBuffer);
         
@@ -515,6 +518,8 @@ namespace arx {
         
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->map();
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->writeToBuffer(&Materials::maxPointLights);
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->unmap();
+        
         
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(ClusteredShading::clusterBuffer);
         
@@ -524,8 +529,7 @@ namespace arx {
                                                                                                     1,
                                                                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
-        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->map();
-        
+//        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->map();
         
         // Create the texture using the LTC1 data
         textureManager.createTexture2DFromBuffer(
@@ -616,7 +620,7 @@ namespace arx {
         
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->writeToBuffer(&compParams);
-        
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->unmap();
         
         descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)].resize(1);
         
@@ -640,33 +644,10 @@ namespace arx {
         }
     }
 
+    // Function to create render passes
     void ArxRenderer::createRenderPasses() {
         VkFormat depthFormat = arxSwapChain->findDepthFormat();
-        
-        // attachments
-        textureManager.createAttachment("gPosDepth", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
-                                        VK_FORMAT_R32G32B32A32_SFLOAT,
-                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("gNormals", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
-                                        VK_FORMAT_R8G8B8A8_UNORM,
-                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("gAlbedo", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
-                                        VK_FORMAT_R8G8B8A8_UNORM,
-                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("gDepth", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
-                                        depthFormat,
-                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
-        
-        textureManager.createAttachment("ssaoColor", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
-                                        VK_FORMAT_R8_UNORM,
-                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        textureManager.createAttachment("ssaoBlurColor", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
-                                        VK_FORMAT_R8_UNORM,
-                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        
-        textureManager.createAttachment("deferredShading", arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height,
-                                        VK_FORMAT_B8G8R8A8_SRGB,
-                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+
         // G-Pass
         {
             std::array<VkAttachmentDescription, 4> attachmentDescs = {};
@@ -681,9 +662,9 @@ namespace arx {
             }
             
             // Formats
-            attachmentDescs[0].format = textureManager.getAttachment("gPosDepth")->format;
-            attachmentDescs[1].format = textureManager.getAttachment("gNormals")->format;
-            attachmentDescs[2].format = textureManager.getAttachment("gAlbedo")->format;
+            attachmentDescs[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+            attachmentDescs[1].format = VK_FORMAT_R8G8B8A8_UNORM;
+            attachmentDescs[2].format = VK_FORMAT_R8G8B8A8_UNORM;
             attachmentDescs[3].format = depthFormat;
             
             std::vector<VkAttachmentReference> colorReferences;
@@ -701,7 +682,6 @@ namespace arx {
             subpass.colorAttachmentCount = static_cast<uint32_t>(colorReferences.size());
             subpass.pDepthStencilAttachment = &depthReference;
             
-            // Use subpass dependencies for attachment layout transitions
             std::array<VkSubpassDependency, 2> dependencies;
             
             dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -720,7 +700,6 @@ namespace arx {
             dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
             dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
             
-
             VkRenderPassCreateInfo renderPassInfo = {};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
             renderPassInfo.pAttachments = attachmentDescs.data();
@@ -731,14 +710,6 @@ namespace arx {
             renderPassInfo.pDependencies = dependencies.data();
             
             rpManager.createRenderPass("GBuffer", renderPassInfo);
-            
-            std::array<VkImageView, 4> attachments;
-            attachments[0] = textureManager.getAttachment("gPosDepth")->view;
-            attachments[1] = textureManager.getAttachment("gNormals")->view;
-            attachments[2] = textureManager.getAttachment("gAlbedo")->view;
-            attachments[3] = textureManager.getAttachment("gDepth")->view;
-            
-            rpManager.createFramebuffer("GBuffer", attachments, arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height);
         }
         
         // SSAO
@@ -788,12 +759,6 @@ namespace arx {
             renderPassInfo.pDependencies = dependencies.data();
             
             rpManager.createRenderPass("SSAO", renderPassInfo);
-            
-            // attachments
-            std::array<VkImageView, 1> attachments;
-            attachments[0] = textureManager.getAttachment("ssaoColor")->view;
-
-            rpManager.createFramebuffer("SSAO", attachments, arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height);
         }
         
         // SSAO Blur
@@ -843,17 +808,12 @@ namespace arx {
             renderPassInfo.pDependencies = dependencies.data();
 
             rpManager.createRenderPass("SSAOBlur", renderPassInfo);
-    
-            std::array<VkImageView, 1> attachments;
-            attachments[0] = textureManager.getAttachment("ssaoBlurColor")->view;
-            
-            rpManager.createFramebuffer("SSAOBlur", attachments, arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height);
         }
         
         // Deferred
         {
             VkAttachmentDescription attachmentDescription = {};
-            attachmentDescription.format = textureManager.getAttachment("deferredShading")->format;
+            attachmentDescription.format = VK_FORMAT_B8G8R8A8_SRGB;
             attachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
             attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -897,13 +857,73 @@ namespace arx {
             renderPassInfo.pDependencies = dependencies.data();
 
             rpManager.createRenderPass("Deferred", renderPassInfo);
+        }
+    }
 
+    // Function to create framebuffers
+    void ArxRenderer::createFramebuffers() {
+        VkExtent2D swapChainExtent = arxSwapChain->getSwapChainExtent();
+
+        // Create attachments
+        textureManager.createAttachment("gPosDepth", swapChainExtent.width, swapChainExtent.height,
+                                        VK_FORMAT_R32G32B32A32_SFLOAT,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        textureManager.createAttachment("gNormals", swapChainExtent.width, swapChainExtent.height,
+                                        VK_FORMAT_R8G8B8A8_UNORM,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        textureManager.createAttachment("gAlbedo", swapChainExtent.width, swapChainExtent.height,
+                                        VK_FORMAT_R8G8B8A8_UNORM,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        textureManager.createAttachment("gDepth", swapChainExtent.width, swapChainExtent.height,
+                                        arxSwapChain->findDepthFormat(),
+                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        
+        textureManager.createAttachment("ssaoColor", swapChainExtent.width, swapChainExtent.height,
+                                        VK_FORMAT_R8_UNORM,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        textureManager.createAttachment("ssaoBlurColor", swapChainExtent.width, swapChainExtent.height,
+                                        VK_FORMAT_R8_UNORM,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        
+        textureManager.createAttachment("deferredShading", swapChainExtent.width, swapChainExtent.height,
+                                        VK_FORMAT_B8G8R8A8_SRGB,
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+
+        // G-Buffer framebuffer
+        {
+            std::array<VkImageView, 4> attachments;
+            attachments[0] = textureManager.getAttachment("gPosDepth")->view;
+            attachments[1] = textureManager.getAttachment("gNormals")->view;
+            attachments[2] = textureManager.getAttachment("gAlbedo")->view;
+            attachments[3] = textureManager.getAttachment("gDepth")->view;
+            
+            rpManager.createFramebuffer("GBuffer", attachments, swapChainExtent.width, swapChainExtent.height);
+        }
+
+        // SSAO framebuffer
+        {
+            std::array<VkImageView, 1> attachments;
+            attachments[0] = textureManager.getAttachment("ssaoColor")->view;
+            
+            rpManager.createFramebuffer("SSAO", attachments, swapChainExtent.width, swapChainExtent.height);
+        }
+
+        // SSAO Blur framebuffer
+        {
+            std::array<VkImageView, 1> attachments;
+            attachments[0] = textureManager.getAttachment("ssaoBlurColor")->view;
+            
+            rpManager.createFramebuffer("SSAOBlur", attachments, swapChainExtent.width, swapChainExtent.height);
+        }
+
+        // Deferred framebuffer
+        {
             std::array<VkImageView, 1> attachments;
             attachments[0] = textureManager.getAttachment("deferredShading")->view;
 
-            rpManager.createFramebuffer("Deferred", attachments, arxSwapChain->getSwapChainExtent().width, arxSwapChain->getSwapChainExtent().height);
+            rpManager.createFramebuffer("Deferred", attachments, swapChainExtent.width, swapChainExtent.height);
         }
-    
+
         // Shared sampler used for all color attachments
         textureManager.createSampler("colorSampler");
     }
@@ -1054,7 +1074,9 @@ namespace arx {
         ubo.zFar        = rhs.zFar;
         
         // G-Buffer
+        passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->writeToBuffer(&ubo);
+        passBuffers[static_cast<uint8_t>(PassName::GPass)][0]->unmap();
         
         // SSAO
         compParams.projection    = rhs.projection;
@@ -1065,7 +1087,9 @@ namespace arx {
         compParams.ssaoBlur      = params.ssaoBlur;
         compParams.deferred      = params.deferred;
         
+        passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->map();
         passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->writeToBuffer(&compParams);
+        passBuffers[static_cast<uint8_t>(PassName::SSAO)][1]->unmap();
         
         // Deferred
         ClusteredShading::Frustum frustumParams;
@@ -1074,15 +1098,23 @@ namespace arx {
         frustumParams.zFar = rhs.zFar;
         frustumParams.zNear = rhs.zNear;
         
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->map();
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->map();
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->writeToBuffer(&ubo);
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->writeToBuffer(&frustumParams);
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->unmap();
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->unmap();
+        
         
         // COMPOSITION
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->writeToBuffer(&compParams);
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->unmap();
     }
 
     void ArxRenderer::init_Passes() {
         createRenderPasses();
+        createFramebuffers();
         createDescriptorSetLayouts();
         createPipelineLayouts();
         createPipelines();
