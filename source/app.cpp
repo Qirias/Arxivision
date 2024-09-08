@@ -6,6 +6,7 @@
 #include "../source/arx_buffer.h"
 #include "../source/geometry/chunkManager.h"
 #include "../source/systems/clustered_shading_system.hpp"
+#include "../source/geometry/blockMaterials.hpp"
 
 #include "../libs/imgui/imgui.h"
 #include "../libs/imgui/backends/imgui_impl_glfw.h"

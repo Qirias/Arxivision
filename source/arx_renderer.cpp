@@ -51,6 +51,7 @@ namespace arx {
             textureManager.cleanAttachments();
             rpManager.cleanFrameBuffers();
             
+            
             // Recreate only the framebuffers
             createFramebuffers();
             // Attachments have new adresses, so we reinitialize the descrioptors

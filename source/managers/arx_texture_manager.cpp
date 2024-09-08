@@ -35,6 +35,12 @@ namespace arx {
         deleteAttachment("ssaoColor");
         deleteAttachment("ssaoBlurColor");
         deleteAttachment("deferredShading");
+        
+        auto it = samplers.find("colorSampler");
+        if (it != samplers.end()) {
+            vkDestroySampler(device.device(), it->second, nullptr);
+            samplers.erase(it);
+        }
     }
 
     void TextureManager::deleteAttachment(const std::string& name) {
