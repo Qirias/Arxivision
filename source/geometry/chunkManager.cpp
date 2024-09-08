@@ -10,7 +10,9 @@ namespace arx {
     
     ChunkManager::ChunkManager(ArxDevice &device) : arxDevice{device} {}
 
-    ChunkManager::~ChunkManager() {}
+    ChunkManager::~ChunkManager() {
+        Materials::cleanup();
+    }
 
     void ChunkManager::MengerSponge(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize) {
         

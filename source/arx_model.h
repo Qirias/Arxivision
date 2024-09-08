@@ -60,7 +60,7 @@ namespace arx {
         void createInstanceBuffer(const ArxModel::Builder &builder);
         static void calculateWorldDimensions(const std::vector<InstanceData> &instanceData);
         
-        ArxDevice       &arxDevice;
+        ArxDevice                   &arxDevice;
         
         std::shared_ptr<ArxBuffer>  vertexBuffer;
         uint32_t                    vertexCount;

@@ -25,23 +25,48 @@ namespace arx {
                     .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .build();
+        
+        textureManager = std::make_unique<TextureManager>(arxDevice);
+        rpManager = std::make_unique<RenderPassManager>(arxDevice);
+        arxRenderer = std::make_unique<ArxRenderer>(arxWindow, arxDevice, *rpManager, *textureManager);
+        chunkManager = std::make_unique<ChunkManager>(arxDevice);
+        
         createQueryPool();
         initializeImgui();
     }
 
-    App::~App() {}
+    App::~App() {
+        vkDeviceWaitIdle(arxDevice.device());
+        
+        ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+        
+        ClusteredShading::cleanup();
+        BufferManager::cleanup();
+        
+        gameObjects.clear();
+        chunkManager.reset();
+        rpManager.reset();
+        textureManager.reset();
+        arxRenderer.reset();
+        globalPool.reset();
+
+        vkDestroyQueryPool(arxDevice.device(), queryPool, nullptr);
+        vkDestroyDescriptorPool(arxDevice.device(), imguiPool, nullptr);
+    }
 
     void App::run() {
         ArxCamera camera{};
         UserInput userController{*this};
-//        chunkManager.MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        chunkManager.vox2Chunks(gameObjects, "data/scenes/monu5Edited.vox");
+//        chunkManager->MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
+        chunkManager->vox2Chunks(gameObjects, "data/scenes/monu5Edited.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
         // Since voxels share the same vertex and index buffer we can bind those once and do multi draw indirect
         BufferManager::createLargeInstanceBuffer(arxDevice, ArxModel::getTotalInstances());
-        uint32_t chunkCount = static_cast<uint32_t>(chunkManager.getChunkAABBs().size());
+        uint32_t chunkCount = static_cast<uint32_t>(chunkManager->getChunkAABBs().size());
         // Initialize the maximum indirect draw size
         BufferManager::indirectDrawData.resize(chunkCount);
         
@@ -58,10 +83,10 @@ namespace arx {
                         viewerObject.transform.translation + userController.forwardDir,
                         userController.upDir);
 
-        float aspect = arxRenderer.getAspectRatio();
+        float aspect = arxRenderer->getAspectRatio();
 
         camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 400.f);
-        chunkManager.setCamera(camera);
+        chunkManager->setCamera(camera);
         
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (int i = 0; i < uboBuffers.size(); i++) {
@@ -92,14 +117,14 @@ namespace arx {
         }
 
         ClusteredShading::init(arxDevice, WIDTH, HEIGHT);
-        arxRenderer.init_Passes();
+        arxRenderer->init_Passes();
 
         // Set data for occlusion culling
         {
-            arxRenderer.getSwapChain()->cull->setObjectDataFromAABBs(chunkManager);
-            arxRenderer.getSwapChain()->cull->setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
-            arxRenderer.getSwapChain()->cull->setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->height(), arxRenderer.getSwapChain()->height(), chunkCount);
-            arxRenderer.getSwapChain()->loadGeometryToDevice();
+            arxRenderer->getSwapChain()->cull->setObjectDataFromAABBs(*chunkManager.get());
+            arxRenderer->getSwapChain()->cull->setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+            arxRenderer->getSwapChain()->cull->setGlobalData(camera.getProjection(), arxRenderer->getSwapChain()->height(), arxRenderer->getSwapChain()->height(), chunkCount);
+            arxRenderer->getSwapChain()->loadGeometryToDevice();
         }
 
         bool enableCulling = false;
@@ -129,8 +154,8 @@ namespace arx {
                 
                 ImGui::Text("Press I for ImGui, O for game");
                 ImGui::Text("Chunks %d", static_cast<uint32_t>(BufferManager::readDrawCommandCount()));
-                ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull->miscData.frustumCulling));
-                ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer.getSwapChain()->cull->miscData.occlusionCulling));
+                ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer->getSwapChain()->cull->miscData.frustumCulling));
+                ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer->getSwapChain()->cull->miscData.occlusionCulling));
                 ImGui::Checkbox("Freeze Culling", &enableCulling);
                 ImGui::Checkbox("SSAO Enabled", &ssaoEnabled);
                 ImGui::Checkbox("SSAO Only", &ssaoOnly);
@@ -155,8 +180,8 @@ namespace arx {
             camera.lookAtRH(viewerObject.transform.translation, viewerObject.transform.translation + userController.forwardDir, userController.upDir);
 
             // beginFrame() will return nullptr if the swapchain need to be recreated
-            if (auto commandBuffer = arxRenderer.beginFrame()) {
-                int frameIndex = arxRenderer.getFrameIndex();
+            if (auto commandBuffer = arxRenderer->beginFrame()) {
+                int frameIndex = arxRenderer->getFrameIndex();
                 FrameInfo frameInfo{
                     frameIndex,
                     frameTime,
@@ -172,7 +197,7 @@ namespace arx {
                 if (!enableCulling) {
                     // Early cull: frustum cull and fill objects that *were* visible last frame
                     BufferManager::resetDrawCommandCountBuffer(frameInfo.commandBuffer);
-                    arxRenderer.getSwapChain()->computeCulling(commandBuffer, chunkCount, true);
+                    arxRenderer->getSwapChain()->computeCulling(commandBuffer, chunkCount, true);
                 }
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 1);
                 
@@ -193,30 +218,30 @@ namespace arx {
                 compParams.ssaoBlur = ssaoBlur;
                 compParams.deferred = deferred;
                 
-                arxRenderer.updateUniforms(ubo, compParams);
+                arxRenderer->updateUniforms(ubo, compParams);
                 ClusteredShading::updateUniforms(ubo, glm::vec2(arxWindow.getExtend().width, arxWindow.getExtend().height));
 
                 // Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
-                arxRenderer.Passes(frameInfo);
+                arxRenderer->Passes(frameInfo);
 
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 3);
                 if (!enableCulling) {
                     // Calculate the depth pyramid
-                    arxRenderer.getSwapChain()->cull->setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
-                    arxRenderer.getSwapChain()->cull->setGlobalData(camera.getProjection(), arxRenderer.getSwapChain()->height(), arxRenderer.getSwapChain()->height(), chunkCount);
-                    arxRenderer.getSwapChain()->updateDynamicData();
-                    arxRenderer.getSwapChain()->computeDepthPyramid(commandBuffer);
+                    arxRenderer->getSwapChain()->cull->setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
+                    arxRenderer->getSwapChain()->cull->setGlobalData(camera.getProjection(), arxRenderer->getSwapChain()->height(), arxRenderer->getSwapChain()->height(), chunkCount);
+                    arxRenderer->getSwapChain()->updateDynamicData();
+                    arxRenderer->getSwapChain()->computeDepthPyramid(commandBuffer);
                 }
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 4);
 
                 if (!enableCulling) {
                     // Late cull: frustum + occlusion cull and fill objects that were *not* visible last frame
-                    arxRenderer.getSwapChain()->computeCulling(commandBuffer, chunkCount);
+                    arxRenderer->getSwapChain()->computeCulling(commandBuffer, chunkCount);
                     vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 5);
                 }
 
-                arxRenderer.endFrame();
+                arxRenderer->endFrame();
 
                 // Retrieve timestamp data
                 uint64_t timestamps[6];
@@ -232,19 +257,11 @@ namespace arx {
                 }
             }
         }
-        vkDeviceWaitIdle(arxDevice.device());
-        // Cleanup ImGui when the application is about to close
-        vkDestroyDescriptorPool(arxDevice.device(), imguiPool, nullptr);
-        vkDestroyQueryPool(arxDevice.device(), queryPool, nullptr);
-        ImGui_ImplVulkan_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
-        ClusteredShading::cleanup();
     }
 
     void App::drawCoordinateVectors(const ArxCamera& camera) {
-        int screenWidth = arxRenderer.getSwapChain()->width();
-        int screenHeight = arxRenderer.getSwapChain()->height();
+        int screenWidth = arxRenderer->getSwapChain()->width();
+        int screenHeight = arxRenderer->getSwapChain()->height();
 
         float dpiScale = ImGui::GetIO().DisplayFramebufferScale.x;
 
@@ -350,9 +367,9 @@ namespace arx {
         init_info.Queue = arxDevice.graphicsQueue();
         init_info.DescriptorPool = imguiPool;
         init_info.MinImageCount = 2;
-        init_info.ImageCount = static_cast<uint32_t>(arxRenderer.getSwapChain()->imageCount());
+        init_info.ImageCount = static_cast<uint32_t>(arxRenderer->getSwapChain()->imageCount());
         init_info.MSAASamples = arxDevice.msaaSamples;
-        init_info.RenderPass = arxRenderer.getSwapChain()->getRenderPass();
+        init_info.RenderPass = arxRenderer->getSwapChain()->getRenderPass();
         ImGui_ImplVulkan_Init(&init_info);
 
         ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);

@@ -28,15 +28,15 @@ namespace arx {
 
     ArxPipeline::~ArxPipeline() {
         if (vertShaderModule != VK_NULL_HANDLE)
-           vkDestroyShaderModule(arxDevice.device(), vertShaderModule, nullptr);
+            vkDestroyShaderModule(arxDevice.device(), vertShaderModule, nullptr);
         if (fragShaderModule != VK_NULL_HANDLE)
-           vkDestroyShaderModule(arxDevice.device(), fragShaderModule, nullptr);
+            vkDestroyShaderModule(arxDevice.device(), fragShaderModule, nullptr);
         if (computeShaderModule != VK_NULL_HANDLE)
-           vkDestroyShaderModule(arxDevice.device(), computeShaderModule, nullptr);
+            vkDestroyShaderModule(arxDevice.device(), computeShaderModule, nullptr);
         if (geomShaderModule != VK_NULL_HANDLE)
-           vkDestroyShaderModule(arxDevice.device(), geomShaderModule, nullptr);
+            vkDestroyShaderModule(arxDevice.device(), geomShaderModule, nullptr);
         if (graphicsPipeline != VK_NULL_HANDLE)
-           vkDestroyPipeline(arxDevice.device(), graphicsPipeline, nullptr);
+            vkDestroyPipeline(arxDevice.device(), graphicsPipeline, nullptr);
         if (computePipeline != VK_NULL_HANDLE)
             vkDestroyPipeline(arxDevice.device(), computePipeline, nullptr);
     }

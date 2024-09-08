@@ -2,11 +2,6 @@
 
 #include "source/app.h"
 
-// std
-#include <cstdlib>
-#include <iostream>
-#include <stdexcept>
-
 int main() {
     arx::App app{};
     

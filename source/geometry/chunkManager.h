@@ -45,7 +45,6 @@ namespace arx {
         ArxDevice                                               &arxDevice;
         std::vector<Chunk*>                                     m_vpChunks; // All the Chunk instances
         std::unordered_map<unsigned int, AABB>                  chunkAABBs; // The world space AABB min and max of each chunk
-        ArxModel::Builder                                       builder;
         ArxCamera                                               camera;
         std::vector<std::pair<glm::vec3, unsigned int>>         chunkPositions; // World space positions of chunks
         std::vector<std::vector<std::vector<VoxelData>>>        voxelWorld; // A 3D representation of each voxel including the air voxels

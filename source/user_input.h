@@ -10,6 +10,7 @@ namespace arx {
     class UserInput {
     public:
         UserInput(App& app);
+        ~UserInput();
         
         struct KeyMappings {
             int moveLeft     = GLFW_KEY_A;

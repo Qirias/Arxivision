@@ -172,11 +172,9 @@ namespace arx {
 
 
     void Materials::cleanup() {
-        pointLightBuffer->unmap();
         pointLightBuffer.reset();
         pointLightsCPU.clear();
         chunkLightInfos.clear();
         currentPointLightCount = 0;
     }
-
 }

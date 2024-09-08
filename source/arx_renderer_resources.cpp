@@ -642,7 +642,55 @@ namespace arx {
                 vkDestroyPipelineLayout(arxDevice.device(), layout, nullptr);
             }
         }
+        
+        for (auto& sets : descriptorSets) {
+            sets.clear();
+        }
+
+        for (auto& pool : descriptorPools) {
+            if (pool) {
+                pool->resetPool();
+                pool.reset();
+            }
+        }
+
+        for (auto& layoutList : descriptorLayouts) {
+            for (auto& layout : layoutList) {
+                layout.reset();
+            }
+            layoutList.clear();
+        }
+
+        pipelines[static_cast<uint8_t>(PassName::COMPOSITION)].reset();
+        pipelines[static_cast<uint8_t>(PassName::GPass)].reset();
+        
+        // Manually set the vertex shader module to nullptr to skip the destruction
+        // These pipelines are using the fullscreen vertex shader of COMPOSITION
+        pipelines[static_cast<uint8_t>(PassName::SSAO)]->resetVertShaderModule();
+        pipelines[static_cast<uint8_t>(PassName::SSAO)].reset();
+        
+        pipelines[static_cast<uint8_t>(PassName::SSAOBLUR)]->resetVertShaderModule();
+        pipelines[static_cast<uint8_t>(PassName::SSAOBLUR)].reset();
+        
+        pipelines[static_cast<uint8_t>(PassName::DEFERRED)]->resetVertShaderModule();
+        pipelines[static_cast<uint8_t>(PassName::DEFERRED)].reset();
+
+        for (auto& passBufferEntry : passBuffers) {
+            for (auto& buffer : passBufferEntry.second) {
+                buffer.reset();
+            }
+            passBufferEntry.second.clear();
+        }
+
+        descriptorLayouts.fill({});
+        descriptorPools.fill(nullptr);
+        descriptorSets.fill({});
+        pipelineLayouts.fill(VK_NULL_HANDLE);
+        pipelines.fill(nullptr);
+        
+        passBuffers.clear();
     }
+
 
     // Function to create render passes
     void ArxRenderer::createRenderPasses() {

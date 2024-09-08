@@ -66,6 +66,10 @@ namespace arx {
         for (auto framebuffer : swapChainFramebuffers) {
             vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
         }
+        
+        for (auto framebuffer : earlySwapChainFramebuffers) {
+            vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
+        }
 
         vkDestroyRenderPass(device.device(), renderPass, nullptr);
         vkDestroyRenderPass(device.device(), earlyRenderPass, nullptr);
@@ -76,7 +80,7 @@ namespace arx {
             vkDestroySemaphore(device.device(), imageAvailableSemaphores[i], nullptr);
             vkDestroyFence(device.device(), inFlightFences[i], nullptr);
         }
-        
+    
         cull->cleanup();
     }
 
@@ -905,10 +909,8 @@ namespace arx {
         
         // Update camera
         cull->cameraBuffer->writeToBuffer(&cull->cameraData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUCameraData)));
-        cull->cameraBuffer->flush();
         
         // Update misc data
         cull->miscBuffer->writeToBuffer(&cull->miscData, static_cast<uint64_t>(sizeof(OcclusionSystem::GPUMiscData)));
-        cull->miscBuffer->flush();
     }
 }

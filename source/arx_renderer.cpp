@@ -48,8 +48,8 @@ namespace arx {
             }
             
             // Clean framebuffers and attachments on resize
-            rpManager.cleanFrameBuffers();
             textureManager.cleanAttachments();
+            rpManager.cleanFrameBuffers();
             
             // Recreate only the framebuffers
             createFramebuffers();

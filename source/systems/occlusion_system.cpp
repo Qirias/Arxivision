@@ -44,7 +44,6 @@ namespace arx {
         depthDescriptorPool.reset();
         depthDescriptorLayout.reset();
         
-        
         // Destroy culling resources
         vkDestroyPipelineLayout(arxDevice.device(), cullingPipelineLayout, nullptr);
         cullingPipeline.reset();

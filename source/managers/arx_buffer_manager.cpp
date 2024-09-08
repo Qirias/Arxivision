@@ -269,4 +269,36 @@ namespace arx {
         // Unmap the staging buffer
         stagingBuffer.unmap();
     }
+
+    void arx::BufferManager::cleanup() {
+        drawIndirectBuffer.reset();
+        drawCommandCountBuffer.reset();
+        instanceOffsetBuffer.reset();
+        visibilityBuffer.reset();
+
+        nodeBuffer.reset();
+        voxelBuffer.reset();
+
+        largeInstanceBuffer.reset();
+        faceVisibilityBuffer.reset();
+
+        for (auto& buffer : vertexBuffers) {
+            buffer.reset();
+        }
+        vertexBuffers.clear();
+        vertexOffsets.clear();
+
+        for (auto& buffer : indexBuffers) {
+            buffer.reset();
+        }
+        indexBuffers.clear();
+        indexOffsets.clear();
+
+        for (auto& buffer : instanceBuffers) {
+            buffer.reset();
+        }
+        
+        instanceBuffers.clear();
+        instanceOffsets.clear();
+    }
 }

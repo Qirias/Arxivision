@@ -33,15 +33,15 @@ namespace arx {
         void drawCoordinateVectors(const ArxCamera& camera);
         void printMat4(const glm::mat4& mat);
         
+        // note: order of declarations matters
         ArxWindow                           arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
         ArxDevice                           arxDevice{arxWindow};
-        TextureManager                      textureManager{arxDevice};
-        RenderPassManager                   rpManager{arxDevice};
-        ArxRenderer                         arxRenderer{arxWindow, arxDevice, rpManager, textureManager};
         
-        ChunkManager                        chunkManager{arxDevice};
-
-        // note: order of declarations matters
+        std::unique_ptr<TextureManager>     textureManager;
+        std::unique_ptr<RenderPassManager>  rpManager;
+        std::unique_ptr<ArxRenderer>        arxRenderer;
+        std::unique_ptr<ChunkManager>       chunkManager;
+        
         std::unique_ptr<ArxDescriptorPool>  globalPool{};
         VkDescriptorPool                    imguiPool;
         VkQueryPool                         queryPool;

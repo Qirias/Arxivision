@@ -32,7 +32,6 @@ namespace arx {
         descriptorPool.reset();
         largeInstanceBuffer.reset();
         faceVisibilityBuffer.reset();
-        arxDevice = nullptr;
     }
 
     void FaceVisibilitySystem::createDescriptorSetLayout() {

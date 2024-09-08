@@ -54,12 +54,17 @@ namespace arx {
         descriptorSetLayoutCluster.reset();
         pipelineCluster.reset();
         descriptorPoolCluster.reset();
-        arxDevice = nullptr;
         
         vkDestroyPipelineLayout(arxDevice->device(), pipelineLayoutCulling, nullptr);
         descriptorSetLayoutCulling.reset();
         pipelineCulling.reset();
         descriptorPoolCulling.reset();
+        
+        clusterBuffer.reset();
+        frustumParams.reset();
+        pointLightsBuffer.reset();
+        lightCountBuffer.reset();
+        viewMatrixBuffer.reset();
     }
 
     void ClusteredShading::createDescriptorSetLayout() {

@@ -54,6 +54,7 @@ namespace arx {
         ArxPipeline& operator=(const ArxPipeline&) = delete;
         
         VkShaderModule getVertShaderModule() const {return vertShaderModule;}
+        void resetVertShaderModule() {vertShaderModule = nullptr;}
         VkPipelineShaderStageCreateInfo getVertexShaderStageInfo() const {return vertexShaderStageInfo;}
         
         void bind(VkCommandBuffer commandBuffer);

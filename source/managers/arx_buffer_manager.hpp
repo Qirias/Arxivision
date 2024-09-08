@@ -42,6 +42,8 @@ namespace arx {
         static void resetDrawCommandCountBuffer(VkCommandBuffer commandBuffer);
         static VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
         
+        static void cleanup();
+        
         // occlusion_culling.comp
         static std::shared_ptr<ArxBuffer> drawIndirectBuffer;
         static std::shared_ptr<ArxBuffer> drawCommandCountBuffer;
