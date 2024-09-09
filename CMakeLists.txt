@@ -14,6 +14,7 @@ set(CMAKE_GENERATOR "Xcode")
 file(GLOB_RECURSE SOURCES 
     ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/source/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/*.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/imgui/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/imgui/backends/imgui_impl_glfw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/imgui/backends/imgui_impl_vulkan.cpp
@@ -157,6 +158,7 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 file(GLOB_RECURSE ALL_SOURCE_FILES 
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/*.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/*.comp

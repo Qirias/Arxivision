@@ -27,10 +27,10 @@ namespace arx {
                     .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ArxSwapChain::MAX_FRAMES_IN_FLIGHT)
                     .build();
         
-        textureManager = std::make_unique<TextureManager>(arxDevice);
-        rpManager = std::make_unique<RenderPassManager>(arxDevice);
-        arxRenderer = std::make_unique<ArxRenderer>(arxWindow, arxDevice, *rpManager, *textureManager);
-        chunkManager = std::make_unique<ChunkManager>(arxDevice);
+        textureManager  = std::make_unique<TextureManager>(arxDevice);
+        rpManager       = std::make_unique<RenderPassManager>(arxDevice);
+        arxRenderer     = std::make_unique<ArxRenderer>(arxWindow, arxDevice, *rpManager, *textureManager);
+        chunkManager    = std::make_unique<ChunkManager>(arxDevice);
         
         createQueryPool();
         initializeImgui();
@@ -70,10 +70,6 @@ namespace arx {
         uint32_t chunkCount = static_cast<uint32_t>(chunkManager->getChunkAABBs().size());
         // Initialize the maximum indirect draw size
         BufferManager::indirectDrawData.resize(chunkCount);
-        
-        std::cout << "Width: " << ArxModel::getWorldWidth() << "\n";
-        std::cout << "Height: " << ArxModel::getWorldHeight() << "\n";
-        std::cout << "Depth: " << ArxModel::getWorldDepth() << "\n";
         std::cout << "Total Voxels: " << ArxModel::getTotalInstances() << "\n";
         
         auto viewerObject = ArxGameObject::createGameObject();
@@ -86,7 +82,7 @@ namespace arx {
 
         float aspect = arxRenderer->getAspectRatio();
 
-        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 400.f);
+        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
         chunkManager->setCamera(camera);
         
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -208,7 +204,7 @@ namespace arx {
                 ubo.view            = camera.getView();
                 ubo.inverseView     = camera.getInverseView();
                 ubo.zNear           = .1f;
-                ubo.zFar            = 400.f;
+                ubo.zFar            = 1024.f;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
 
