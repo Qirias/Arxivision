@@ -569,7 +569,9 @@ namespace arx {
         
         
         auto uboInfo            = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->descriptorInfo();
-        auto pointLightInfo     = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][1]->descriptorInfo();
+        VkDescriptorBufferInfo pointLightInfo{};
+        if (Materials::maxPointLights > 0)
+            pointLightInfo      = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][1]->descriptorInfo();
         auto lightCountInfo     = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->descriptorInfo();
         auto clusterInfo        = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][3]->descriptorInfo();
         auto frustumInfo        = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->descriptorInfo();

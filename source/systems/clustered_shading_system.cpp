@@ -187,7 +187,10 @@ namespace arx {
                                                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         viewMatrixBuffer->map();
         
-        auto pointLightBufferInfo = pointLightsBuffer->descriptorInfo();
+        VkDescriptorBufferInfo pointLightBufferInfo{};
+        if (Materials::maxPointLights > 0)
+            pointLightBufferInfo = pointLightsBuffer->descriptorInfo();
+        
         auto lightCountBufferInfo = lightCountBuffer->descriptorInfo();
         auto viewMatrixBufferInfo = viewMatrixBuffer->descriptorInfo();
         

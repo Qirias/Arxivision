@@ -162,6 +162,9 @@ namespace arx {
             setImagelessFramebufferFeature();
             setBufferDeviceAddressFeature();
             
+            // Need nulldescriptor for scenes that don't have lights
+            // Mac doesn't support this feature
+            
             bufferDeviceAddressFeatures.pNext = &imagelessFramebufferFeatures;
             deviceFeatures2.pNext = &bufferDeviceAddressFeatures;
 

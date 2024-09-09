@@ -204,6 +204,15 @@ namespace arx {
             }
         }
         
+        // Set a dummy light for scenes with no light
+        // My system doesn't support nulldescriptors
+        
+        PointLight light;
+        light.position = glm::vec3(0,0,0);
+        light.color = glm::vec4(1);
+        light.visibilityMask = 0;
+        
+        if (chunkLights.size() == 0) chunkLights[0].push_back(light);
         if (chunkLights.size() > 0)
             Materials::initialize(arxDevice, chunkLights);
         BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
