@@ -89,8 +89,8 @@ class ArxSwapChain {
         std::vector<VkImage>        swapChainImages;
         std::vector<VkImageView>    swapChainImageViews;
 
-        ArxDevice &device;
-        VkExtent2D windowExtent;
+        ArxDevice                   &device;
+        VkExtent2D                  windowExtent;
 
         VkSwapchainKHR                  swapChain;
         std::shared_ptr<ArxSwapChain>   oldSwapChain;

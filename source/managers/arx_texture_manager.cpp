@@ -35,6 +35,7 @@ namespace arx {
         deleteAttachment("ssaoColor");
         deleteAttachment("ssaoBlurColor");
         deleteAttachment("deferredShading");
+        deleteAttachment("composition");
         
         auto it = samplers.find("colorSampler");
         if (it != samplers.end()) {
@@ -52,7 +53,6 @@ namespace arx {
             std::cout << "Attachment not found: " << name << "\n";
         }
     }
-
 
     void TextureManager::createTexture2D(
         const std::string& name,
@@ -255,6 +255,13 @@ namespace arx {
             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
             sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        } else if (oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && 
+                   newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+            sourceStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
             destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
         } else {
             // Handle other cases as necessary

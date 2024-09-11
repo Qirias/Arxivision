@@ -1,16 +1,10 @@
 #include "../source/engine_pch.hpp"
 
 #include "../source/app.h"
-#include "../source/arx_camera.h"
 #include "../source/user_input.h"
 #include "../source/arx_buffer.h"
-#include "../source/geometry/chunkManager.h"
 #include "../source/systems/clustered_shading_system.hpp"
 #include "../source/geometry/blockMaterials.hpp"
-
-#include "../libs/imgui/imgui.h"
-#include "../libs/imgui/backends/imgui_impl_glfw.h"
-#include "../libs/imgui/backends/imgui_impl_vulkan.h"
 
 #define OGT_VOX_IMPLEMENTATION
 #include "../libs/ogt_vox.h"
@@ -31,17 +25,15 @@ namespace arx {
         rpManager       = std::make_unique<RenderPassManager>(arxDevice);
         arxRenderer     = std::make_unique<ArxRenderer>(arxWindow, arxDevice, *rpManager, *textureManager);
         chunkManager    = std::make_unique<ChunkManager>(arxDevice);
-        
+        editor          = std::make_shared<Editor>(arxDevice, arxWindow.getGLFWwindow(), *textureManager);
+        editor->setRenderPass(arxRenderer->getSwapChain()->getRenderPass());
+        editor->init();
+
         createQueryPool();
-        initializeImgui();
     }
 
     App::~App() {
         vkDeviceWaitIdle(arxDevice.device());
-        
-        ImGui_ImplVulkan_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
         
         ClusteredShading::cleanup();
         BufferManager::cleanup();
@@ -50,18 +42,18 @@ namespace arx {
         chunkManager.reset();
         rpManager.reset();
         textureManager.reset();
+        editor.reset();
         arxRenderer.reset();
         globalPool.reset();
 
         vkDestroyQueryPool(arxDevice.device(), queryPool, nullptr);
-        vkDestroyDescriptorPool(arxDevice.device(), imguiPool, nullptr);
     }
 
     void App::run() {
         ArxCamera camera{};
         UserInput userController{*this};
 //        chunkManager->MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        chunkManager->vox2Chunks(gameObjects, "data/scenes/hintze-hall.vox");
+        chunkManager->vox2Chunks(gameObjects, "data/scenes/monu5Edited.vox");
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
@@ -138,39 +130,35 @@ namespace arx {
             glfwPollEvents();
 
             // Start the ImGui frame
-            ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
+            editor->newFrame();
+            Editor::EditorImGuiData& imguiData = editor->getImGuiData();
 
             auto newTime = std::chrono::high_resolution_clock::now();
             float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
             currentTime = newTime;
-            
+
             {
-                ImGui::Begin("Debug");
-                
-                ImGui::Text("Press I for ImGui, O for game");
-                ImGui::Text("Chunks %d", static_cast<uint32_t>(BufferManager::readDrawCommandCount()));
-                ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&arxRenderer->getSwapChain()->cull->miscData.frustumCulling));
-                ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&arxRenderer->getSwapChain()->cull->miscData.occlusionCulling));
-                ImGui::Checkbox("Freeze Culling", &enableCulling);
-                ImGui::Checkbox("SSAO Enabled", &ssaoEnabled);
-                ImGui::Checkbox("SSAO Only", &ssaoOnly);
-                ImGui::Checkbox("SSAO Blur", &ssaoBlur);
-                ImGui::Checkbox("Deferred", &deferred);
-            
                 if (!ssaoEnabled) ssaoOnly = false;
                 if (ssaoOnly || !ssaoEnabled) ssaoBlur = false;
                 if (ssaoOnly) deferred = false;
-                
-                // Display the most recent timings
-                ImGui::Text("Culling Time: %.3f ms", cullingTime / 1e6); // Convert ns to ms
-                ImGui::Text("Render Time: %.3f ms", renderTime / 1e6);
-                ImGui::Text("Depth Pyramid Time: %.3f ms", depthPyramidTime / 1e6);
-                ImGui::End();
-                
-                if (userController.showCartesian()) drawCoordinateVectors(camera);
-                ImGui::Render();
+                // Update the window
+                imguiData.cullingTime = cullingTime;
+                imguiData.renderTime = renderTime;
+                imguiData.depthPyramidTime = depthPyramidTime;
+            }
+
+            editor->drawCoordinateVectors(camera);
+            editor->drawDebugWindow(imguiData);
+
+            // Fetch from the window
+            {
+                enableCulling = imguiData.enableCulling;
+                ssaoEnabled = imguiData.ssaoEnabled;
+                ssaoOnly = imguiData.ssaoOnly;
+                ssaoBlur = imguiData.ssaoBlur;
+                deferred = imguiData.deferred;
+                arxRenderer->getSwapChain()->cull->miscData.frustumCulling = imguiData.frustumCulling;
+                arxRenderer->getSwapChain()->cull->miscData.occlusionCulling = imguiData.occlusionCulling;
             }
             
             userController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);
@@ -220,7 +208,7 @@ namespace arx {
 
                 // Passes
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
-                arxRenderer->Passes(frameInfo);
+                arxRenderer->Passes(frameInfo, *editor);
 
                 vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 3);
                 if (!enableCulling) {
@@ -318,59 +306,6 @@ namespace arx {
 
         // Pop style colors to revert back to original
         ImGui::PopStyleColor(2);
-    }
-
-    void App::initializeImgui() {
-        // The size of the pool is very oversize, but it's copied from imgui demo itself.
-        VkDescriptorPoolSize pool_sizes[] =
-        {
-            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-        };
-
-        VkDescriptorPoolCreateInfo pool_info = {};
-        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-        pool_info.maxSets = 1000;
-        pool_info.poolSizeCount = std::size(pool_sizes);
-        pool_info.pPoolSizes = pool_sizes;
-
-        if (vkCreateDescriptorPool(arxDevice.device(), &pool_info, nullptr, &imguiPool) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create descriptor pool for imgui!");
-        }
-
-        // Initializes the core structures of imgui
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGuiIO& io = ImGui::GetIO(); (void)io;
-
-        // Initializes imgui for GLFW
-        ImGui_ImplGlfw_InitForVulkan(arxWindow.getGLFWwindow(), true);
-
-        // Initializes imgui for Vulkan
-        ImGui_ImplVulkan_InitInfo init_info = {};
-        init_info.Instance = arxDevice.getInstance();
-        init_info.PhysicalDevice = arxDevice.getPhysicalDevice();
-        init_info.Device = arxDevice.device();
-        init_info.Queue = arxDevice.graphicsQueue();
-        init_info.DescriptorPool = imguiPool;
-        init_info.MinImageCount = 2;
-        init_info.ImageCount = static_cast<uint32_t>(arxRenderer->getSwapChain()->imageCount());
-        init_info.MSAASamples = arxDevice.msaaSamples;
-        init_info.RenderPass = arxRenderer->getSwapChain()->getRenderPass();
-        ImGui_ImplVulkan_Init(&init_info);
-
-        ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
-        ImGui::StyleColorsDark();
     }
 
     void App::createQueryPool() {

@@ -60,6 +60,7 @@ namespace arx {
             // Call this after you have the depth texture
             // Flag to create the descriptors again
             arxSwapChain->Init_OcclusionCulling(true);
+            hasResized = true;
         }
     }
 
@@ -85,7 +86,7 @@ namespace arx {
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             recreateSwapChain();
             return nullptr;
-        }
+        } else hasResized = false;
         
         if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
             throw std::runtime_error("failed to acquire swap chain image!");

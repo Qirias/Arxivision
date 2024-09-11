@@ -1,13 +1,13 @@
 #pragma once
 
+#include "../source/arx_editor.hpp"
+#include "../source/arx_renderer.h"
 #include "../source/arx_window.h"
 #include "../source/arx_device.h"
-#include "../source/arx_renderer.h"
 #include "../source/arx_game_object.h"
 #include "../source/arx_descriptors.h"
 #include "../source/managers/arx_texture_manager.hpp"
 #include "../source/managers/arx_render_pass_manager.hpp"
-
 #include "../source/geometry/chunkManager.h"
 
 namespace arx {
@@ -41,9 +41,9 @@ namespace arx {
         std::unique_ptr<RenderPassManager>  rpManager;
         std::unique_ptr<ArxRenderer>        arxRenderer;
         std::unique_ptr<ChunkManager>       chunkManager;
+        std::shared_ptr<Editor>             editor;
         
         std::unique_ptr<ArxDescriptorPool>  globalPool{};
-        VkDescriptorPool                    imguiPool;
         VkQueryPool                         queryPool;
         
         ArxGameObject::Map                  gameObjects;

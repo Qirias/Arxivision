@@ -19,11 +19,14 @@ namespace arx {
 
     namespace {
         enum class PassName {
+            // Offscreen
             GPass,
             SSAO,
             SSAOBLUR,
             DEFERRED,
             COMPOSITION,
+            // Present final view to the viewport
+            IMGUI,
             Max
         };
     
@@ -39,48 +42,53 @@ namespace arx {
     void ArxRenderer::createDescriptorSetLayouts() {
         // G-Buffer
         descriptorLayouts[static_cast<uint8_t>(PassName::GPass)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                          .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS) // InstanceBuffer
-                                          .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT) // UBO
-                                          .build());
+                                        .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS) // InstanceBuffer
+                                        .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT) // UBO
+                                        .build());
         
         // SSAO
         descriptorLayouts[static_cast<uint8_t>(PassName::SSAO)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
-                                          .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
-                                          .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // ssaoNoise
-                                          .addBinding(3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBOSSAOKernel
-                                          .addBinding(4, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
-                                          .build());
+                                        .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
+                                        .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
+                                        .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // ssaoNoise
+                                        .addBinding(3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBOSSAOKernel
+                                        .addBinding(4, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
+                                        .build());
         
         // SSAOBlur
         descriptorLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAO
-                                          .build());
+                                        .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAO
+                                        .build());
         
         // Deferred
         descriptorLayouts[static_cast<uint8_t>(PassName::DEFERRED)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
-                                          .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
-                                          .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerAlbedo
-                                          .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // LTC1
-                                          .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // LTC2
-                                          .addBinding(5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
-                                          .addBinding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // PointLightsBuffer
-                                          .addBinding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Frustum Clusters
-                                          .addBinding(8, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // lightCount
-                                          .addBinding(9, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Frustum params
-                                          .build());
+                                        .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
+                                        .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
+                                        .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerAlbedo
+                                        .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // LTC1
+                                        .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // LTC2
+                                        .addBinding(5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
+                                        .addBinding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // PointLightsBuffer
+                                        .addBinding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Frustum Clusters
+                                        .addBinding(8, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // lightCount
+                                        .addBinding(9, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Frustum params
+                                        .build());
         
         // Composition
         descriptorLayouts[static_cast<uint8_t>(PassName::COMPOSITION)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
-                                          .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
-                                          .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
-                                          .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerAlbedo
-                                          .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAO
-                                          .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAOBlur
-                                          .addBinding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerDeferred
-                                          .addBinding(6, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
-                                          .build());
+                                        .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerPosDepth
+                                        .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerNormal
+                                        .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerAlbedo
+                                        .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAO
+                                        .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAOBlur
+                                        .addBinding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerDeferred
+                                        .addBinding(6, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
+                                        .build());
+
+        // ImGUI
+        descriptorLayouts[static_cast<uint8_t>(PassName::IMGUI)].push_back(ArxDescriptorSetLayout::Builder(arxDevice)
+                                        .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                                        .build());
     }
 
     void ArxRenderer::createPipelineLayouts() {
@@ -181,6 +189,24 @@ namespace arx {
         if (vkCreatePipelineLayout(arxDevice.device(), &compositionPipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::COMPOSITION)]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create composition pipeline layout!");
         }
+
+        // ====================================================================================
+        //                                      IMGUI
+        // ====================================================================================
+        
+        std::vector<VkDescriptorSetLayout> imguiLayouts;
+        for (const auto& layout : descriptorLayouts[static_cast<size_t>(PassName::IMGUI)]) {
+            imguiLayouts.push_back(layout->getDescriptorSetLayout());
+        }
+    
+        VkPipelineLayoutCreateInfo imguiPipelineLayoutInfo{};
+        imguiPipelineLayoutInfo.sType                    = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        imguiPipelineLayoutInfo.setLayoutCount           = static_cast<uint32_t>(imguiLayouts.size());
+        imguiPipelineLayoutInfo.pSetLayouts              = imguiLayouts.data();
+        
+        if (vkCreatePipelineLayout(arxDevice.device(), &imguiPipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::IMGUI)]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create imgui pipeline layout!");
+        }
         
     }
 
@@ -217,7 +243,7 @@ namespace arx {
 
         PipelineConfigInfo compositionConfigInfo{};
         ArxPipeline::defaultPipelineConfigInfo(compositionConfigInfo);
-        compositionConfigInfo.renderPass                    = arxSwapChain->getRenderPass();
+        compositionConfigInfo.renderPass                    = rpManager.getRenderPass("Composition");
         compositionConfigInfo.pipelineLayout                = pipelineLayouts[static_cast<uint8_t>(PassName::COMPOSITION)];
         compositionConfigInfo.rasterizationInfo.cullMode    = VK_CULL_MODE_FRONT_BIT;
         compositionConfigInfo.rasterizationInfo.frontFace   = VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -323,6 +349,35 @@ namespace arx {
                                                                 pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(), // Fullscreen triangle
                                                                 "shaders/deferred.spv",
                                                                 deferredConfigInfo);
+
+         // ====================================================================================
+        //                                        IMGUI
+        // ====================================================================================
+
+        assert(pipelineLayouts[static_cast<uint8_t>(PassName::IMGUI)] != nullptr && "Cannot create pipeline before pipeline layout");
+
+        PipelineConfigInfo imguiConfigInfo{};
+        ArxPipeline::defaultPipelineConfigInfo(imguiConfigInfo);
+
+        imguiConfigInfo.renderPass                    = arxSwapChain->getRenderPass();
+        imguiConfigInfo.pipelineLayout                = pipelineLayouts[static_cast<uint8_t>(PassName::IMGUI)];
+
+        imguiConfigInfo.useVertexInputState           = false;
+
+        VkPipelineColorBlendAttachmentState imguiColorBlendAttachment = ArxPipeline::createDefaultColorBlendAttachment();
+        ArxPipeline::enableAlphaBlending(imguiConfigInfo);
+
+        imguiConfigInfo.colorBlendAttachments                 = {imguiColorBlendAttachment};
+        imguiConfigInfo.colorBlendInfo.attachmentCount        = 1;
+        imguiConfigInfo.colorBlendInfo.pAttachments           = imguiConfigInfo.colorBlendAttachments.data();
+
+        imguiConfigInfo.vertexShaderStage = pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertexShaderStageInfo();
+
+        // Load and use a fragment shader designed for ImGui rendering
+        pipelines[static_cast<uint8_t>(PassName::IMGUI)] = std::make_shared<ArxPipeline>(arxDevice,
+                                                                        pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->getVertShaderModule(),
+                                                                        "shaders/imgui.spv",
+                                                                        imguiConfigInfo);
     }
 
 
@@ -524,11 +579,11 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(ClusteredShading::clusterBuffer);
         
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(std::make_shared<ArxBuffer>(
-                                                                                                    arxDevice,
-                                                                                                    sizeof(ClusteredShading::Frustum),
-                                                                                                    1,
-                                                                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+                                                                    arxDevice,
+                                                                    sizeof(ClusteredShading::Frustum),
+                                                                    1,
+                                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 //        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->map();
         
         // Create the texture using the LTC1 data
@@ -636,6 +691,29 @@ namespace arx {
                             .writeImage(5, &samplerDeferredColorInfo)
                             .writeBuffer(6, &ssaoParamsInfo)
                             .build(descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)][0]);
+
+        // ====================================================================================
+        //                                       IMGUI
+        // ====================================================================================
+
+        descriptorPools[static_cast<uint8_t>(PassName::IMGUI)] = ArxDescriptorPool::Builder(arxDevice)
+                                                                    .setMaxSets(1)
+                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f)
+                                                                    .build();
+
+
+        descriptorSets[static_cast<uint8_t>(PassName::IMGUI)].resize(1);
+
+
+        VkDescriptorImageInfo imguiViewport{};
+        imguiViewport.sampler = textureManager.getSampler("colorSampler");
+        imguiViewport.imageView = textureManager.getAttachment("composition")->view;
+        imguiViewport.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        ArxDescriptorWriter(*descriptorLayouts[static_cast<uint8_t>(PassName::IMGUI)][0],
+                            *descriptorPools[static_cast<uint8_t>(PassName::IMGUI)])
+                            .writeImage(0, &imguiViewport)
+                            .build(descriptorSets[static_cast<uint8_t>(PassName::IMGUI)][0]);
     }
 
     void ArxRenderer::cleanupResources() {
@@ -676,6 +754,9 @@ namespace arx {
         
         pipelines[static_cast<uint8_t>(PassName::DEFERRED)]->resetVertShaderModule();
         pipelines[static_cast<uint8_t>(PassName::DEFERRED)].reset();
+
+        pipelines[static_cast<uint8_t>(PassName::IMGUI)]->resetVertShaderModule();
+        pipelines[static_cast<uint8_t>(PassName::IMGUI)].reset();
 
         for (auto& passBufferEntry : passBuffers) {
             for (auto& buffer : passBufferEntry.second) {
@@ -908,6 +989,54 @@ namespace arx {
 
             rpManager.createRenderPass("Deferred", renderPassInfo);
         }
+        // Composition
+        {
+            VkAttachmentDescription attachmentDescription = {};
+            attachmentDescription.format = arxSwapChain->getSwapChainImageFormat();
+            attachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+            attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            attachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            VkAttachmentReference colorReference = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+
+            VkSubpassDescription subpass = {};
+            subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            subpass.pColorAttachments = &colorReference;
+            subpass.colorAttachmentCount = 1;
+
+            std::array<VkSubpassDependency, 2> dependencies;
+            dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependencies[0].dstSubpass = 0;
+            dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[0].srcAccessMask = 0;
+            dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+            dependencies[1].srcSubpass = 0;
+            dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+            dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependencies[1].dstAccessMask = 0;
+            dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+            VkRenderPassCreateInfo renderPassInfo = {};
+            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+            renderPassInfo.pAttachments = &attachmentDescription;
+            renderPassInfo.attachmentCount = 1;
+            renderPassInfo.subpassCount = 1;
+            renderPassInfo.pSubpasses = &subpass;
+            renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+            renderPassInfo.pDependencies = dependencies.data();
+
+            rpManager.createRenderPass("Composition", renderPassInfo);
+        }
+
     }
 
     // Function to create framebuffers
@@ -938,6 +1067,12 @@ namespace arx {
         textureManager.createAttachment("deferredShading", swapChainExtent.width, swapChainExtent.height,
                                         VK_FORMAT_B8G8R8A8_SRGB,
                                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+
+                                        // Off-screen composition attachment
+        textureManager.createAttachment("composition", swapChainExtent.width, swapChainExtent.height,
+                                        arxSwapChain->getSwapChainImageFormat(),
+                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
 
         // G-Buffer framebuffer
         {
@@ -973,12 +1108,19 @@ namespace arx {
 
             rpManager.createFramebuffer("Deferred", attachments, swapChainExtent.width, swapChainExtent.height);
         }
+        // Composition framebuffer
+        {
+            std::array<VkImageView, 1> attachments;
+            attachments[0] = textureManager.getAttachment("composition")->view;
+
+            rpManager.createFramebuffer("Composition", attachments, swapChainExtent.width, swapChainExtent.height);
+        }
 
         // Shared sampler used for all color attachments
         textureManager.createSampler("colorSampler");
     }
 
-    void ArxRenderer::Passes(FrameInfo &frameInfo) {
+    void ArxRenderer::Passes(FrameInfo &frameInfo, Editor& editor) {
         // ====================================================================================
         //                                      G-Buffer
         // ====================================================================================
@@ -1098,7 +1240,7 @@ namespace arx {
         //                                   COMPOSITION
         // ====================================================================================
 
-        beginSwapChainRenderPass(frameInfo.commandBuffer);
+        beginRenderPass(frameInfo.commandBuffer, "Composition");
         
         pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->bind(frameInfo.commandBuffer);
     
@@ -1112,7 +1254,26 @@ namespace arx {
                                 nullptr);
         
         vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), frameInfo.commandBuffer);
+        endSwapChainRenderPass(frameInfo.commandBuffer);
+
+        // ====================================================================================
+        //                                   IMGUI Viewport
+        // ====================================================================================
+
+        beginSwapChainRenderPass(frameInfo.commandBuffer);
+        pipelines[static_cast<uint8_t>(PassName::IMGUI)]->bind(frameInfo.commandBuffer);
+
+        vkCmdBindDescriptorSets(frameInfo.commandBuffer,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                pipelineLayouts[static_cast<uint8_t>(PassName::IMGUI)],
+                                0,
+                                1,
+                                &descriptorSets[static_cast<uint8_t>(PassName::IMGUI)][0],
+                                0,
+                                nullptr);
+
+        vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
+        editor.render(frameInfo.commandBuffer, descriptorSets[static_cast<uint8_t>(PassName::IMGUI)][0]);
         endSwapChainRenderPass(frameInfo.commandBuffer);
     }
 

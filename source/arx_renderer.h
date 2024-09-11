@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../source/arx_window.h"
-#include "../source/arx_device.h"
+#include "../source/arx_editor.hpp"
 #include "../source/arx_swap_chain.h"
 #include "../source/managers/arx_render_pass_manager.hpp"
 #include "../source/managers/arx_texture_manager.hpp"
@@ -32,6 +31,9 @@ namespace arx {
         }
         
         ArxSwapChain* getSwapChain() const { return arxSwapChain.get(); }
+        ArxDevice* getDevice() const { return &arxDevice; }
+        ArxWindow* getWindow() const { return &arxWindow; }
+        bool windowResized() const { return hasResized; }
         
         VkCommandBuffer beginFrame();
         void endFrame();
@@ -43,7 +45,7 @@ namespace arx {
 
         
         // Passes
-        void Passes(FrameInfo &frameInfo);
+        void Passes(FrameInfo &frameInfo, Editor& editor);
         void init_Passes();
         
         void updateUniforms(const GlobalUbo &rhs, const CompositionParams &ssaorhs);
@@ -74,6 +76,7 @@ namespace arx {
         uint32_t                        currentImageIndex;
         int                             currentFrameIndex{0};
         bool                            isFrameStarted = false;
+        bool                            hasResized = false;
         
         GlobalUbo                       ubo{};
         CompositionParams               compParams{};
