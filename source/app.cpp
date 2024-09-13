@@ -147,7 +147,7 @@ namespace arx {
                 imguiData.depthPyramidTime = depthPyramidTime;
             }
 
-            editor->drawCoordinateVectors(camera);
+            if (userController.showCartesian()) editor->drawCoordinateVectors(camera);
             editor->drawDebugWindow(imguiData);
 
             // Fetch from the window

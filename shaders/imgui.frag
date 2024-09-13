@@ -4,7 +4,6 @@ layout (binding = 0) uniform sampler2D imguiTexture;
 
 layout (location = 0) in vec2 inUV;
 
-// Output to the framebuffer
 layout (location = 0) out vec4 outColor;
 
 void main() {

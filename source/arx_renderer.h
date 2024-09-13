@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../source/arx_editor.hpp"
+#include "../source/editor/arx_editor.hpp"
 #include "../source/arx_swap_chain.h"
 #include "../source/managers/arx_render_pass_manager.hpp"
 #include "../source/managers/arx_texture_manager.hpp"

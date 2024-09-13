@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../source/arx_editor.hpp"
+#include "../source/editor/arx_editor.hpp"
 #include "../source/arx_renderer.h"
 #include "../source/arx_window.h"
 #include "../source/arx_device.h"
@@ -34,7 +34,7 @@ namespace arx {
         void printMat4(const glm::mat4& mat);
         
         // note: order of declarations matters
-        ArxWindow                           arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
+        ArxWindow                           arxWindow{WIDTH, HEIGHT, "ArXiVision"};
         ArxDevice                           arxDevice{arxWindow};
         
         std::unique_ptr<TextureManager>     textureManager;

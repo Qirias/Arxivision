@@ -32,6 +32,7 @@ namespace arx {
 
         void setRenderPass(VkRenderPass swapChainRenderPass) { renderPass = swapChainRenderPass; }
         void init();
+        void saveLayout();
         void cleanup();
         void newFrame();
         void render(VkCommandBuffer commandBuffer, VkDescriptorSet descriptorSet);
@@ -49,6 +50,8 @@ namespace arx {
         VkDescriptorPool    imguiPool = VK_NULL_HANDLE;
 
         EditorImGuiData     imguiData;
+        
+        std::string         iniPath;
 
         void createImGuiDescriptorPool();
         void createDockSpace();

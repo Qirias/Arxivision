@@ -1,10 +1,13 @@
 #include "../source/engine_pch.hpp"
 
-#include "../source/arx_editor.hpp"
+#include "../source/editor/arx_editor.hpp"
 
 namespace arx {
     Editor::Editor(ArxDevice& device, GLFWwindow* window, TextureManager& textureManager)
-        : arxDevice(device), window(window), textureManager(textureManager) {}
+    : arxDevice(device), window(window), textureManager(textureManager) {
+        std::filesystem::path path = std::filesystem::current_path() / ".." / ".." / "imgui.ini";
+        iniPath = path.string();
+    }
 
     Editor::~Editor() {
         cleanup();
@@ -17,6 +20,12 @@ namespace arx {
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad | ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable;
+
+        io.IniFilename = iniPath.c_str();
+
+        if (std::filesystem::exists(iniPath)) {
+            ImGui::LoadIniSettingsFromDisk(iniPath.c_str());
+        }
 
         ImGui_ImplGlfw_InitForVulkan(window, true);
 
@@ -49,6 +58,8 @@ namespace arx {
     }
 
     void Editor::cleanup() {
+        saveLayout();
+
         if (imguiPool != VK_NULL_HANDLE) {
             ImGui_ImplVulkan_Shutdown();
             ImGui_ImplGlfw_Shutdown();
@@ -118,22 +129,23 @@ namespace arx {
         ImVec2 viewportSize = viewport->Size;
 
         // Calculate the center of the viewport
-        ImVec2 viewportCenter = ImVec2((viewportPos.x + viewportSize.x * 0.5f) / dpiScale, 
-                                    (viewportPos.y + viewportSize.y * 0.5f) / dpiScale);
+        ImVec2 viewportCenter = ImVec2((viewportPos.x + viewportSize.x * 0.5f) / dpiScale,
+                                       (viewportPos.y + viewportSize.y * 0.5f) / dpiScale);
 
+        // Set up a transparent window for drawing
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0)); // Transparent background
-        ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0)); // No border
+        ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0));   // No border
 
-        // Begin an ImGui window with no title bar, resize, move, scrollbar, or collapse functionality
-        ImGui::Begin("Coordinate Vectors", nullptr, ImGuiWindowFlags_NoTitleBar | 
-                                                    ImGuiWindowFlags_NoResize | 
-                                                    ImGuiWindowFlags_NoMove | 
+        ImGui::SetNextWindowPos(ImVec2(viewportCenter.x - 50.0f * dpiScale,
+                                       viewportCenter.y - 50.0f * dpiScale));
+        ImGui::SetNextWindowSize(ImVec2(100 * dpiScale, 100 * dpiScale));
+
+        // Begin a transparent window for drawing the coordinate vectors
+        ImGui::Begin("Coordinate Vectors", nullptr, ImGuiWindowFlags_NoTitleBar |
+                                                    ImGuiWindowFlags_NoResize |
+                                                    ImGuiWindowFlags_NoMove |
                                                     ImGuiWindowFlags_NoScrollbar |
                                                     ImGuiWindowFlags_NoCollapse);
-
-        ImGui::SetWindowPos(ImVec2(viewportCenter.x - (ImGui::GetWindowWidth() * 0.5f), 
-                                viewportCenter.y - (ImGui::GetWindowHeight() * 0.5f)));
-        ImGui::SetWindowSize(ImVec2(100 * dpiScale, 100 * dpiScale));
 
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
@@ -261,5 +273,9 @@ namespace arx {
         if (renderPass != VK_NULL_HANDLE) {
             vkDestroyRenderPass(arxDevice.device(), renderPass, nullptr);
         }
+    }
+
+    void Editor::saveLayout() {
+        ImGui::SaveIniSettingsToDisk(iniPath.c_str());
     }
 }
