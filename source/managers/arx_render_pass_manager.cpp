@@ -10,6 +10,7 @@ namespace arx {
 
     RenderPassManager::~RenderPassManager() {
         cleanup();
+        ARX_LOG_INFO("Render passes cleaned up");
     }
 
     void RenderPassManager::cleanup() {
@@ -34,7 +35,7 @@ namespace arx {
     void RenderPassManager::createRenderPass(const std::string& name, const VkRenderPassCreateInfo& createInfo) {
         VkRenderPass renderPass;
         if (vkCreateRenderPass(device.device(), &createInfo, nullptr, &renderPass) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create render pass: " + name);
+            ARX_LOG_ERROR("Failed to create the {} render pass", name);
         }
         renderPasses[name] = renderPass;
     }
@@ -42,7 +43,7 @@ namespace arx {
     VkRenderPass RenderPassManager::getRenderPass(const std::string& name) const {
         auto it = renderPasses.find(name);
         if (it == renderPasses.end()) {
-            throw std::runtime_error("Render pass not found: " + name);
+            ARX_LOG_ERROR("Render pass {} not found: ", name);
         }
         return it->second;
     }
@@ -50,7 +51,7 @@ namespace arx {
     VkFramebuffer RenderPassManager::getFrameBuffer(const std::string& name) const {
         auto it = framebuffers.find(name);
         if (it == framebuffers.end()) {
-            throw std::runtime_error("Framebuffer not found: " + name);
+            ARX_LOG_ERROR("Framebuffer {} not found: ", name);
         }
         return it->second;
     }

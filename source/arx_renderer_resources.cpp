@@ -114,7 +114,7 @@ namespace arx {
         gPassPipelineLayoutInfo.pPushConstantRanges      = &pushConstantRange;
         
         if (vkCreatePipelineLayout(arxDevice.device(), &gPassPipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::GPass)]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create gpass pipeline layout!");
+            ARX_LOG_ERROR("failed to create gpass pipeline layout!");
         }
         
         // ====================================================================================
@@ -132,7 +132,7 @@ namespace arx {
         ssaoPipelineLayoutInfo.pSetLayouts              = ssaoLayouts.data();
         
         if (vkCreatePipelineLayout(arxDevice.device(), &ssaoPipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::SSAO)]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create ssao pipeline layout!");
+            ARX_LOG_ERROR("failed to create ssao pipeline layout!");
         }
         
         
@@ -151,7 +151,7 @@ namespace arx {
         ssaoBlurPipelineLayoutInfo.pSetLayouts              = ssaoBlurLayouts.data();
         
         if (vkCreatePipelineLayout(arxDevice.device(), &ssaoBlurPipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::SSAOBLUR)]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create ssaoblur pipeline layout!");
+            ARX_LOG_ERROR("failed to create ssaoblur pipeline layout!");
         }
         
         // ====================================================================================
@@ -169,7 +169,7 @@ namespace arx {
         deferredPipelineLayoutInfo.pSetLayouts              = deferredLayouts.data();
         
         if (vkCreatePipelineLayout(arxDevice.device(), &deferredPipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::DEFERRED)]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create deferred pipeline layout!");
+            ARX_LOG_ERROR("failed to create deferred pipeline layout!");
         }
         
         // ====================================================================================
@@ -187,7 +187,7 @@ namespace arx {
         compositionPipelineLayoutInfo.pSetLayouts              = compositionLayouts.data();
         
         if (vkCreatePipelineLayout(arxDevice.device(), &compositionPipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::COMPOSITION)]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create composition pipeline layout!");
+            ARX_LOG_ERROR("failed to create composition pipeline layout!");
         }
 
         // ====================================================================================
@@ -205,7 +205,7 @@ namespace arx {
         imguiPipelineLayoutInfo.pSetLayouts              = imguiLayouts.data();
         
         if (vkCreatePipelineLayout(arxDevice.device(), &imguiPipelineLayoutInfo, nullptr, &pipelineLayouts[static_cast<uint8_t>(PassName::IMGUI)]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create imgui pipeline layout!");
+            ARX_LOG_ERROR("failed to create imgui pipeline layout!");
         }
         
     }
@@ -772,6 +772,8 @@ namespace arx {
         pipelines.fill(nullptr);
         
         passBuffers.clear();
+
+        ARX_LOG_INFO("Render Pass Resources cleaned up");
     }
 
 

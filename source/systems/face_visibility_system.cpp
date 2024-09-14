@@ -23,6 +23,8 @@ namespace arx {
         createPipeline();
         createDescriptorPool();
         createDescriptorSets();
+
+        ARX_LOG_INFO("Face Visibility System constructed");
     }
 
     void FaceVisibilitySystem::cleanup() {
@@ -32,6 +34,8 @@ namespace arx {
         descriptorPool.reset();
         largeInstanceBuffer.reset();
         faceVisibilityBuffer.reset();
+
+        ARX_LOG_INFO("Face Visibility System destructed");
     }
 
     void FaceVisibilitySystem::createDescriptorSetLayout() {

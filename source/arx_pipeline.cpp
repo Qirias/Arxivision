@@ -45,7 +45,7 @@ namespace arx {
         std::ifstream file(filepath, std::ios::ate | std::ios::binary);
         
         if (!file.is_open()) {
-            throw std::runtime_error("failed to open file: " + filepath);
+            ARX_LOG_ERROR("failed to open file: {}", filepath);
         }
         
         size_t fileSize = static_cast<size_t>(file.tellg());
@@ -146,7 +146,7 @@ namespace arx {
 //        pipelineInfo.basePipelineHandle     = VK_NULL_HANDLE;
         
         if (vkCreateGraphicsPipelines(arxDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create graphics pipeline!");
+            ARX_LOG_ERROR("failed to create graphics pipeline!");
         }
     }
 
@@ -219,7 +219,7 @@ namespace arx {
         pipelineInfo.subpass = configInfo.subpass;
 
         if (vkCreateGraphicsPipelines(arxDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create graphics pipeline!");
+            ARX_LOG_ERROR("failed to create graphics pipeline!");
         }
     }
 
@@ -230,7 +230,7 @@ namespace arx {
         createInfo.pCode    = reinterpret_cast<const uint32_t*>(code.data());
         
         if (vkCreateShaderModule(arxDevice.device(), &createInfo, nullptr, shaderModule) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create shader module!");
+            ARX_LOG_ERROR("failed to create shader module!");
         }
     }
 
@@ -341,7 +341,7 @@ namespace arx {
         pipelineInfo.layout = pipelineLayout;
 
         if (vkCreateComputePipelines(arxDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &computePipeline) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create compute pipeline!");
+            ARX_LOG_ERROR("failed to create compute pipeline!");
         }
     }
 }

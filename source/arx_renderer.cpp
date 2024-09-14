@@ -44,7 +44,7 @@ namespace arx {
             arxSwapChain = std::make_unique<ArxSwapChain>(arxDevice, extent, oldSwapChain, rpManager, textureManager);
             
             if (!oldSwapChain->compareSwapFormats(*arxSwapChain.get())) {
-                throw std::runtime_error("Swap chain image(or depth) format has changed");
+                ARX_LOG_ERROR("Swap chain image(or depth) format has changed");
             }
             
             // Clean framebuffers and attachments on resize
@@ -74,7 +74,7 @@ namespace arx {
         allocInfo.commandBufferCount    = static_cast<uint32_t>(commandBuffers.size());
         
         if (vkAllocateCommandBuffers(arxDevice.device(), &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate command buffers");
+            ARX_LOG_ERROR("failed to allocate command buffers");
         }
     }
 
@@ -89,7 +89,7 @@ namespace arx {
         } else hasResized = false;
         
         if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-            throw std::runtime_error("failed to acquire swap chain image!");
+            ARX_LOG_ERROR("failed to acquire swap chain image!");
         }
         
         isFrameStarted = true;
@@ -99,7 +99,7 @@ namespace arx {
         beginInfo.sType     = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         
         if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-            throw std::runtime_error("failed to begin recording commnad buffer!");
+            ARX_LOG_ERROR("failed to begin recording commnad buffer!");
         }
         
         return commandBuffer;
@@ -110,14 +110,14 @@ namespace arx {
         
         auto commandBuffer = getCurrentCommandBuffer();
         if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to record command buffer!");
+            ARX_LOG_ERROR("failed to record command buffer!");
         }
         auto result = arxSwapChain->submitCommandBuffers(&commandBuffer, &currentImageIndex);
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || arxWindow.wasWindowResized()) {
             arxWindow.resetWindowResizedFlag();
             recreateSwapChain();
         } else if (result != VK_SUCCESS) {
-            throw std::runtime_error("failed to present swap chain image!");
+            ARX_LOG_ERROR("failed to present swap chain image!");
         }
         
         isFrameStarted = false;

@@ -36,6 +36,8 @@ namespace arx {
         // late
         createEarlyCullingPipelineLayout();
         createEarlyCullingPipeline();
+
+        ARX_LOG_INFO("Occlusion Compute System constructed");
     }
 
     OcclusionSystem::~OcclusionSystem() {
@@ -59,6 +61,8 @@ namespace arx {
         objectsDataBuffer.reset();
         globalDataBuffer.reset();
         miscBuffer.reset();
+
+        ARX_LOG_INFO("Occlusion Compute System destructed");
     }
 
     void OcclusionSystem::cleanup() {

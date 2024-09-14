@@ -135,7 +135,7 @@ namespace arx {
 
       vkResetFences(device.device(), 1, &inFlightFences[currentFrame]);
       if (vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
-        throw std::runtime_error("failed to submit draw command buffer!");
+        ARX_LOG_ERROR("failed to submit draw command buffer!");
       }
 
       VkPresentInfoKHR presentInfo = {};
@@ -203,7 +203,7 @@ namespace arx {
       createInfo.oldSwapchain   = oldSwapChain == nullptr ? VK_NULL_HANDLE : oldSwapChain->swapChain;
 
       if (vkCreateSwapchainKHR(device.device(), &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create swap chain!");
+        ARX_LOG_ERROR("failed to create swap chain!");
       }
 
       // we only specified a minimum number of images in the swap chain, so the implementation is
@@ -234,7 +234,7 @@ namespace arx {
 
         if (vkCreateImageView(device.device(), &viewInfo, nullptr, &swapChainImageViews[i]) !=
             VK_SUCCESS) {
-          throw std::runtime_error("failed to create texture image view!");
+          ARX_LOG_ERROR("failed to create texture image view!");
         }
       }
     }
@@ -309,7 +309,7 @@ namespace arx {
         renderPassInfo.pDependencies      = &dependency;
 
         if (vkCreateRenderPass2(device.device(), &renderPassInfo, nullptr, earlyPass ? &earlyRenderPass : &renderPass) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create render pass!");
+            ARX_LOG_ERROR("failed to create render pass!");
         }
     }
 
@@ -342,7 +342,7 @@ namespace arx {
                     &framebufferInfo,
                     nullptr,
                     earlyPass ? &earlySwapChainFramebuffers[i] : &swapChainFramebuffers[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create framebuffer!");
+                ARX_LOG_ERROR("failed to create framebuffer!");
             }
         }
     }
@@ -371,7 +371,7 @@ namespace arx {
         
         VkImageView imageView;
         if (vkCreateImageView(device.device(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image view!");
+            ARX_LOG_ERROR("failed to create image view!");
         }
         
         return imageView;
@@ -395,7 +395,7 @@ namespace arx {
         imageInfo.samples       = numSamples;
 
         if (vkCreateImage(device.device(), &imageInfo, nullptr, &image) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image!");
+            ARX_LOG_ERROR("failed to create image!");
         }
 
         VkMemoryRequirements memRequirements;
@@ -407,7 +407,7 @@ namespace arx {
         allocInfo.memoryTypeIndex = device.findMemoryType(memRequirements.memoryTypeBits, properties);
 
         if (vkAllocateMemory(device.device(), &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate image memory!");
+            ARX_LOG_ERROR("failed to allocate image memory!");
         }
 
         vkBindImageMemory(device.device(), image, imageMemory, 0);
@@ -457,80 +457,78 @@ namespace arx {
             viewInfo.subresourceRange.layerCount        = 1;
 
             if (vkCreateImageView(device.device(), &viewInfo, nullptr, &depthImageViews[i]) != VK_SUCCESS) {
-              throw std::runtime_error("failed to create texture image view!");
+              ARX_LOG_ERROR("failed to create texture image view!");
             }
         }
     }
 
     void ArxSwapChain::createSyncObjects() {
-      imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-      renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-      inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-      imagesInFlight.resize(imageCount(), VK_NULL_HANDLE);
+        imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+        imagesInFlight.resize(imageCount(), VK_NULL_HANDLE);
 
-      VkSemaphoreCreateInfo semaphoreInfo = {};
-      semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        VkSemaphoreCreateInfo semaphoreInfo = {};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-      VkFenceCreateInfo fenceInfo = {};
-      fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-      fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        VkFenceCreateInfo fenceInfo = {};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-      for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) !=
-                VK_SUCCESS ||
-            vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) !=
-                VK_SUCCESS ||
-            vkCreateFence(device.device(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
-          throw std::runtime_error("failed to create synchronization objects for a frame!");
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            if (vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+                vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+                vkCreateFence(device.device(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
+                    ARX_LOG_ERROR("failed to create synchronization objects for a frame!");
+                }
+            }
         }
-      }
-    }
 
     VkSurfaceFormatKHR ArxSwapChain::chooseSwapSurfaceFormat(
         const std::vector<VkSurfaceFormatKHR> &availableFormats) {
-      for (const auto &availableFormat : availableFormats) {
-        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
-            availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-          return availableFormat;
+            for (const auto &availableFormat : availableFormats) {
+                if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
+                    availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                return availableFormat;
+            }
         }
-      }
 
-      return availableFormats[0];
+        return availableFormats[0];
     }
 
     VkPresentModeKHR ArxSwapChain::chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) {
-      for (const auto &availablePresentMode : availablePresentModes) {
-        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-          std::cout << "Present mode: Mailbox" << std::endl;
-          return availablePresentMode;
+        for (const auto &availablePresentMode : availablePresentModes) {
+            if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+                ARX_LOG_INFO("Present mode: Mailbox");
+                return availablePresentMode;
+            }
         }
-      }
 
-      // for (const auto &availablePresentMode : availablePresentModes) {
-      //   if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
-      //     std::cout << "Present mode: Immediate" << std::endl;
-      //     return availablePresentMode;
-      //   }
-      // }
+        // for (const auto &availablePresentMode : availablePresentModes) {
+        //   if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+        //     std::cout << "Present mode: Immediate" << std::endl;
+        //     return availablePresentMode;
+        //   }
+        // }
 
-      std::cout << "Present mode: V-Sync" << std::endl;
-      return VK_PRESENT_MODE_FIFO_KHR;
+        ARX_LOG_INFO("Present mode: V-Sync");
+        return VK_PRESENT_MODE_FIFO_KHR;
     }
 
     VkExtent2D ArxSwapChain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities) {
-      if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
-        return capabilities.currentExtent;
-      } else {
-        VkExtent2D actualExtent = windowExtent;
-        actualExtent.width = std::max(
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+            return capabilities.currentExtent;
+        } else {
+            VkExtent2D actualExtent = windowExtent;
+            actualExtent.width = std::max(
             capabilities.minImageExtent.width,
             std::min(capabilities.maxImageExtent.width, actualExtent.width));
-        actualExtent.height = std::max(
+            actualExtent.height = std::max(
             capabilities.minImageExtent.height,
             std::min(capabilities.maxImageExtent.height, actualExtent.height));
 
-        return actualExtent;
-      }
+            return actualExtent;
+        }
     }
 
     VkFormat ArxSwapChain::findDepthFormat() {
@@ -593,7 +591,7 @@ namespace arx {
 //        samplerCreateInfo.pNext = &reductionCreateInfo;
 //        
         if (vkCreateSampler(device.device(), &samplerCreateInfo, 0, &depthSampler) != VK_SUCCESS)
-            throw std::runtime_error("Couldn't create depth sampler!");
+            ARX_LOG_ERROR("Couldn't create depth sampler!");
     }
 
     VkImageMemoryBarrier ArxSwapChain::createImageBarrier(VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, VkImageAspectFlags aspectFlags, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, uint32_t baseMipLevels, uint32_t levelCount)

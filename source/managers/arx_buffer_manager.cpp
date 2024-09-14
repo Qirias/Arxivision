@@ -223,7 +223,7 @@ namespace arx {
 
     void BufferManager::printVoxelData(ArxDevice& device) {
         if (!voxelBuffer) {
-            std::cout << "Voxel buffer is not initialized." << std::endl;
+            ARX_LOG_WARNING("Voxel buffer is not initialized.");
             return;
         }
 

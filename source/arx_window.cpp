@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "../source/arx_window.h"
+#include "../source/logging/arx_logger.hpp"
 #include <stdexcept>
 
 namespace arx {
@@ -26,7 +27,7 @@ namespace arx {
 
     void ArxWindow::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {
         if (glfwCreateWindowSurface(instance, window, nullptr, surface) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create window surface");
+            ARX_LOG_ERROR("failed to create window surface");
         }
     }
 

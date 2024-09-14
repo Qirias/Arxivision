@@ -12,6 +12,7 @@ namespace arx {
         VkShaderStageFlags stageFlags,
         uint32_t count) {
       assert(bindings.count(binding) == 0 && "Binding already in use");
+      
       VkDescriptorSetLayoutBinding layoutBinding{};
       layoutBinding.binding = binding;
       layoutBinding.descriptorType = descriptorType;
@@ -22,6 +23,9 @@ namespace arx {
     }
 
     std::unique_ptr<ArxDescriptorSetLayout> ArxDescriptorSetLayout::Builder::build() const {
+      if (bindings.empty())
+        ARX_LOG_ERROR("No bindings provided to build the Descriptor Set Layout!");
+
       return std::make_unique<ArxDescriptorSetLayout>(arxDevice, bindings);
     }
 
@@ -45,7 +49,7 @@ namespace arx {
               &descriptorSetLayoutInfo,
               nullptr,
               &descriptorSetLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create descriptor set layout!");
+                ARX_LOG_ERROR("failed to create descriptor set layout!");
       }
     }
 
@@ -92,7 +96,7 @@ namespace arx {
 
       if (vkCreateDescriptorPool(arxDevice.device(), &descriptorPoolInfo, nullptr, &descriptorPool) !=
           VK_SUCCESS) {
-        throw std::runtime_error("failed to create descriptor pool!");
+            ARX_LOG_ERROR("failed to create descriptor pool!")
       }
     }
 

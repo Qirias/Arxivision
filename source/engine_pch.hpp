@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <sstream>
 #include <set>
 #include <unordered_set>
 #include <cstdlib>
@@ -21,7 +22,7 @@
 #include <random>
 #include <map>
 
-
+// External
 #include "../libs/glm/glm.hpp"
 #include "../libs/glm/gtc/constants.hpp"
 #include "../libs/glm/gtc/quaternion.hpp"
@@ -29,3 +30,6 @@
 #include "../libs/glm/gtx/hash.hpp"
 #include "../libs/glm/gtc/matrix_transform.hpp"
 #include "../libs/glm/gtc/noise.hpp"
+
+// Arx
+#include "../source/logging/arx_logger.hpp"

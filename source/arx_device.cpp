@@ -10,7 +10,7 @@ namespace arx {
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
         void *pUserData) {
-            std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+            ARX_LOG_ERROR("{}", pCallbackData->pMessage);
 
             return VK_FALSE;
         }
@@ -69,14 +69,14 @@ namespace arx {
 
         void ArxDevice::createInstance() {
             if (enableValidationLayers && !checkValidationLayerSupport()) {
-                throw std::runtime_error("validation layers requested, but not available!");
+                ARX_LOG_ERROR("validation layers requested, but not available!");
             }
 
             VkApplicationInfo appInfo     = {};
             appInfo.sType                 = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-            appInfo.pApplicationName      = "Voxel App";
+            appInfo.pApplicationName      = "ArXiVision";
             appInfo.applicationVersion    = VK_MAKE_VERSION(1, 0, 0);
-            appInfo.pEngineName           = "ArXivision";
+            appInfo.pEngineName           = "Hello Vulkan";
             appInfo.engineVersion         = VK_MAKE_VERSION(1, 0, 0);
             appInfo.apiVersion            = VK_API_VERSION_1_2;
 
@@ -102,7 +102,7 @@ namespace arx {
             }
 
             if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create instance!");
+                ARX_LOG_ERROR("failed to create instance!");
             }
 
             hasGflwRequiredInstanceExtensions();
@@ -112,7 +112,7 @@ namespace arx {
             uint32_t deviceCount = 0;
             vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
             if (deviceCount == 0) {
-                throw std::runtime_error("failed to find GPUs with Vulkan support!");
+                ARX_LOG_ERROR("failed to find GPUs with Vulkan support!");
             }
 //            std::cout << "Device count: " << deviceCount << std::endl;
             std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -127,11 +127,11 @@ namespace arx {
             }
 
             if (physicalDevice == VK_NULL_HANDLE) {
-                throw std::runtime_error("failed to find a suitable GPU!");
+                ARX_LOG_ERROR("failed to find a suitable GPU!");
             }
 
             vkGetPhysicalDeviceProperties(physicalDevice, &properties);
-            std::cout << "Physical device: " << properties.deviceName << std::endl;
+            ARX_LOG_INFO("Physical device: {}", properties.deviceName);
         }
 
         void ArxDevice::createLogicalDevice() {
@@ -189,7 +189,7 @@ namespace arx {
             }
 
             if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &_device) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create logical device!");
+                ARX_LOG_ERROR("failed to create logical device!");
             }
 
             vkGetDeviceQueue(_device, indices.graphicsFamily, 0, &_graphicsQueue);
@@ -205,8 +205,8 @@ namespace arx {
             poolInfo.flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
             if (vkCreateCommandPool(_device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create command pool!");
-                }
+                ARX_LOG_ERROR("failed to create command pool!");
+            }
         }
 
         void ArxDevice::createSurface() { window.createWindowSurface(instance, &_surface); }
@@ -245,7 +245,7 @@ namespace arx {
                 imagelessFramebufferFeatures.imagelessFramebuffer = VK_TRUE;
             }
             else
-                throw std::runtime_error("failed to set imagelessFramebuffer!");
+                ARX_LOG_ERROR("failed to set imagelessFramebuffer!");
         }
 
         void ArxDevice::setBufferDeviceAddressFeature() {
@@ -264,7 +264,7 @@ namespace arx {
                 bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
             }
             else
-                std::cout << "BufferDeviceAddress feature is not supported!\n";
+                ARX_LOG_WARNING("BufferDeviceAddress feature is not supported!");
         }
 
         void ArxDevice::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
@@ -284,7 +284,7 @@ namespace arx {
             VkDebugUtilsMessengerCreateInfoEXT createInfo;
             populateDebugMessengerCreateInfo(createInfo);
             if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-                throw std::runtime_error("failed to set up debug messenger!");
+                ARX_LOG_ERROR("failed to set up debug messenger!");
             }
         }
 
@@ -346,7 +346,7 @@ namespace arx {
             for (const auto &required : requiredExtensions) {
                 //        std::cout << "\t" << required << std::endl;
                 if (available.find(required) == available.end()) {
-                  throw std::runtime_error("Missing required glfw extension");
+                    ARX_LOG_ERROR("Missing required glfw extension");
                 }
             }
         }
@@ -455,7 +455,7 @@ namespace arx {
                       return format;
                     }
                 }
-                throw std::runtime_error("failed to find supported format!");
+                ARX_LOG_ERROR("failed to find supported format!");
             }
 
             uint32_t ArxDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -468,7 +468,7 @@ namespace arx {
                 }
             }
 
-            throw std::runtime_error("failed to find suitable memory type!");
+            ARX_LOG_ERROR("failed to find suitable memory type!");
         }
 
         void ArxDevice::createBuffer(
@@ -484,7 +484,7 @@ namespace arx {
             bufferInfo.sharingMode    = VK_SHARING_MODE_EXCLUSIVE;
 
             if (vkCreateBuffer(_device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create vertex buffer!");
+                ARX_LOG_ERROR("failed to create vertex buffer!");
             }
 
             VkMemoryRequirements memRequirements;
@@ -496,7 +496,7 @@ namespace arx {
             allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
             if (vkAllocateMemory(_device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-                throw std::runtime_error("failed to allocate vertex buffer memory!");
+                ARX_LOG_ERROR("failed to allocate vertex buffer memory!");
             }
 
             vkBindBufferMemory(_device, buffer, bufferMemory, 0);
@@ -588,7 +588,7 @@ namespace arx {
             VkImage &image,
             VkDeviceMemory &imageMemory) {
         if (vkCreateImage(_device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image!");
+            ARX_LOG_ERROR("failed to create image!");
         }
 
         VkMemoryRequirements memRequirements;
@@ -600,11 +600,11 @@ namespace arx {
         allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
         if (vkAllocateMemory(_device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate image memory!");
+            ARX_LOG_ERROR("failed to allocate image memory!");
         }
 
         if (vkBindImageMemory(_device, image, imageMemory, 0) != VK_SUCCESS) {
-            throw std::runtime_error("failed to bind image memory!");
+            ARX_LOG_ERROR("failed to bind image memory!");
         }
     }
 }

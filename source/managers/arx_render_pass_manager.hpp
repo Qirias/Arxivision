@@ -22,7 +22,7 @@ namespace arx {
 
             VkFramebuffer framebuffer;
             if (vkCreateFramebuffer(device.device(), &framebufferInfo, nullptr, &framebuffer) != VK_SUCCESS) {
-                throw std::runtime_error("Failed to create framebuffer for render pass: " + renderPassName);
+                ARX_LOG_ERROR("Failed to create framebuffer for the {} render pass", renderPassName);
             }
             framebuffers[renderPassName] = std::move(framebuffer);
         }

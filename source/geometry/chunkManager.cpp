@@ -38,7 +38,8 @@ namespace arx {
     const ogt_vox_scene* ChunkManager::loadVoxModel(const std::string& filepath) {
         FILE* file = fopen(filepath.c_str(), "rb");
         if (!file) {
-            std::cerr << "Failed to open .vox file: " << filepath << std::endl;
+            // std::cerr << "Failed to open .vox file: " << filepath << std::endl;
+            ARX_LOG_ERROR("Failed to open the .vox file {}", filepath);
             return nullptr;
         }
 
@@ -70,9 +71,9 @@ namespace arx {
         );
     }
 
-    void ChunkManager::vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath) {
+    bool ChunkManager::vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath) {
         const ogt_vox_scene* scene = loadVoxModel(filepath);
-        if (!scene) return;
+        if (!scene) return false;
         
         glm::mat4 worldPosMatrix = glm::mat4(1.f);
         
@@ -218,6 +219,8 @@ namespace arx {
         BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
         
         ogt_vox_destroy_scene(scene);
+
+        return true;
     }
 
     void ChunkManager::setChunkPosition(const std::pair<glm::vec3, unsigned int>& position) {

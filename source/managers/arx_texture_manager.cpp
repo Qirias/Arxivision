@@ -8,6 +8,7 @@ namespace arx {
 
     TextureManager::~TextureManager() {
         cleanup();
+        ARX_LOG_INFO("Textures cleaned up");
     }
 
     void TextureManager::cleanup() {
@@ -50,7 +51,7 @@ namespace arx {
             it->second->destroy(device.device());
             attachments.erase(it);
         } else {
-            std::cout << "Attachment not found: " << name << "\n";
+            ARX_LOG_ERROR("Attachment {} not found!", name);
         }
     }
 
@@ -78,7 +79,7 @@ namespace arx {
     std::shared_ptr<Texture> TextureManager::getTexture(const std::string& name) const {
         auto it = textures.find(name);
         if (it == textures.end()) {
-            throw std::runtime_error("Texture " + name + " not found!");
+            ARX_LOG_ERROR("Texture {} not found!", name);
         }
         return it->second;
     }
@@ -86,7 +87,7 @@ namespace arx {
     std::shared_ptr<Texture> TextureManager::getAttachment(const std::string& name) const {
         auto it = attachments.find(name);
         if (it == attachments.end()) {
-            throw std::runtime_error("Attachment " + name + " not found!");
+            ARX_LOG_ERROR("Attachment {} not found!", name);
         }
 
         return std::make_shared<Texture>(it->second->texture);
@@ -95,7 +96,7 @@ namespace arx {
     VkSampler TextureManager::getSampler(const std::string &name) const {
         auto it = samplers.find(name);
         if (it == samplers.end()) {
-            throw std::runtime_error("Sampler " + name + " not found!");
+            ARX_LOG_ERROR("Sampler {} not found!", name);
         }
         
         return it->second;
@@ -118,7 +119,7 @@ namespace arx {
         imageInfo.samples       = numSamples;
         
         if (vkCreateImage(device.device(), &imageInfo, nullptr, &image) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image!");
+            ARX_LOG_ERROR("failed to create image!");
         }
         
         VkMemoryRequirements memRequirements;
@@ -130,7 +131,7 @@ namespace arx {
         allocInfo.memoryTypeIndex = device.findMemoryType(memRequirements.memoryTypeBits, properties);
         
         if (vkAllocateMemory(device.device(), &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate image memory!");
+            ARX_LOG_ERROR("failed to allocate image memory!");
         }
         
         vkBindImageMemory(device.device(), image, imageMemory, 0);
@@ -150,7 +151,7 @@ namespace arx {
 
         VkImageView imageView;
         if (vkCreateImageView(device.device(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image view!");
+            ARX_LOG_ERROR("failed to create image view!");
         }
 
         return imageView;
@@ -203,7 +204,7 @@ namespace arx {
         samplerInfo.maxLod = 1.0f;
         samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
         if (vkCreateSampler(device.device(), &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create color sampler!");
+            ARX_LOG_ERROR("Failed to create color sampler!");
         }
         
         samplers[name] = sampler;
@@ -226,7 +227,7 @@ namespace arx {
         samplerInfo.maxLod = 1.0f;
         samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
         if (vkCreateSampler(device.device(), &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create color sampler!");
+            ARX_LOG_ERROR("Failed to create color sampler!");
         }
         
         return sampler;
@@ -307,7 +308,7 @@ namespace arx {
         bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         if (vkCreateBuffer(device.device(), &bufferCreateInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create buffer in createTexture2DFromBuffer!");
+            ARX_LOG_ERROR("failed to create buffer in createTexture2DFromBuffer!");
         }
 
         VkMemoryRequirements memReqs;
@@ -319,7 +320,7 @@ namespace arx {
         memAllocInfo.memoryTypeIndex = device.findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         if (vkAllocateMemory(device.device(), &memAllocInfo, nullptr, &stagingMemory) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate buffer memory in createTexture2DFromBuffer!");
+            ARX_LOG_ERROR("failed to allocate buffer memory in createTexture2DFromBuffer!");
         }
 
         vkBindBufferMemory(device.device(), stagingBuffer, stagingMemory, 0);
@@ -419,7 +420,7 @@ namespace arx {
         samplerCreateInfo.maxLod = 1.0f;
 
         if (vkCreateSampler(device.device(), &samplerCreateInfo, nullptr, &texture->sampler) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create texture sampler!");
+            ARX_LOG_ERROR("failed to create texture sampler!");
         }
 
         textures[name] = std::move(texture);

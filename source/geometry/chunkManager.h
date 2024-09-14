@@ -29,7 +29,7 @@ namespace arx {
         void MengerSponge(ArxGameObject::Map& voxel, const glm::ivec3& terrainSize);
         void setChunkAABB(const glm::vec3& position, const unsigned int chunkId);
         
-        void vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath);
+        bool vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath);
         
         const std::vector<std::pair<glm::vec3, unsigned int>>& getPositions() const { return chunkPositions; }
         const std::unordered_map<unsigned int, AABB>& getChunkAABBs() const { return chunkAABBs; }

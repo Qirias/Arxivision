@@ -47,6 +47,8 @@ namespace arx {
         createPipeline();
         createDescriptorPool();
         createDescriptorSets();
+
+        ARX_LOG_INFO("Clustered Shading Compute System constructed");
     }
 
     void ClusteredShading::cleanup() {
@@ -65,6 +67,8 @@ namespace arx {
         pointLightsBuffer.reset();
         lightCountBuffer.reset();
         viewMatrixBuffer.reset();
+
+        ARX_LOG_INFO("Clustered Shading Compute System destructed");
     }
 
     void ClusteredShading::createDescriptorSetLayout() {
