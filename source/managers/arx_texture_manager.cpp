@@ -8,7 +8,6 @@ namespace arx {
 
     TextureManager::~TextureManager() {
         cleanup();
-        ARX_LOG_INFO("Textures cleaned up");
     }
 
     void TextureManager::cleanup() {

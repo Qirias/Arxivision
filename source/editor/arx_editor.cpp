@@ -83,7 +83,6 @@ namespace arx {
         drawConsoleWindow();
         
         ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-
         ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
         
         ImGui::Image((ImTextureID)descriptorSet, viewportPanelSize);
@@ -161,14 +160,15 @@ namespace arx {
     void Editor::drawCoordinateVectors(ArxCamera& camera) {
         float dpiScale = ImGui::GetIO().DisplayFramebufferScale.x;
 
-        // Get the current viewport
-        ImGuiViewport* viewport = ImGui::GetWindowViewport();
-        ImVec2 viewportPos = viewport->Pos;
-        ImVec2 viewportSize = viewport->Size;
+        ImGui::Begin("Viewport");
 
-        // Calculate the center of the viewport
-        ImVec2 viewportCenter = ImVec2((viewportPos.x + viewportSize.x * 0.5f) / dpiScale,
-                                       (viewportPos.y + viewportSize.y * 0.5f) / dpiScale);
+        ImVec2 viewportPos = ImGui::GetWindowPos();
+        ImVec2 viewportSize = ImGui::GetWindowSize();
+
+        ImVec2 viewportCenter = ImVec2(viewportPos.x + viewportSize.x * 0.5f, 
+                                       viewportPos.y + viewportSize.y * 0.5f);
+
+        ImGui::End();
 
         // Set up a transparent window for drawing
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0)); // Transparent background

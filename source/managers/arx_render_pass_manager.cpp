@@ -10,7 +10,6 @@ namespace arx {
 
     RenderPassManager::~RenderPassManager() {
         cleanup();
-        ARX_LOG_INFO("Render passes cleaned up");
     }
 
     void RenderPassManager::cleanup() {
