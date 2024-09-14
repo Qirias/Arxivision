@@ -26,8 +26,11 @@ namespace arx {
         arxRenderer     = std::make_unique<ArxRenderer>(arxWindow, arxDevice, *rpManager, *textureManager);
         chunkManager    = std::make_unique<ChunkManager>(arxDevice);
         editor          = std::make_shared<Editor>(arxDevice, arxWindow.getGLFWwindow(), *textureManager);
+
         editor->setRenderPass(arxRenderer->getSwapChain()->getRenderPass());
         editor->init();
+
+        Logger::setEditor(editor);
 
         createQueryPool();
     }
@@ -137,6 +140,11 @@ namespace arx {
         auto currentTime = std::chrono::high_resolution_clock::now();
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
+
+            if (arxRenderer->windowResized()) {
+                aspect = arxRenderer->getAspectRatio();
+                camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+            }
 
             // Start the ImGui frame
             editor->newFrame();

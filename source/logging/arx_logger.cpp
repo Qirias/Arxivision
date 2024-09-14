@@ -1,18 +1,27 @@
 #include "../source/logging/arx_logger.hpp"
 
+#include "../source/editor/arx_editor.hpp"
+
 namespace arx {
     std::vector<LogEntry> Logger::logEntries;
+    std::shared_ptr<Editor> Logger::editor = nullptr;
 
     void Logger::log(LogType level, const std::string& message) {
         std::string timestamp = getCurrentTimestamp();
         logEntries.push_back({level, message, timestamp});
 
-        std::cout << "[" << timestamp << "] " << typeToString(level) << ": " << message << std::endl;
+        std::string fullMessage = "[" + timestamp + "] " + typeToString(level) + ": " + message;
+        std::cout << fullMessage << std::endl;
+
+        if (editor) {
+            editor->addLogMessage(fullMessage);
+        }
     }
 
     void Logger::shutdown() {
         writeLogFile();
         logEntries.clear();
+        editor.reset();
     }
 
     std::string Logger::typeToString(LogType level) {

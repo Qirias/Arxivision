@@ -61,6 +61,8 @@ namespace arx {
             // Flag to create the descriptors again
             arxSwapChain->Init_OcclusionCulling(true);
             hasResized = true;
+            
+            ARX_LOG_INFO("Window size {}x{}", arxSwapChain->width(), arxSwapChain->height());
         }
     }
 

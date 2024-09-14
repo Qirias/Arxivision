@@ -74,9 +74,9 @@ namespace arx {
 
             VkApplicationInfo appInfo     = {};
             appInfo.sType                 = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-            appInfo.pApplicationName      = "ArXiVision";
+            appInfo.pApplicationName      = "Voxel App";
             appInfo.applicationVersion    = VK_MAKE_VERSION(1, 0, 0);
-            appInfo.pEngineName           = "Hello Vulkan";
+            appInfo.pEngineName           = "ArXiVision";
             appInfo.engineVersion         = VK_MAKE_VERSION(1, 0, 0);
             appInfo.apiVersion            = VK_API_VERSION_1_2;
 
@@ -131,7 +131,7 @@ namespace arx {
             }
 
             vkGetPhysicalDeviceProperties(physicalDevice, &properties);
-            ARX_LOG_INFO("Physical device: {}", properties.deviceName);
+            ARX_LOG_INFO("{}", properties.deviceName);
         }
 
         void ArxDevice::createLogicalDevice() {

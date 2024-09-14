@@ -480,9 +480,9 @@ namespace arx {
                 vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
                 vkCreateFence(device.device(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
                     ARX_LOG_ERROR("failed to create synchronization objects for a frame!");
-                }
             }
         }
+    }
 
     VkSurfaceFormatKHR ArxSwapChain::chooseSwapSurfaceFormat(
         const std::vector<VkSurfaceFormatKHR> &availableFormats) {
@@ -511,7 +511,7 @@ namespace arx {
         //   }
         // }
 
-        ARX_LOG_INFO("Present mode: V-Sync");
+        // ARX_LOG_INFO("V-Sync");
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 

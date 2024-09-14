@@ -1,6 +1,7 @@
 #include "../source/engine_pch.hpp"
 
 #include "../source/editor/arx_editor.hpp"
+#include "../source/managers/arx_buffer_manager.hpp"
 
 namespace arx {
     Editor::Editor(ArxDevice& device, GLFWwindow* window, TextureManager& textureManager)
@@ -79,6 +80,8 @@ namespace arx {
     }
 
     void Editor::render(VkCommandBuffer commandBuffer, VkDescriptorSet descriptorSet) {
+        drawConsoleWindow();
+        
         ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
         ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
@@ -94,6 +97,41 @@ namespace arx {
         if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
+        }
+    }
+
+    void Editor::drawConsoleWindow() {
+        ImGui::Begin("Console");
+
+        ImGui::Checkbox("Auto-scroll", &autoScroll);
+        ImGui::SameLine();
+        if (ImGui::Button("Clear")) {
+            std::lock_guard<std::mutex> lock(consoleMutex);
+            consoleMessages.clear();
+        }
+
+        ImGui::BeginChild("ScrollingRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+        
+        {
+            std::lock_guard<std::mutex> lock(consoleMutex);
+            for (const auto& message : consoleMessages) {
+                ImGui::TextUnformatted(message.c_str());
+            }
+        }
+
+        if (autoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+            ImGui::SetScrollHereY(1.0f);
+        }
+
+        ImGui::EndChild();
+        ImGui::End();
+    }
+
+    void Editor::addLogMessage(const std::string& message) {
+        std::lock_guard<std::mutex> lock(consoleMutex);
+        consoleMessages.push_back(message);
+        if (consoleMessages.size() > maxConsoleMessages) {
+            consoleMessages.pop_front();
         }
     }
 

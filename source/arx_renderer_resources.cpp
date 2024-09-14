@@ -772,8 +772,6 @@ namespace arx {
         pipelines.fill(nullptr);
         
         passBuffers.clear();
-
-        ARX_LOG_INFO("Render Pass Resources cleaned up");
     }
 
 

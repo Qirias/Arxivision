@@ -23,8 +23,6 @@ namespace arx {
         createPipeline();
         createDescriptorPool();
         createDescriptorSets();
-
-        ARX_LOG_INFO("Face Visibility System constructed");
     }
 
     void FaceVisibilitySystem::cleanup() {
@@ -34,8 +32,6 @@ namespace arx {
         descriptorPool.reset();
         largeInstanceBuffer.reset();
         faceVisibilityBuffer.reset();
-
-        ARX_LOG_INFO("Face Visibility System destructed");
     }
 
     void FaceVisibilitySystem::createDescriptorSetLayout() {
@@ -61,7 +57,7 @@ namespace arx {
         pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
         if (vkCreatePipelineLayout(arxDevice->device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create face visibility pipeline layout!");
+            ARX_LOG_ERROR("failed to create face visibility pipeline layout!");
         }
     }
 

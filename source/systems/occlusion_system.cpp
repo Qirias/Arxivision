@@ -36,8 +36,6 @@ namespace arx {
         // late
         createEarlyCullingPipelineLayout();
         createEarlyCullingPipeline();
-
-        ARX_LOG_INFO("Occlusion Compute System constructed");
     }
 
     OcclusionSystem::~OcclusionSystem() {
@@ -61,8 +59,6 @@ namespace arx {
         objectsDataBuffer.reset();
         globalDataBuffer.reset();
         miscBuffer.reset();
-
-        ARX_LOG_INFO("Occlusion Compute System destructed");
     }
 
     void OcclusionSystem::cleanup() {
@@ -92,7 +88,7 @@ namespace arx {
         pipelineLayoutInfo.pPushConstantRanges      = &pushConstantRange;
         
         if (vkCreatePipelineLayout(arxDevice.device(), &pipelineLayoutInfo, nullptr, &depthPyramidPipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create depth pipeline layout!");
+            ARX_LOG_ERROR("failed to create depth pipeline layout!");
         }
     }
 
@@ -115,7 +111,7 @@ namespace arx {
         pipelineLayoutInfo.pushConstantRangeCount   = 0;
         
         if (vkCreatePipelineLayout(arxDevice.device(), &pipelineLayoutInfo, nullptr, &cullingPipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create culling pipeline layout!");
+            ARX_LOG_ERROR("failed to create culling pipeline layout!");
         }
     }
 
@@ -137,7 +133,7 @@ namespace arx {
         pipelineLayoutInfo.pushConstantRangeCount   = 0;
         
         if (vkCreatePipelineLayout(arxDevice.device(), &pipelineLayoutInfo, nullptr, &earlyCullingPipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create late culling pipeline layout!");
+            ARX_LOG_ERROR("failed to create late culling pipeline layout!");
         }
     }
 

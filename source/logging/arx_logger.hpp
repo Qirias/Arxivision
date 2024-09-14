@@ -7,7 +7,10 @@
 #include <ctime>
 #include <string>
 
+
 namespace arx {
+
+    class Editor;
 
     #define ARX_LOG_DEBUG(text, ...)    { arx::Logger::logf(arx::LogType::DEBUG,    std::string(__FUNCTION__) + ": " + std::string(text), ##__VA_ARGS__); }
     #define ARX_LOG_INFO(text, ...)     { arx::Logger::logf(arx::LogType::INFO,     std::string(__FUNCTION__) + ": " + std::string(text), ##__VA_ARGS__); }
@@ -41,6 +44,8 @@ namespace arx {
             log(level, oss.str());
         }
 
+        static void setEditor(std::shared_ptr<Editor> editor) { Logger::editor = editor; }
+
     private:
         Logger() = delete;
         ~Logger() = delete;
@@ -63,6 +68,7 @@ namespace arx {
             oss << format;
         }
 
+        static std::shared_ptr<Editor> editor;
         static std::vector<LogEntry> logEntries;
         static std::string typeToString(LogType level);
         static std::string getCurrentTimestamp();

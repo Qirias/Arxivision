@@ -1,8 +1,7 @@
 #pragma once
 
-#include "../source/arx_device.h"
+// #include "../source/arx_device.h"
 #include "../source/managers/arx_texture_manager.hpp"
-#include "../source/managers/arx_buffer_manager.hpp"
 #include "../source/arx_camera.h"
 
 #include <../libs/imgui/imgui.h>
@@ -38,7 +37,9 @@ namespace arx {
         void render(VkCommandBuffer commandBuffer, VkDescriptorSet descriptorSet);
         void drawDebugWindow(EditorImGuiData& data);
         void drawCoordinateVectors(ArxCamera& camera);
+        void drawConsoleWindow();
 
+        void addLogMessage(const std::string& message);
         EditorImGuiData& getImGuiData() { return imguiData; }
 
     private:
@@ -52,6 +53,12 @@ namespace arx {
         EditorImGuiData     imguiData;
         
         std::string         iniPath;
+
+        // Console
+        std::deque<std::string>     consoleMessages;
+        std::mutex                  consoleMutex;
+        bool                        autoScroll = true;
+        int                         maxConsoleMessages = 1000;
 
         void createImGuiDescriptorPool();
         void createDockSpace();
