@@ -48,6 +48,7 @@ class ArxDevice {
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     QueueFamilyIndices findPhysicalQueueFamilies() { return findQueueFamilies(physicalDevice); }
     VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+    VkPhysicalDeviceProperties getProperties() { return properties; }
 
     // Buffer Helper Functions
     void createBuffer(
@@ -76,50 +77,52 @@ class ArxDevice {
     VkPhysicalDevice getPhysicalDevice() const { return physicalDevice; }
     
     private:
-    void createInstance();
-    void setupDebugMessenger();
-    void createSurface();
-    void pickPhysicalDevice();
-    void setImagelessFramebufferFeature();
-    void setBufferDeviceAddressFeature();
-    void createLogicalDevice();
-    void createCommandPool();
+        void createInstance();
+        void setupDebugMessenger();
+        void createSurface();
+        void pickPhysicalDevice();
+        void setImagelessFramebufferFeature();
+        void setBufferDeviceAddressFeature();
+        void createLogicalDevice();
+        void createCommandPool();
 
-    // helper functions
-    bool isDeviceSuitable(VkPhysicalDevice device);
-    std::vector<const char *> getRequiredExtensions();
-    bool checkValidationLayerSupport();
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
-    void hasGflwRequiredInstanceExtensions();
-    bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
-    VkSampleCountFlagBits getMaxUsableSampleCount();
+        // helper functions
+        bool isDeviceSuitable(VkPhysicalDevice device);
+        std::vector<const char *> getRequiredExtensions();
+        bool checkValidationLayerSupport();
+        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+        void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
+        void hasGflwRequiredInstanceExtensions();
+        bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+        SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+        VkSampleCountFlagBits getMaxUsableSampleCount();
 
-    VkInstance                                      instance;
-    VkDebugUtilsMessengerEXT                        debugMessenger;
-    VkPhysicalDevice                                physicalDevice = VK_NULL_HANDLE;
-    ArxWindow                                       &window;
-    VkCommandPool                                   commandPool;
-    VkPhysicalDeviceImagelessFramebufferFeatures    imagelessFramebufferFeatures;
-    VkPhysicalDeviceBufferDeviceAddressFeatures     bufferDeviceAddressFeatures;
-    bool                                            supportsBufferDeviceAddress;
-    
-    uint32_t                                        numThreads{0};
+        VkInstance                                      instance;
+        VkDebugUtilsMessengerEXT                        debugMessenger;
+        VkPhysicalDevice                                physicalDevice = VK_NULL_HANDLE;
+        ArxWindow                                       &window;
+        VkCommandPool                                   commandPool;
+        VkPhysicalDeviceImagelessFramebufferFeatures    imagelessFramebufferFeatures;
+        VkPhysicalDeviceBufferDeviceAddressFeatures     bufferDeviceAddressFeatures;
+        bool                                            supportsBufferDeviceAddress;
 
-    VkDevice      _device;
-    VkSurfaceKHR  _surface;
-    VkQueue       _graphicsQueue;
-    VkQueue       _presentQueue;
-
-    const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
-    const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                                                        VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
-                                                        "VK_KHR_portability_subset",
-                                                        "VK_KHR_imageless_framebuffer",
-                                                        "VK_KHR_maintenance2",
-                                                        "VK_KHR_image_format_list"};
         
+        
+        uint32_t                                        numThreads{0};
+
+        VkDevice      _device;
+        VkSurfaceKHR  _surface;
+        VkQueue       _graphicsQueue;
+        VkQueue       _presentQueue;
+
+        const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+        const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                                                            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+                                                            "VK_KHR_portability_subset",
+                                                            "VK_KHR_imageless_framebuffer",
+                                                            "VK_KHR_maintenance2",
+                                                            "VK_KHR_image_format_list"};
+            
     public:
         ThreadPool                                      threadPool;
     };

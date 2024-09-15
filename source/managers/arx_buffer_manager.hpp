@@ -1,6 +1,5 @@
 #pragma once
 
-// #include "../../source/arx_device.h"
 #include "../../source/arx_buffer.h"
 
 namespace arx {

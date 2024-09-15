@@ -1124,7 +1124,8 @@ namespace arx {
         // ====================================================================================
         //                                      G-Buffer
         // ====================================================================================
-        
+        Profiler::startStageTimer("G-Pass", Profiler::Type::GPU, frameInfo.commandBuffer);
+
         beginRenderPass(frameInfo.commandBuffer, "GBuffer");
         
         pipelines[static_cast<uint8_t>(PassName::GPass)]->bind(frameInfo.commandBuffer);
@@ -1165,12 +1166,14 @@ namespace arx {
         }
         
         vkCmdEndRenderPass(frameInfo.commandBuffer);
+        Profiler::stopStageTimer("G-Pass", Profiler::Type::GPU, frameInfo.commandBuffer);
         
         // ====================================================================================
         //                                      SSAO
         // ====================================================================================
         
         if (compParams.ssao) {
+            Profiler::startStageTimer("SSAO", Profiler::Type::GPU, frameInfo.commandBuffer);
             beginRenderPass(frameInfo.commandBuffer, "SSAO");
             
             pipelines[static_cast<uint8_t>(PassName::SSAO)]->bind(frameInfo.commandBuffer);
@@ -1186,6 +1189,7 @@ namespace arx {
             
             vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
             vkCmdEndRenderPass(frameInfo.commandBuffer);
+            Profiler::stopStageTimer("SSAO", Profiler::Type::GPU, frameInfo.commandBuffer);
         }
         
         // ====================================================================================
@@ -1193,6 +1197,7 @@ namespace arx {
         // ====================================================================================
         
         if ((compParams.ssao && compParams.ssaoBlur && !compParams.ssaoOnly)) {
+            Profiler::startStageTimer("SSAOBlur", Profiler::Type::GPU, frameInfo.commandBuffer);
             
             beginRenderPass(frameInfo.commandBuffer, "SSAOBlur");
             
@@ -1209,6 +1214,7 @@ namespace arx {
             
             vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
             vkCmdEndRenderPass(frameInfo.commandBuffer);
+            Profiler::stopStageTimer("SSAOBlur", Profiler::Type::GPU, frameInfo.commandBuffer);
         }
         
         // ====================================================================================
@@ -1216,9 +1222,15 @@ namespace arx {
         // ====================================================================================
         
         if (compParams.deferred) {
+            Profiler::startStageTimer("FrustumCluster", Profiler::Type::GPU, frameInfo.commandBuffer);
             ClusteredShading::dispatchComputeFrustumCluster(frameInfo.commandBuffer);
+            Profiler::stopStageTimer("FrustumCluster", Profiler::Type::GPU, frameInfo.commandBuffer);
+
+            Profiler::startStageTimer("CullLights", Profiler::Type::GPU, frameInfo.commandBuffer);
             ClusteredShading::dispatchComputeClusterCulling(frameInfo.commandBuffer);
-            
+            Profiler::stopStageTimer("CullLights", Profiler::Type::GPU, frameInfo.commandBuffer);
+
+            Profiler::startStageTimer("Deferred Shading", Profiler::Type::GPU, frameInfo.commandBuffer);
             beginRenderPass(frameInfo.commandBuffer, "Deferred");
             
             pipelines[static_cast<uint8_t>(PassName::DEFERRED)]->bind(frameInfo.commandBuffer);
@@ -1234,12 +1246,14 @@ namespace arx {
             
             vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
             vkCmdEndRenderPass(frameInfo.commandBuffer);
+            Profiler::stopStageTimer("Deferred Shading", Profiler::Type::GPU, frameInfo.commandBuffer);
         }
                 
         // ====================================================================================
         //                                   COMPOSITION
         // ====================================================================================
 
+        Profiler::startStageTimer("Frame Composition", Profiler::Type::GPU, frameInfo.commandBuffer);
         beginRenderPass(frameInfo.commandBuffer, "Composition");
         
         pipelines[static_cast<uint8_t>(PassName::COMPOSITION)]->bind(frameInfo.commandBuffer);
@@ -1255,6 +1269,7 @@ namespace arx {
         
         vkCmdDraw(frameInfo.commandBuffer, 3, 1, 0, 0);
         endSwapChainRenderPass(frameInfo.commandBuffer);
+        Profiler::stopStageTimer("Frame Composition", Profiler::Type::GPU, frameInfo.commandBuffer);
 
         // ====================================================================================
         //                                   IMGUI Viewport

@@ -1,6 +1,5 @@
 #pragma once
 
-// #include "../source/arx_device.h"
 #include "../source/managers/arx_texture_manager.hpp"
 #include "../source/arx_camera.h"
 
@@ -20,9 +19,6 @@ namespace arx {
             bool ssaoOnly = false;
             bool ssaoBlur = true;
             bool deferred = true;
-            uint64_t cullingTime;
-            uint64_t renderTime;
-            uint64_t depthPyramidTime;
         };
 
         Editor(ArxDevice& device, GLFWwindow* window, TextureManager& textureManager);
@@ -38,6 +34,7 @@ namespace arx {
         void drawDebugWindow(EditorImGuiData& data);
         void drawCoordinateVectors(ArxCamera& camera);
         void drawConsoleWindow();
+        void drawProfilerWindow();
 
         void addLogMessage(const std::string& message);
         EditorImGuiData& getImGuiData() { return imguiData; }
@@ -56,9 +53,15 @@ namespace arx {
 
         // Console
         std::deque<std::string>     consoleMessages;
-        std::mutex                  consoleMutex;
+        std::mutex                  consoleMutex; // In case of multithreading
         bool                        autoScroll = true;
         int                         maxConsoleMessages = 1000;
+
+
+        std::deque<std::vector<std::pair<std::string, double>>> profilerDataHistory;
+        static const size_t historySize = 30; // Number of frames to average over
+        
+        ImVec4 getColorForIndex(int index, int total);
 
         void createImGuiDescriptorPool();
         void createDockSpace();

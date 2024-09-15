@@ -81,6 +81,7 @@ namespace arx {
 
     void Editor::render(VkCommandBuffer commandBuffer, VkDescriptorSet descriptorSet) {
         drawConsoleWindow();
+        drawProfilerWindow();
         
         ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
@@ -151,10 +152,103 @@ namespace arx {
         if (data.ssaoOnly || !data.ssaoEnabled) data.ssaoBlur = false;
         if (data.ssaoOnly) data.deferred = false;
 
-        ImGui::Text("Culling Time: %.3f ms", data.cullingTime / 1e6);
-        ImGui::Text("Render Time: %.3f ms", data.renderTime / 1e6);
-        ImGui::Text("Depth Pyramid Time: %.3f ms", data.depthPyramidTime / 1e6);
         ImGui::End();
+    }
+
+    void Editor::drawProfilerWindow() {
+        ImGui::Begin("Profiler");
+
+        // Retrieve profiling data
+        const auto& currentFrameData = Profiler::getProfileData(1); // Offset always 1 to fetch previous' frame timestamps
+        profilerDataHistory.push_back(currentFrameData);
+
+        // Maintain history size for averaging
+        if (profilerDataHistory.size() > historySize) {
+            profilerDataHistory.pop_front();
+        }
+
+        // Calculate average durations
+        std::unordered_map<std::string, double> averageDurations;
+        for (const auto& frameData : profilerDataHistory) {
+            for (const auto& [stage, duration] : frameData) {
+                averageDurations[stage] += duration;
+            }
+        }
+
+        // Calculate the average
+        for (auto& [stage, totalDuration] : averageDurations) {
+            totalDuration /= historySize;
+        }
+
+        if (averageDurations.empty()) {
+            ImGui::Text("No profiling data available.");
+            ImGui::End();
+            return;
+        }
+
+        // Calculate total frame time by summing all average durations
+        float totalTime = 0.0f;
+        for (const auto& [stage, duration] : averageDurations) {
+            totalTime += static_cast<float>(duration);
+        }
+
+        const float bar_height = 10.0f;
+        const float spacing = 2.0f;
+        const float text_width = 150.0f;
+        const float duration_text_width = 70.0f;
+        const float bar_start_x = text_width + spacing;
+        const float bar_width = ImGui::GetContentRegionAvail().x - bar_start_x - duration_text_width - spacing;
+
+        float startTime = 0.0f;
+
+        size_t i = 0;
+        for (const auto& [stageName, duration] : averageDurations) {
+
+            ImVec4 stageColor = getColorForIndex(i++, averageDurations.size());
+            ImGui::PushStyleColor(ImGuiCol_Text, stageColor);
+
+            // Display stage name
+            ImGui::Text("%s", stageName.c_str());
+            ImGui::SameLine(bar_start_x);
+
+            // Draw stage bar
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            // The cursor position represents where ImGui is currently placing content
+            // This helps in positioning custom drawings relative to the ImGui window layout.
+            ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
+
+            draw_list->AddRectFilled(
+                ImVec2(cursor_pos.x + bar_width * (startTime / totalTime), cursor_pos.y),
+                ImVec2(cursor_pos.x + bar_width * ((startTime + duration) / totalTime), cursor_pos.y + bar_height),
+                ImColor(stageColor)
+            );
+
+            ImGui::Dummy(ImVec2(bar_width, bar_height));  // Reserve space for the bar
+            // Draw text on the same line
+            ImGui::SameLine();
+
+            // Display duration text
+            char duration_text[32];
+            snprintf(duration_text, sizeof(duration_text), "%.2f ms", static_cast<float>(duration));
+            ImGui::Text("%s", duration_text);
+            ImGui::PopStyleColor();
+
+            // Destribute everything evenly inside the window
+            ImGui::Spacing();
+
+            // Update start time for the next stage
+            startTime += static_cast<float>(duration);
+        }
+
+        // Display total frame time
+        ImGui::Text("Total Time: %.2f ms", totalTime);
+        ImGui::End();
+    }
+
+    ImVec4 Editor::getColorForIndex(int index, int total) {
+        // Generate a unique color for each bar
+        float hue = index / float(total);
+        return ImColor::HSV(hue, 0.7f, 0.9f);
     }
 
     void Editor::drawCoordinateVectors(ArxCamera& camera) {

@@ -20,9 +20,9 @@ namespace arx {
     }
 
     UserInput::~UserInput() {
-//        if (instance == this) {
-//            instance = nullptr;
-//        }
+       if (instance == this) {
+           instance = nullptr;
+       }
     }
 
     void UserInput::processInput(GLFWwindow* window, float dt, ArxGameObject& gameObject) {
@@ -96,7 +96,8 @@ namespace arx {
 
     void UserInput::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
        if (key == GLFW_KEY_F3 && action == GLFW_PRESS) {
-           instance->isCartesianActive = !instance->isCartesianActive;
+            instance->isCartesianActive = !instance->isCartesianActive;
+            ARX_LOG_DEBUG("Coordinate vectors {}", instance->isCartesianActive ? "On" : "Off");
        }
    }
 

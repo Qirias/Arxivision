@@ -28,13 +28,9 @@ namespace arx {
         void run();
         
     private:
-        void initializeImgui();
-        void createQueryPool();
-        void drawCoordinateVectors(const ArxCamera& camera);
-        void printMat4(const glm::mat4& mat);
-        
+
         // note: order of declarations matters
-        ArxWindow                           arxWindow{WIDTH, HEIGHT, "ArXiVision"};
+        ArxWindow                           arxWindow{WIDTH, HEIGHT, "Hello Vulkan!"};
         ArxDevice                           arxDevice{arxWindow};
         
         std::unique_ptr<TextureManager>     textureManager;
@@ -42,9 +38,6 @@ namespace arx {
         std::unique_ptr<ArxRenderer>        arxRenderer;
         std::unique_ptr<ChunkManager>       chunkManager;
         std::shared_ptr<Editor>             editor;
-        
-        std::unique_ptr<ArxDescriptorPool>  globalPool{};
-        VkQueryPool                         queryPool;
         
         ArxGameObject::Map                  gameObjects;
     };

@@ -1,4 +1,4 @@
-#include "../source/logging/arx_logger.hpp"
+#include "../source/editor/logging/arx_logger.hpp"
 
 #include "../source/editor/arx_editor.hpp"
 

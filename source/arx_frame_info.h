@@ -41,7 +41,6 @@ static const float SSAO_RADIUS = 1.0f;
         float frameTime;
         VkCommandBuffer commandBuffer;
         ArxCamera &camera;
-        VkDescriptorSet globalDescriptorSet;
         ArxGameObject::Map &voxel;
     };
 }

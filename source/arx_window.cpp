@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "../source/arx_window.h"
-#include "../source/logging/arx_logger.hpp"
+#include "../source/editor/logging/arx_logger.hpp"
 #include <stdexcept>
 
 namespace arx {

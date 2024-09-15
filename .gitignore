@@ -10,3 +10,5 @@ xcode_build/
 
 // vscode
 .vscode
+
+.log.txt

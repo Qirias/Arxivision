@@ -32,4 +32,5 @@
 #include "../libs/glm/gtc/noise.hpp"
 
 // Arx
-#include "../source/logging/arx_logger.hpp"
+#include "../source/editor/logging/arx_logger.hpp"
+#include "../source/editor/profiling/arx_profiler.hpp"
