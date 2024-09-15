@@ -167,11 +167,18 @@ namespace arx {
             profilerDataHistory.pop_front();
         }
 
-        // Calculate average durations
-        std::unordered_map<std::string, double> averageDurations;
+        // Initialize average durations
+        std::vector<std::pair<std::string, double>> averageDurations;
+        std::unordered_map<std::string, size_t> stageIndexMap;
+
         for (const auto& frameData : profilerDataHistory) {
-            for (const auto& [stage, duration] : frameData) {
-                averageDurations[stage] += duration;
+            for (size_t i = 0; i < frameData.size(); ++i) {
+                const auto& [stage, duration] = frameData[i];
+                if (stageIndexMap.find(stage) == stageIndexMap.end()) {
+                    stageIndexMap[stage] = averageDurations.size();
+                    averageDurations.emplace_back(stage, 0.0);
+                }
+                averageDurations[stageIndexMap[stage]].second += duration;
             }
         }
 
@@ -213,8 +220,6 @@ namespace arx {
 
             // Draw stage bar
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            // The cursor position represents where ImGui is currently placing content
-            // This helps in positioning custom drawings relative to the ImGui window layout.
             ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
 
             draw_list->AddRectFilled(
@@ -224,7 +229,6 @@ namespace arx {
             );
 
             ImGui::Dummy(ImVec2(bar_width, bar_height));  // Reserve space for the bar
-            // Draw text on the same line
             ImGui::SameLine();
 
             // Display duration text
@@ -233,7 +237,7 @@ namespace arx {
             ImGui::Text("%s", duration_text);
             ImGui::PopStyleColor();
 
-            // Destribute everything evenly inside the window
+            // Distribute everything evenly inside the window
             ImGui::Spacing();
 
             // Update start time for the next stage
