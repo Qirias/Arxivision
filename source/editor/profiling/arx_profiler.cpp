@@ -22,6 +22,7 @@ namespace arx {
     std::array<std::vector<std::pair<std::string, uint32_t>>, Profiler::BUFFER_COUNT> Profiler::activeQueries;
     uint32_t Profiler::currentBufferIndex = 0;
     uint32_t Profiler::queryCount = 1000;
+    uint32_t Profiler::dynamicQueryCount = 1000;
     uint32_t Profiler::frameCounter = 0;
     ArxDevice* Profiler::device = nullptr;
 
@@ -31,6 +32,7 @@ namespace arx {
     void Profiler::initializeGPUProfiler(ArxDevice& dev, uint32_t maxQueries) {
         device = &dev;
         queryCount = maxQueries;
+        dynamicQueryCount = maxQueries;
 
         for (int i = 0; i < BUFFER_COUNT; i++) {
             VkQueryPoolCreateInfo queryPoolInfo{};
@@ -47,8 +49,13 @@ namespace arx {
     void Profiler::startFrame(VkCommandBuffer cmdBuffer) {
         frameCounter++;
         currentBufferIndex = frameCounter % BUFFER_COUNT;
-        vkCmdResetQueryPool(cmdBuffer, queryPools[currentBufferIndex], 0, queryCount);
+        // Manually setting += 4 in getProfileData
+        // Depth Pyramid and Occlusion Culling increment it after the window draw
+        // Set the dynamicQueryCount back to where it should be
+        dynamicQueryCount -= 4;
+        vkCmdResetQueryPool(cmdBuffer, queryPools[currentBufferIndex], 0, dynamicQueryCount);
         activeQueries[currentBufferIndex].clear();
+        dynamicQueryCount = 0;
     }
 
     void Profiler::startStageTimer(const std::string& stageName, Type type, VkCommandBuffer cmdBuffer) {
@@ -58,11 +65,12 @@ namespace arx {
         } else if (type == Type::GPU && cmdBuffer != VK_NULL_HANDLE) {
             uint32_t queryIndex = static_cast<uint32_t>(activeQueries[currentBufferIndex].size()) * 2;
             if (queryIndex >= queryCount) {
-                ARX_LOG_ERROR("Exceeded maximum number of GPU queries!");
+                ARX_LOG_WARNING("Exceeded maximum number of GPU queries!");
                 return;
             }
             activeQueries[currentBufferIndex].emplace_back(stageName, queryIndex);
             vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPools[currentBufferIndex], queryIndex);
+            dynamicQueryCount++;
         }
     }
 
@@ -72,7 +80,7 @@ namespace arx {
                 [&stageName](const auto& pair) { return pair.first == stageName; });
 
             if (it == cpuActiveTimers.end()) {
-                ARX_LOG_ERROR("Attempted to stop CPU timer {} that wasn't started!", stageName);
+                ARX_LOG_WARNING("Attempted to stop CPU timer {} that wasn't started!", stageName);
                 return;
             }
 
@@ -84,12 +92,13 @@ namespace arx {
             [&stageName](const auto& pair) { return pair.first == stageName; });
 
             if (it == activeQueries[currentBufferIndex].end()) {
-                ARX_LOG_ERROR("Attempted to stop GPU timer '{}' that wasn't started in buffer {}!", stageName, currentBufferIndex);
+                ARX_LOG_WARNING("Attempted to stop GPU timer '{}' that wasn't started in buffer {}!", stageName, currentBufferIndex);
                 return;
             }
 
             uint32_t queryIndex = it->second + 1;
             vkCmdWriteTimestamp(cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPools[currentBufferIndex], queryIndex);
+            dynamicQueryCount++;
         }
     }
 
@@ -97,13 +106,15 @@ namespace arx {
         uint32_t bufferIndex = (frameCounter + BUFFER_COUNT - frameOffset) % BUFFER_COUNT;
 
         std::vector<uint64_t> queryResults(queryCount);
-        
-        VkResult result = vkGetQueryPoolResults(device->device(), queryPools[bufferIndex], 0, queryCount,
+
+        // Manually adjust timestamps after the window draw (depth pyramid, occlusion culling)
+        dynamicQueryCount += 4;
+        VkResult result = vkGetQueryPoolResults(device->device(), queryPools[bufferIndex], 0, dynamicQueryCount,
             queryResults.size() * sizeof(uint64_t), queryResults.data(), sizeof(uint64_t),
             VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 
         if (result != VK_SUCCESS) {
-            ARX_LOG_ERROR("Failed to get query pool results for buffer {}. Error code: {}", bufferIndex, result);
+            ARX_LOG_WARNING("Failed to get query pool results for buffer {}. Error code: {}", bufferIndex, result);
             return {};
         }
 
@@ -112,13 +123,16 @@ namespace arx {
             uint64_t startTime = queryResults[query.second];
             uint64_t endTime = queryResults[query.second + 1];
             
-            if (startTime == 0 || endTime == 0) {
-                ARX_LOG_WARNING("Invalid timestamp for stage '{}' in buffer {}. Start: {}, End: {}", 
-                                query.first, bufferIndex, startTime, endTime);
-                continue;
-            }
 
-            double duration = static_cast<double>(endTime - startTime) / 1e6;// * device->getProperties().limits.timestampPeriod;
+            // When I disable stages after the editor draw
+            // the dynamicQueryCount is not updated in time and this is raised
+            // if (startTime == 0 || endTime == 0) {
+            //     ARX_LOG_WARNING("Invalid timestamp for stage '{}' in buffer {}. Start: {}, End: {}", 
+            //                     query.first, bufferIndex, startTime, endTime);
+            //     continue;
+            // }
+
+            double duration = static_cast<double>(endTime - startTime) / 1e6;
             stageDurations.emplace_back(query.first, duration);
         }
 

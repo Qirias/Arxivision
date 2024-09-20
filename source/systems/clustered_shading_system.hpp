@@ -16,7 +16,7 @@ namespace arx {
             glm::vec4 minPoint;
             glm::vec4 maxPoint;
             unsigned int count;
-            unsigned int lightIndices[311];
+            unsigned int lightIndices[711];
         };
         
         struct Frustum {
@@ -26,6 +26,12 @@ namespace arx {
             glm::uvec2 screenDimensions;
             float zNear;
             float zFar;
+        };
+
+        struct LightData {
+            uint32_t lightCount;
+            uint32_t maxDistance;
+            uint32_t padding[2];
         };
         
         static void init(ArxDevice &device, const int WIDTH, const int HEIGHT);

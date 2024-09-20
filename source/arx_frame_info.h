@@ -11,7 +11,7 @@ static const int ADJUSTED_CHUNK = CHUNK_SIZE / VOXEL_SIZE;
 
 static const float SSAO_KERNEL_SIZE = 32;
 static const float SSAO_NOISE_DIM = 4;
-static const float SSAO_RADIUS = 1.0f;
+static const float SSAO_RADIUS = 0.7f;
 
     struct AABB {
         glm::vec3 min{};

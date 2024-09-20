@@ -13,7 +13,7 @@ struct Cluster {
     vec4 minPoint;
     vec4 maxPoint;
     uint count;
-    uint lightIndices[311];
+    uint lightIndices[711];
 };
 
 layout (std430, binding = 0) restrict buffer ClusterBuffer {
@@ -33,7 +33,7 @@ layout (binding = 3) uniform LightCountBuffer {
 };
 
 bool testLightAABB(uint i, Cluster cluster) {
-    float radius = 3.5;
+    float radius = 3.5*3; // diffuse has maxDistance of 3 times more
 
     vec3 viewLightPos = vec3(viewMatrix * vec4(pointLights[i].position, 1.0));
 
@@ -56,7 +56,7 @@ void main()
     {
         if (pointLights[i].visibilityMask == 0) continue;
         
-        if (testLightAABB(i, cluster) && cluster.count < 311)
+        if (testLightAABB(i, cluster) && cluster.count < 711)
         {
             cluster.lightIndices[cluster.count] = i;
             cluster.count++;

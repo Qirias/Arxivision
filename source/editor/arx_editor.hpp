@@ -2,6 +2,7 @@
 
 #include "../source/managers/arx_texture_manager.hpp"
 #include "../source/arx_camera.h"
+#include "../source/arx_buffer.h"
 
 #include <../libs/imgui/imgui.h>
 #include <../libs/imgui/backends/imgui_impl_glfw.h>
@@ -11,14 +12,28 @@ namespace arx {
 
     class Editor {
         public:
-            struct EditorImGuiData {
-            bool frustumCulling = true;
-            bool occlusionCulling = true;
-            bool enableCulling = false;
-            bool ssaoEnabled = true;
-            bool ssaoOnly = false;
-            bool ssaoBlur = true;
-            bool deferred = true;
+        struct EditorImGuiData {
+            struct CameraParams {
+                uint32_t frustumCulling = true;
+                uint32_t occlusionCulling = true;
+                uint32_t enableCulling = true;
+                uint32_t padding0;
+                float zNear = .1f;
+                float zFar = 1024.f;
+                float speed = 40.f;
+                float padding1;
+            } camera;
+
+            struct LightingParams {
+                uint32_t ssaoEnabled = true;
+                uint32_t ssaoOnly = false;
+                uint32_t ssaoBlur = true;
+                uint32_t deferred = true;
+                float directLightColor = 4000;
+                float directLightIntensity = .5;
+                float perLightMaxDistance = 5.f;
+                float padding2;
+            } lighting;
         };
 
         Editor(ArxDevice& device, GLFWwindow* window, TextureManager& textureManager);
@@ -31,13 +46,16 @@ namespace arx {
         void cleanup();
         void newFrame();
         void render(VkCommandBuffer commandBuffer, VkDescriptorSet descriptorSet);
-        void drawDebugWindow(EditorImGuiData& data);
+        void drawDebugWindow();
         void drawCoordinateVectors(ArxCamera& camera);
         void drawConsoleWindow();
         void drawProfilerWindow();
 
         void addLogMessage(const std::string& message);
         EditorImGuiData& getImGuiData() { return imguiData; }
+
+        static std::shared_ptr<ArxBuffer>   editorDataBuffer;
+        static EditorImGuiData              data;
 
     private:
         ArxDevice&          arxDevice;

@@ -4,14 +4,24 @@
 #include "../source/managers/arx_buffer_manager.hpp"
 
 namespace arx {
+    std::shared_ptr<ArxBuffer>  Editor::editorDataBuffer;
+    Editor::EditorImGuiData     Editor::data;
+
     Editor::Editor(ArxDevice& device, GLFWwindow* window, TextureManager& textureManager)
     : arxDevice(device), window(window), textureManager(textureManager) {
         std::filesystem::path path = std::filesystem::current_path() / ".." / ".." / "imgui.ini";
         iniPath = path.string();
+
+        editorDataBuffer = std::make_shared<ArxBuffer>(arxDevice,
+                                                       sizeof(EditorImGuiData),
+                                                       1,
+                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     }
 
     Editor::~Editor() {
         cleanup();
+        editorDataBuffer.reset();
     }
 
     void Editor::init() {
@@ -135,22 +145,50 @@ namespace arx {
         }
     }
 
-    void Editor::drawDebugWindow(EditorImGuiData& data) {
-        ImGui::Begin("Debug");
+    void Editor::drawDebugWindow() {
+        ImGui::Begin("Properties", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
+
+        // General info
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Debug Information");
+        ImGui::Separator();
         ImGui::Text("Press I for ImGui, O for game");
-        ImGui::Text("Chunks %d", static_cast<uint32_t>(BufferManager::readDrawCommandCount()));
-        ImGui::Checkbox("Frustum Culling", &data.frustumCulling);
-        ImGui::Checkbox("Occlusion Culling", &data.occlusionCulling);
-        ImGui::Checkbox("Freeze Culling", &data.enableCulling);
-        ImGui::Checkbox("SSAO Enabled", &data.ssaoEnabled);
-        ImGui::Checkbox("SSAO Only", &data.ssaoOnly);
-        ImGui::Checkbox("SSAO Blur", &data.ssaoBlur);
-        ImGui::Checkbox("Deferred", &data.deferred);
+        ImGui::Text("Chunks: %d", static_cast<uint32_t>(BufferManager::readDrawCommandCount()));
+        ImGui::Spacing();
 
-        if (!data.ssaoEnabled) data.ssaoOnly = false;
-        if (data.ssaoOnly || !data.ssaoEnabled) data.ssaoBlur = false;
-        if (data.ssaoOnly) data.deferred = false;
+        // Camera parameters
+        if (ImGui::CollapsingHeader("Camera Parameters", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent();
+            ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&data.camera.frustumCulling));
+            ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&data.camera.occlusionCulling));
+            ImGui::Checkbox("Freeze Culling", reinterpret_cast<bool*>(&data.camera.enableCulling));
+            ImGui::SliderFloat("zNear", &data.camera.zNear, 0.1f, 1000.0f);
+            ImGui::SliderFloat("zFar", &data.camera.zFar, 100.0f, 2000.0f);
+            ImGui::SliderFloat("Speed", &data.camera.speed, 1.0f, 320.0f);
+            ImGui::Unindent();
+        }
+
+        // Lighting parameters
+        if (ImGui::CollapsingHeader("Lighting Parameters", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent();
+            ImGui::Checkbox("SSAO Enabled", reinterpret_cast<bool*>(&data.lighting.ssaoEnabled));
+            ImGui::BeginDisabled(data.lighting.ssaoEnabled == 0);
+            ImGui::Checkbox("SSAO Only", reinterpret_cast<bool*>(&data.lighting.ssaoOnly));
+            ImGui::BeginDisabled(data.lighting.ssaoOnly != 0);
+            ImGui::Checkbox("SSAO Blur", reinterpret_cast<bool*>(&data.lighting.ssaoBlur));
+            ImGui::EndDisabled();
+            ImGui::EndDisabled();
+            ImGui::BeginDisabled(data.lighting.ssaoOnly != 0);
+            ImGui::Checkbox("Deferred", reinterpret_cast<bool*>(&data.lighting.deferred));
+            ImGui::EndDisabled();
+            ImGui::SliderFloat("Direct Light Color", &data.lighting.directLightColor, 0.0f, 10000.0f);
+            ImGui::SliderFloat("Direct Light Intensity", &data.lighting.directLightIntensity, 0.0f, 1.0f);
+            ImGui::SliderFloat("Per Light Max Distance", &data.lighting.perLightMaxDistance, 0.1f, 20.0f);
+            ImGui::Unindent();
+        }
+
+        ImGui::PopStyleVar();
 
         ImGui::End();
     }

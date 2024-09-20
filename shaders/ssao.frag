@@ -42,7 +42,7 @@ void main()
 
     float occlusion = 0.0f;
     // remove banding
-    const float bias = 0.025f;
+    const float bias = 0.01f;
     for(int i = 0; i < SSAO_KERNEL_SIZE; i++)
     {
         vec3 samplePos = TBN * uboSSAOKernel.samples[i].xyz;

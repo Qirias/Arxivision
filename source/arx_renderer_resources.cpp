@@ -72,6 +72,7 @@ namespace arx {
                                         .addBinding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Frustum Clusters
                                         .addBinding(8, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // lightCount
                                         .addBinding(9, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Frustum params
+                                        .addBinding(10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Editor Params
                                         .build());
         
         // Composition
@@ -83,6 +84,7 @@ namespace arx {
                                         .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAOBlur
                                         .addBinding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerDeferred
                                         .addBinding(6, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
+                                        .addBinding(7, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
                                         .build());
 
         // ImGUI
@@ -542,7 +544,7 @@ namespace arx {
         descriptorPools[static_cast<uint8_t>(PassName::DEFERRED)] = ArxDescriptorPool::Builder(arxDevice)
                                                                     .setMaxSets(1)
                                                                     .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5.0f)
-                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3.0f)
+                                                                    .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4.0f)
                                                                     .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.0f)
                                                                     .build();
         
@@ -621,6 +623,11 @@ namespace arx {
         samplerLTC2Info.sampler = textureManager.getTexture("LTC2_Texture")->sampler;
         samplerLTC2Info.imageView = textureManager.getTexture("LTC2_Texture")->view;
         samplerLTC2Info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(Editor::editorDataBuffer);
+
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][5]->map();
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][5]->writeToBuffer(&Editor::data);
         
         
         auto uboInfo            = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->descriptorInfo();
@@ -630,6 +637,7 @@ namespace arx {
         auto lightCountInfo     = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->descriptorInfo();
         auto clusterInfo        = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][3]->descriptorInfo();
         auto frustumInfo        = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->descriptorInfo();
+        auto editorInfo         = passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][5]->descriptorInfo();
         
         descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)].resize(1);
         
@@ -645,6 +653,7 @@ namespace arx {
                             .writeBuffer(7, &clusterInfo)
                             .writeBuffer(8, &lightCountInfo)
                             .writeBuffer(9, &frustumInfo)
+                            .writeBuffer(10, &editorInfo)
                             .build(descriptorSets[static_cast<uint8_t>(PassName::DEFERRED)][0]);
         
         // ====================================================================================
@@ -654,7 +663,7 @@ namespace arx {
         descriptorPools[static_cast<uint8_t>(PassName::COMPOSITION)] = ArxDescriptorPool::Builder(arxDevice)
                                                                 .setMaxSets(1)
                                                                 .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6.0f)
-                                                                .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.0f)
+                                                                .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2.0f)
                                                                 .build();
         
         VkDescriptorImageInfo samplerSSAOBlurColorInfo{};
@@ -678,6 +687,12 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->writeToBuffer(&compParams);
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->unmap();
+
+
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)].push_back(Editor::editorDataBuffer);
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][1]->map();
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][1]->writeToBuffer(&Editor::data);
+        
         
         descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)].resize(1);
         
@@ -690,6 +705,7 @@ namespace arx {
                             .writeImage(4, &samplerSSAOBlurColorInfo)
                             .writeImage(5, &samplerDeferredColorInfo)
                             .writeBuffer(6, &ssaoParamsInfo)
+                            .writeBuffer(7, &editorInfo)
                             .build(descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)][0]);
 
         // ====================================================================================
@@ -1330,12 +1346,16 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->writeToBuffer(&frustumParams);
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->unmap();
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->unmap();
+
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][5]->writeToBuffer(&Editor::data);
         
         
         // COMPOSITION
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->writeToBuffer(&compParams);
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->unmap();
+
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][1]->writeToBuffer(&Editor::data);
     }
 
     void ArxRenderer::init_Passes() {

@@ -45,7 +45,7 @@ namespace arx {
             if (glfwGetKey(window, keys.esc) == GLFW_PRESS)            glfwSetWindowShouldClose(window, true);
 
             if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon()) {
-                gameObject.transform.translation += moveSpeed * dt * glm::normalize(moveDir);
+                gameObject.transform.translation += Editor::data.camera.speed * dt * glm::normalize(moveDir);
             }
             processMouseMovement();
         }

@@ -22,7 +22,30 @@ struct Cluster {
     vec4 minPoint;
     vec4 maxPoint;
     uint count;
-    uint lightIndices[311];
+    uint lightIndices[711];
+};
+
+struct EditorData
+{
+    // Camera parameters
+    uint frustumCulling;
+    uint occlusionCulling;
+    uint enableCulling;
+    uint padding0;
+    float zNear;
+    float zFar;
+    float speed;
+    float padding1;
+
+    // Lighting parameters
+    uint ssaoEnabled;
+    uint ssaoOnly;
+    uint ssaoBlur;
+    uint deferred;
+    float directLightColor;
+    float directLightIntensity;
+    float maxDistance;
+    float padding2;
 };
 
 layout (binding = 6) readonly buffer PointLightsBuffer {
@@ -46,11 +69,15 @@ layout (binding = 9) uniform FrustumParams {
     float zFar;
 };
 
+layout (binding = 10) uniform EditorParams {
+    EditorData editorData;
+};
+
 layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
 
-#define maxDistance 5.0
+// #define maxDistance 5.0
 
 // Need 4 points for each face to create area lights
 // Light's position is in the center of each voxel
@@ -173,8 +200,8 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     vec3 lightPosViewSpace = (ubo.view * vec4(light.position, 1.0)).xyz;
     float distanceToLight = length(lightPosViewSpace - fragPos);
 
-    // Early exit if the fragment is beyond the light's maximum distance
-    if (distanceToLight > maxDistance) {
+    // Early exit for both specular and diffuse if beyond 3 * maxDistance
+    if (distanceToLight > 3.0 * editorData.maxDistance) {
         return vec3(0.0);
     }
 
@@ -184,12 +211,9 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     }
 
     vec3 V = normalize(-fragPos);
-
     float dotNV = clamp(dot(normal, V), 0.0f, 1.0f);
-
-    vec2 uv = vec2(0.2, sqrt(1.0f - dotNV));
+    vec2 uv = vec2(0.3, sqrt(1.0f - dotNV));
     uv = uv * LUT_SCALE + LUT_BIAS;
-
     vec4 t1 = texture(samplerLTC1, uv);
     mat3 Minv = mat3(
         vec3(t1.x, 0, t1.y),
@@ -198,12 +222,20 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     );
 
     vec3 diffuse = LTC_Evaluate(normal, V, fragPos, mat3(1), translatedPoints, faceIndex, false);
-    vec3 specular = LTC_Evaluate(normal, V, fragPos, Minv, translatedPoints, faceIndex, false);
+    
+    // Calculate diffuse attenuation based on 3 * maxDistance
+    float diffuseAttenuation = 1.0 - smoothstep(0.0, 3.0 * editorData.maxDistance, distanceToLight);
+    vec3 diffuseContribution = albedo * diffuse * diffuseAttenuation;
 
-    // Calculate attenuation based on distance
-    float attenuation = 1.0 - smoothstep(0.0, maxDistance, distanceToLight);
+    // Early exit for specular if beyond maxDistance
+    vec3 specularContribution = vec3(0.0);
+    if (distanceToLight <= editorData.maxDistance) {
+        vec3 specular = LTC_Evaluate(normal, V, fragPos, Minv, translatedPoints, faceIndex, false);
+        float specularAttenuation = 1.0 - smoothstep(0.0, editorData.maxDistance, distanceToLight);
+        specularContribution = specular * specularAttenuation;
+    }
 
-    return light.color.rgb * light.color.a * (specular + albedo * diffuse) * attenuation;
+    return light.color.rgb * light.color.a * (specularContribution + diffuseContribution);
 }
 
 vec3 calculatePointLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo) {
@@ -259,7 +291,7 @@ void main() {
 
         vec3 lightPosViewSpace = (ubo.view * vec4(light.position, 1.0)).xyz;
         float distToLight = length(fragPos - lightPosViewSpace);
-        if (distToLight > maxDistance) continue;
+        if (distToLight > editorData.maxDistance) continue;
         if (distToLight < EPSILON) {
             finalColor = light.color.rgb * light.color.a;
             break;

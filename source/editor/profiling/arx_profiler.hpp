@@ -38,6 +38,7 @@ namespace arx {
         static std::array<std::vector<std::pair<std::string, uint32_t>>, BUFFER_COUNT> activeQueries;
         static uint32_t currentBufferIndex;
         static uint32_t queryCount;
+        static uint32_t dynamicQueryCount;
         static ArxDevice* device;
 
         static uint32_t frameCounter;

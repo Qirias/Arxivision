@@ -11,11 +11,35 @@ layout (binding = 6) uniform UBO {
     mat4 projection;
     mat4 view;
     mat4 inverseView;
-    int ssao;
-    int ssaoOnly;
-    int ssaoBlur;
-    int deferred;
 } uboParams;
+
+struct EditorData
+{
+    // Camera parameters
+    uint frustumCulling;
+    uint occlusionCulling;
+    uint enableCulling;
+    uint padding0;
+    float zNear;
+    float zFar;
+    float speed;
+    float padding1;
+
+    // Lighting parameters
+    uint ssaoEnabled;
+    uint ssaoOnly;
+    uint ssaoBlur;
+    uint deferred;
+    float directLightColor;
+    float directLightIntensity;
+    float maxDistance;
+    float padding2;
+};
+
+
+layout (binding = 7) uniform EditorParams {
+    EditorData editorData;
+};
 
 layout (location = 0) in vec2 inUV;
 layout (location = 0) out vec4 outFragColor;
@@ -42,12 +66,12 @@ void main() {
     vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
     vec4 albedo = texture(samplerAlbedo, inUV);
     
-    float ssao = (uboParams.ssaoBlur == 1) ? texture(samplerSSAOBlur, inUV).r : texture(samplerSSAO, inUV).r;
+    float ssao = (editorData.ssaoBlur == 1) ? texture(samplerSSAOBlur, inUV).r : texture(samplerSSAO, inUV).r;
     vec3 deferredColor = texture(samplerDeferred, inUV).rgb;
 
     vec3 sunDirectionWorld = normalize(vec3(1.0, 1.0, -1.0));
-    vec3 sunColor = kelvinToRGB(10000.0);
-    float sunIntensity = 0.5;
+    vec3 sunColor = kelvinToRGB(editorData.directLightColor);
+    float sunIntensity = editorData.directLightIntensity;
 
     vec3 sunDirectionView = normalize((uboParams.view * vec4(sunDirectionWorld, 0.0)).xyz);
 
@@ -57,14 +81,14 @@ void main() {
     vec3 ambient = vec3(0.01) * albedo.rgb;
     vec3 finalColor;
     
-    if (uboParams.ssaoOnly == 1) {
+    if (editorData.ssaoOnly == 1) {
         finalColor = vec3(ssao);
     } else {
         finalColor = ambient + diffuse;
         
-        if (uboParams.ssao == 1) finalColor *= ssao.rrr;
+        if (editorData.ssaoEnabled == 1) finalColor *= ssao.rrr;
         
-        if (uboParams.deferred == 1)
+        if (editorData.deferred == 1)
             finalColor += deferredColor;
         finalColor = clamp(finalColor, 0.0, 1.0);
     }

@@ -81,7 +81,7 @@ namespace arx {
 
         float aspect = arxRenderer->getAspectRatio();
 
-        camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+        camera.setPerspectiveProjection(glm::radians(60.f), aspect, Editor::data.camera.zNear, Editor::data.camera.zFar);
         chunkManager->setCamera(camera);
         
         std::vector<std::unique_ptr<ArxBuffer>> uboBuffers(ArxSwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -105,47 +105,35 @@ namespace arx {
             arxRenderer->getSwapChain()->loadGeometryToDevice();
         }
 
-        bool enableCulling = false;
-        bool ssaoEnabled = true;
-        bool ssaoOnly = false;
-        bool ssaoBlur = true;
-        bool deferred = true;
-
         auto currentTime = std::chrono::high_resolution_clock::now();
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
 
             if (arxRenderer->windowResized()) {
                 aspect = arxRenderer->getAspectRatio();
-                camera.setPerspectiveProjection(glm::radians(60.f), aspect, .1f, 1024.f);
+                camera.setPerspectiveProjection(glm::radians(60.f), aspect, Editor::data.camera.zNear, Editor::data.camera.zFar);
             }
-            
+
             // Start the ImGui frame
             editor->newFrame();
-            Editor::EditorImGuiData& imguiData = editor->getImGuiData();
 
             auto newTime = std::chrono::high_resolution_clock::now();
             float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
             currentTime = newTime;
 
             {
-                if (!ssaoEnabled) ssaoOnly = false;
-                if (ssaoOnly || !ssaoEnabled) ssaoBlur = false;
-                if (ssaoOnly) deferred = false;
+                if (!Editor::data.lighting.ssaoEnabled) Editor::data.lighting.ssaoOnly = false;
+                if (Editor::data.lighting.ssaoOnly || !Editor::data.lighting.ssaoEnabled) Editor::data.lighting.ssaoBlur = false;
+                if (Editor::data.lighting.ssaoOnly) Editor::data.lighting.deferred = false;
             }
 
             if (userController.showCartesian()) editor->drawCoordinateVectors(camera);
-            editor->drawDebugWindow(imguiData);
+            editor->drawDebugWindow();
 
             // Fetch from the window
             {
-                enableCulling = imguiData.enableCulling;
-                ssaoEnabled = imguiData.ssaoEnabled;
-                ssaoOnly = imguiData.ssaoOnly;
-                ssaoBlur = imguiData.ssaoBlur;
-                deferred = imguiData.deferred;
-                arxRenderer->getSwapChain()->cull->miscData.frustumCulling = imguiData.frustumCulling;
-                arxRenderer->getSwapChain()->cull->miscData.occlusionCulling = imguiData.occlusionCulling;
+                arxRenderer->getSwapChain()->cull->miscData.frustumCulling = Editor::data.camera.frustumCulling;
+                arxRenderer->getSwapChain()->cull->miscData.occlusionCulling = Editor::data.camera.occlusionCulling;
             }
             
             userController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);    
@@ -164,7 +152,7 @@ namespace arx {
 
                 Profiler::startFrame(commandBuffer);
 
-                if (!enableCulling) {
+                if (Editor::data.camera.enableCulling) {
                     Profiler::startStageTimer("Occlusion Culling #1", Profiler::Type::GPU, commandBuffer);
                     // Early cull: frustum cull and fill objects that *were* visible last frame
                     BufferManager::resetDrawCommandCountBuffer(frameInfo.commandBuffer);
@@ -177,17 +165,17 @@ namespace arx {
                 ubo.projection      = camera.getProjection();
                 ubo.view            = camera.getView();
                 ubo.inverseView     = camera.getInverseView();
-                ubo.zNear           = .1f;
-                ubo.zFar            = 1024.f;
+                ubo.zNear           = Editor::data.camera.zNear;
+                ubo.zFar            = Editor::data.camera.zFar;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
 
                 // Update misc for the rest of the render passes
                 CompositionParams compParams{};
-                compParams.ssao = ssaoEnabled;
-                compParams.ssaoOnly = ssaoOnly;
-                compParams.ssaoBlur = ssaoBlur;
-                compParams.deferred = deferred;
+                compParams.ssao = Editor::data.lighting.ssaoEnabled;
+                compParams.ssaoOnly = Editor::data.lighting.ssaoOnly;
+                compParams.ssaoBlur = Editor::data.lighting.ssaoBlur;
+                compParams.deferred = Editor::data.lighting.deferred;
                 
                 arxRenderer->updateUniforms(ubo, compParams);
                 ClusteredShading::updateUniforms(ubo, glm::vec2(arxWindow.getExtend().width, arxWindow.getExtend().height));
@@ -195,7 +183,7 @@ namespace arx {
                 // Passes
                 arxRenderer->Passes(frameInfo, *editor);
 
-                if (!enableCulling) {
+                if (Editor::data.camera.enableCulling) {
                     // Calculate the depth pyramid
                     Profiler::startStageTimer("Depth Pyramid", Profiler::Type::GPU, commandBuffer);
                     arxRenderer->getSwapChain()->cull->setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
@@ -205,7 +193,7 @@ namespace arx {
                     Profiler::stopStageTimer("Depth Pyramid", Profiler::Type::GPU, commandBuffer);
                 }
 
-                if (!enableCulling) {
+                if (Editor::data.camera.enableCulling) {
                     // Late cull: frustum + occlusion cull and fill objects that were *not* visible last frame
                     Profiler::startStageTimer("Occlusion Culling #2", Profiler::Type::GPU, commandBuffer);
                     arxRenderer->getSwapChain()->computeCulling(commandBuffer, chunkCount);
@@ -214,7 +202,6 @@ namespace arx {
 
                 arxRenderer->endFrame();
             }
-            
             vkDeviceWaitIdle(arxDevice.device());
         }
     }

@@ -211,7 +211,7 @@ namespace arx {
         params.screenDimensions = glm::uvec2(extent.x, extent.y);
             
         frustumParams->writeToBuffer(&params);
-        
+
         viewMatrixBuffer->writeToBuffer(&rhs.view);
     }
 
