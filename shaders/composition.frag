@@ -1,4 +1,6 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "common_structs.glsl"
 
 layout (binding = 0) uniform sampler2D samplerPosition;
 layout (binding = 1) uniform sampler2D samplerNormal;
@@ -12,30 +14,6 @@ layout (binding = 6) uniform UBO {
     mat4 view;
     mat4 inverseView;
 } uboParams;
-
-struct EditorData
-{
-    // Camera parameters
-    uint frustumCulling;
-    uint occlusionCulling;
-    uint enableCulling;
-    uint padding0;
-    float zNear;
-    float zFar;
-    float speed;
-    float padding1;
-
-    // Lighting parameters
-    uint ssaoEnabled;
-    uint ssaoOnly;
-    uint ssaoBlur;
-    uint deferred;
-    float directLightColor;
-    float directLightIntensity;
-    float maxDistance;
-    float padding2;
-};
-
 
 layout (binding = 7) uniform EditorParams {
     EditorData editorData;

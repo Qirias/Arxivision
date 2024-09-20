@@ -1,24 +1,9 @@
 #version 450
-
 #extension GL_ARB_gpu_shader_int64 : enable
+#extension GL_GOOGLE_include_directive : require
+#include "common_structs.glsl"
 
 layout(local_size_x = 256) in;
-
-struct ObjectData {
-    vec4 aabbMin;
-    vec4 aabbMax; // w component stores the instanceCount
-};
-
-struct IndirectDrawCommand
-{
-    uint    indexCount;
-    uint    instanceCount;
-    uint    firstIndex;
-    int     vertexOffset;
-    uint    firstInstance;
-    uint    drawID;
-    uint    _padding[2];
-};
 
 layout(set = 0, binding = 0) uniform CameraData {
     mat4 view;

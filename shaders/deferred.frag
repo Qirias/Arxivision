@@ -1,4 +1,6 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "common_structs.glsl"
 
 layout (binding = 0) uniform sampler2D samplerPosition;
 layout (binding = 1) uniform sampler2D samplerNormal;
@@ -11,42 +13,6 @@ layout (binding = 5) uniform GlobalUbo {
     mat4 view;
     mat4 invView;
 } ubo;
-
-struct PointLight {
-    vec3 position;
-    uint visibilityMask;
-    vec4 color;
-};
-
-struct Cluster {
-    vec4 minPoint;
-    vec4 maxPoint;
-    uint count;
-    uint lightIndices[711];
-};
-
-struct EditorData
-{
-    // Camera parameters
-    uint frustumCulling;
-    uint occlusionCulling;
-    uint enableCulling;
-    uint padding0;
-    float zNear;
-    float zFar;
-    float speed;
-    float padding1;
-
-    // Lighting parameters
-    uint ssaoEnabled;
-    uint ssaoOnly;
-    uint ssaoBlur;
-    uint deferred;
-    float directLightColor;
-    float directLightIntensity;
-    float maxDistance;
-    float padding2;
-};
 
 layout (binding = 6) readonly buffer PointLightsBuffer {
     PointLight pointLights[];
@@ -76,8 +42,6 @@ layout (binding = 10) uniform EditorParams {
 layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
-
-// #define maxDistance 5.0
 
 // Need 4 points for each face to create area lights
 // Light's position is in the center of each voxel

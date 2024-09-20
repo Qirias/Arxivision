@@ -178,7 +178,7 @@ namespace arx {
                 compParams.deferred = Editor::data.lighting.deferred;
                 
                 arxRenderer->updateUniforms(ubo, compParams);
-                ClusteredShading::updateUniforms(ubo, glm::vec2(arxWindow.getExtend().width, arxWindow.getExtend().height));
+                ClusteredShading::updateUniforms(ubo, glm::vec2(arxWindow.getExtend().width, arxWindow.getExtend().height), Editor::data.lighting.perLightMaxDistance);
 
                 // Passes
                 arxRenderer->Passes(frameInfo, *editor);

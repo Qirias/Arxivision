@@ -27,6 +27,7 @@ namespace arx {
     std::shared_ptr<ArxBuffer> ClusteredShading::pointLightsBuffer;
     std::shared_ptr<ArxBuffer> ClusteredShading::lightCountBuffer;
     std::shared_ptr<ArxBuffer> ClusteredShading::viewMatrixBuffer;
+    std::shared_ptr<ArxBuffer> ClusteredShading::maxDistanceBuffer;
 
 
     unsigned int ClusteredShading::width;
@@ -80,6 +81,7 @@ namespace arx {
             .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
             .addBinding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
             .addBinding(3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+            .addBinding(4, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
             .build();
     }
 
@@ -141,7 +143,7 @@ namespace arx {
         descriptorPoolCulling = ArxDescriptorPool::Builder(*arxDevice)
             .setMaxSets(1)
             .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.0f)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2.0f)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3.0f)
             .build();
     }
 
@@ -160,6 +162,7 @@ namespace arx {
                                                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         
         frustumParams->map();
+
         
         auto clusterBufferInfo = clusterBuffer->descriptorInfo();
         auto frustumParamsInfo = frustumParams->descriptorInfo();
@@ -187,22 +190,32 @@ namespace arx {
                                                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         viewMatrixBuffer->map();
         
+        maxDistanceBuffer = std::make_shared<ArxBuffer>(*arxDevice,
+                                                    sizeof(float),
+                                                    1,
+                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        maxDistanceBuffer->map();
+
         VkDescriptorBufferInfo pointLightBufferInfo{};
         if (Materials::maxPointLights > 0)
             pointLightBufferInfo = pointLightsBuffer->descriptorInfo();
         
         auto lightCountBufferInfo = lightCountBuffer->descriptorInfo();
         auto viewMatrixBufferInfo = viewMatrixBuffer->descriptorInfo();
-        
+        auto maxDistanceBufferInfo = maxDistanceBuffer->descriptorInfo();
+
         ArxDescriptorWriter(*descriptorSetLayoutCulling, *descriptorPoolCulling)
             .writeBuffer(0, &clusterBufferInfo)
             .writeBuffer(1, &pointLightBufferInfo)
             .writeBuffer(2, &viewMatrixBufferInfo)
             .writeBuffer(3, &lightCountBufferInfo)
+            .writeBuffer(4, &maxDistanceBufferInfo)
             .build(descriptorSetCulling);
     }
 
-    void ClusteredShading::updateUniforms(GlobalUbo &rhs, glm::vec2 extent) {
+    void ClusteredShading::updateUniforms(GlobalUbo &rhs, glm::vec2 extent, float maxDistance) {
         Frustum params{};
         params.inverseProjection = glm::inverse(rhs.projection);
         params.zNear = rhs.zNear;
@@ -213,6 +226,8 @@ namespace arx {
         frustumParams->writeToBuffer(&params);
 
         viewMatrixBuffer->writeToBuffer(&rhs.view);
+        maxDistance *= 0.66;
+        maxDistanceBuffer->writeToBuffer(&maxDistance);
     }
 
     void ClusteredShading::dispatchComputeFrustumCluster(VkCommandBuffer commandBuffer) {

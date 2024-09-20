@@ -27,17 +27,11 @@ namespace arx {
             float zNear;
             float zFar;
         };
-
-        struct LightData {
-            uint32_t lightCount;
-            uint32_t maxDistance;
-            uint32_t padding[2];
-        };
         
         static void init(ArxDevice &device, const int WIDTH, const int HEIGHT);
         static void cleanup();
         
-        static void updateUniforms(GlobalUbo &rhs, glm::vec2 extent);
+        static void updateUniforms(GlobalUbo &rhs, glm::vec2 extent, float maxDistance);
         
         static void dispatchComputeFrustumCluster(VkCommandBuffer commandBuffer);
         static void dispatchComputeClusterCulling(VkCommandBuffer commandBuffer);
@@ -47,6 +41,7 @@ namespace arx {
         static std::shared_ptr<ArxBuffer>               pointLightsBuffer;
         static std::shared_ptr<ArxBuffer>               lightCountBuffer;
         static std::shared_ptr<ArxBuffer>               viewMatrixBuffer;
+        static std::shared_ptr<ArxBuffer>               maxDistanceBuffer;
         
         static constexpr unsigned int                   gridSizeX = 16;
         static constexpr unsigned int                   gridSizeY = 9;
