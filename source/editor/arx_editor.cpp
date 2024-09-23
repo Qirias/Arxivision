@@ -162,7 +162,7 @@ namespace arx {
             ImGui::Indent();
             ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&data.camera.frustumCulling));
             ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&data.camera.occlusionCulling));
-            ImGui::Checkbox("Freeze Culling", reinterpret_cast<bool*>(&data.camera.enableCulling));
+            ImGui::Checkbox("Freeze Culling", reinterpret_cast<bool*>(&data.camera.disableCulling));
             ImGui::SliderFloat("zNear", &data.camera.zNear, 0.1f, 1000.0f);
             ImGui::SliderFloat("zFar", &data.camera.zFar, 100.0f, 2000.0f);
             ImGui::SliderFloat("Speed", &data.camera.speed, 1.0f, 320.0f);
@@ -182,8 +182,8 @@ namespace arx {
             ImGui::BeginDisabled(data.lighting.ssaoOnly != 0);
             ImGui::Checkbox("Deferred", reinterpret_cast<bool*>(&data.lighting.deferred));
             ImGui::EndDisabled();
-            ImGui::SliderFloat("Direct Light Color", &data.lighting.directLightColor, 0.0f, 10000.0f);
-            ImGui::SliderFloat("Direct Light Intensity", &data.lighting.directLightIntensity, 0.0f, 1.0f);
+            ImGui::SliderFloat("Sun Kelvin", &data.lighting.directLightColor, 0.0f, 10000.0f);
+            ImGui::SliderFloat("Sun Intensity", &data.lighting.directLightIntensity, 0.0f, 1.0f);
             ImGui::SliderFloat("Per Light Max Distance", &data.lighting.perLightMaxDistance, 0.1f, 20.0f);
             ImGui::Unindent();
         }

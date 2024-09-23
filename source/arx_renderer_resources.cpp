@@ -690,8 +690,10 @@ namespace arx {
 
 
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)].push_back(Editor::editorDataBuffer);
-        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][1]->map();
+        
+        // Shared buffer already mapped
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][1]->writeToBuffer(&Editor::data);
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][1]->unmap();
         
         
         descriptorSets[static_cast<uint8_t>(PassName::COMPOSITION)].resize(1);
@@ -1347,15 +1349,18 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][0]->unmap();
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][4]->unmap();
 
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][5]->map();
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][5]->writeToBuffer(&Editor::data);
-        
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][5]->unmap();
         
         // COMPOSITION
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->map();
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->writeToBuffer(&compParams);
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][0]->unmap();
 
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][1]->map();
         passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][1]->writeToBuffer(&Editor::data);
+        passBuffers[static_cast<uint8_t>(PassName::COMPOSITION)][1]->unmap();
     }
 
     void ArxRenderer::init_Passes() {

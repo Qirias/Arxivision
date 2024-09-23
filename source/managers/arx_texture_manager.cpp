@@ -67,6 +67,9 @@ namespace arx {
         VkImageAspectFlags aspectFlags) {
 
         auto texture = std::make_shared<Texture>();
+        texture->width = width;
+        texture->height = height;
+        texture->format = format;
 
         createImage(width, height, format, usage, properties, mipLevels, numSamples, tiling, texture->image, texture->memory);
         texture->view = createImageView(texture->image, format, aspectFlags, mipLevels);
@@ -295,6 +298,8 @@ namespace arx {
 
         auto texture = std::make_shared<Texture>();
         texture->format = format;
+        texture->width = width;
+        texture->height = height;
 
         // Raw image data staging
         VkBuffer stagingBuffer;

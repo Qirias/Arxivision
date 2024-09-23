@@ -16,7 +16,7 @@ namespace arx {
             struct CameraParams {
                 uint32_t frustumCulling = true;
                 uint32_t occlusionCulling = true;
-                uint32_t enableCulling = true;
+                uint32_t disableCulling = false;
                 uint32_t padding0;
                 float zNear = .1f;
                 float zFar = 1024.f;

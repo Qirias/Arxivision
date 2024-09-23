@@ -152,7 +152,7 @@ namespace arx {
 
                 Profiler::startFrame(commandBuffer);
 
-                if (Editor::data.camera.enableCulling) {
+                if (!Editor::data.camera.disableCulling) {
                     Profiler::startStageTimer("Occlusion Culling #1", Profiler::Type::GPU, commandBuffer);
                     // Early cull: frustum cull and fill objects that *were* visible last frame
                     BufferManager::resetDrawCommandCountBuffer(frameInfo.commandBuffer);
@@ -183,7 +183,7 @@ namespace arx {
                 // Passes
                 arxRenderer->Passes(frameInfo, *editor);
 
-                if (Editor::data.camera.enableCulling) {
+                if (!Editor::data.camera.disableCulling) {
                     // Calculate the depth pyramid
                     Profiler::startStageTimer("Depth Pyramid", Profiler::Type::GPU, commandBuffer);
                     arxRenderer->getSwapChain()->cull->setViewProj(camera.getProjection(), camera.getView(), camera.getInverseView());
@@ -193,7 +193,7 @@ namespace arx {
                     Profiler::stopStageTimer("Depth Pyramid", Profiler::Type::GPU, commandBuffer);
                 }
 
-                if (Editor::data.camera.enableCulling) {
+                if (!Editor::data.camera.disableCulling) {
                     // Late cull: frustum + occlusion cull and fill objects that were *not* visible last frame
                     Profiler::startStageTimer("Occlusion Culling #2", Profiler::Type::GPU, commandBuffer);
                     arxRenderer->getSwapChain()->computeCulling(commandBuffer, chunkCount);

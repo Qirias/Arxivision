@@ -66,6 +66,7 @@ namespace arx {
         pointLightsBuffer.reset();
         lightCountBuffer.reset();
         viewMatrixBuffer.reset();
+        maxDistanceBuffer.reset();
     }
 
     void ClusteredShading::createDescriptorSetLayout() {

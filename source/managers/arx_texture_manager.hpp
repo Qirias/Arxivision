@@ -11,6 +11,8 @@ namespace arx {
         VkImageView     view;
         VkFormat        format;
         VkSampler       sampler = VK_NULL_HANDLE;
+        uint32_t        width;
+        uint32_t        height;
 
         void destroy(VkDevice device) {
             vkDestroyImageView(device, view, nullptr);
