@@ -28,6 +28,7 @@ namespace arx {
 
         Logger::setEditor(editor);
 
+        // Hardcode number of timestamps
         Profiler::initializeGPUProfiler(arxDevice, 20);
     }
 

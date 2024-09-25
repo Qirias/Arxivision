@@ -27,7 +27,7 @@ layout (binding = 4) uniform MaxLightDistance {
 };
 
 bool testLightAABB(uint i, Cluster cluster) {
-    float radius = maxDistance*3; // diffuse has maxDistance of 3 times more
+    float radius = maxDistance*DIFFUSE_MULTIPLIER; // diffuse has maxDistance of 3 times more
 
     vec3 viewLightPos = vec3(viewMatrix * vec4(pointLights[i].position, 1.0));
 

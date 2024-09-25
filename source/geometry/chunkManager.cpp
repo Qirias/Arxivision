@@ -219,6 +219,8 @@ namespace arx {
         BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
         
         ogt_vox_destroy_scene(scene);
+
+        ARX_LOG_INFO("Voxel Lights: {}", Materials::currentPointLightCount);
     
         return true;
     }

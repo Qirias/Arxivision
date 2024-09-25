@@ -43,50 +43,52 @@ layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
 
+const float OFFSET = 0.5001f;
+
 // Need 4 points for each face to create area lights
 // Light's position is in the center of each voxel
 // Winding order matters for the edge integration
 const vec3 FACE_OFFSET[6][4] = vec3[6][4] (
     vec3[4](
-        vec3(-0.5001,  0.5, -0.5),
-        vec3(-0.5001, -0.5, -0.5),
-        vec3(-0.5001, -0.5,  0.5),
-        vec3(-0.5001,  0.5,  0.5)
+        vec3(-OFFSET,  0.5, -0.5),
+        vec3(-OFFSET, -0.5, -0.5),
+        vec3(-OFFSET, -0.5,  0.5),
+        vec3(-OFFSET,  0.5,  0.5)
     ),
     
     vec3[4](
-        vec3(0.5001,  0.5, -0.5),
-        vec3(0.5001,  0.5,  0.5),
-        vec3(0.5001, -0.5,  0.5),
-        vec3(0.5001, -0.5, -0.5)
+        vec3(OFFSET,  0.5, -0.5),
+        vec3(OFFSET,  0.5,  0.5),
+        vec3(OFFSET, -0.5,  0.5),
+        vec3(OFFSET, -0.5, -0.5)
     ),
     
     vec3[4](
-        vec3(-0.5, 0.5001, -0.5),
-        vec3(-0.5, 0.5001,  0.5),
-        vec3( 0.5, 0.5001,  0.5),
-        vec3( 0.5, 0.5001, -0.5)
+        vec3(-0.5, OFFSET, -0.5),
+        vec3(-0.5, OFFSET,  0.5),
+        vec3( 0.5, OFFSET,  0.5),
+        vec3( 0.5, OFFSET, -0.5)
     ),
     
     vec3[4](
-        vec3(-0.5, -0.5001, -0.5),
-        vec3( 0.5, -0.5001, -0.5),
-        vec3( 0.5, -0.5001,  0.5),
-        vec3(-0.5, -0.5001,  0.5)
+        vec3(-0.5, -OFFSET, -0.5),
+        vec3( 0.5, -OFFSET, -0.5),
+        vec3( 0.5, -OFFSET,  0.5),
+        vec3(-0.5, -OFFSET,  0.5)
     ),
     
     vec3[4](
-        vec3(-0.5, -0.5, 0.5001),
-        vec3( 0.5, -0.5, 0.5001),
-        vec3( 0.5,  0.5, 0.5001),
-        vec3(-0.5,  0.5, 0.5001)
+        vec3(-0.5, -0.5, OFFSET),
+        vec3( 0.5, -0.5, OFFSET),
+        vec3( 0.5,  0.5, OFFSET),
+        vec3(-0.5,  0.5, OFFSET)
     ),
     
     vec3[4](
-        vec3(-0.5, -0.5, -0.5001),
-        vec3(-0.5,  0.5, -0.5001),
-        vec3( 0.5,  0.5, -0.5001),
-        vec3( 0.5, -0.5, -0.5001)
+        vec3(-0.5, -0.5, -OFFSET),
+        vec3(-0.5,  0.5, -OFFSET),
+        vec3( 0.5,  0.5, -OFFSET),
+        vec3( 0.5, -0.5, -OFFSET)
     )
 );
 
@@ -101,7 +103,7 @@ const float LUT_SIZE = 64.0; // ltc_texture size
 const float LUT_SCALE = (LUT_SIZE - 1.0)/LUT_SIZE;
 const float LUT_BIAS = 0.5/LUT_SIZE;
 
-const float EPSILON = 0.001;
+const float EPSILON = 0.01;
 
 vec3 IntegrateEdgeVec(vec3 v1, vec3 v2) {
     float x = dot(v1, v2);
@@ -165,7 +167,7 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     float distanceToLight = length(lightPosViewSpace - fragPos);
 
     // Early exit for both specular and diffuse if beyond 3 * maxDistance
-    if (distanceToLight > 3.0 * editorData.maxDistance) {
+    if (distanceToLight > DIFFUSE_MULTIPLIER * editorData.maxDistance) {
         return vec3(0.0);
     }
 
@@ -176,8 +178,10 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
 
     vec3 V = normalize(-fragPos);
     float dotNV = clamp(dot(normal, V), 0.0f, 1.0f);
+
     vec2 uv = vec2(0.3, sqrt(1.0f - dotNV));
     uv = uv * LUT_SCALE + LUT_BIAS;
+    
     vec4 t1 = texture(samplerLTC1, uv);
     mat3 Minv = mat3(
         vec3(t1.x, 0, t1.y),
@@ -188,8 +192,8 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     vec3 diffuse = LTC_Evaluate(normal, V, fragPos, mat3(1), translatedPoints, faceIndex, false);
     
     // Calculate diffuse attenuation based on 3 * maxDistance
-    float diffuseAttenuation = 1.0 - smoothstep(0.0, 3.0 * editorData.maxDistance, distanceToLight);
-    vec3 diffuseContribution = albedo * diffuse * diffuseAttenuation;
+    float diffuseAttenuation = 1.0 - smoothstep(0.0, DIFFUSE_MULTIPLIER * editorData.maxDistance, distanceToLight);
+    vec3 diffuseContribution = albedo * diffuse * diffuseAttenuation*diffuseAttenuation;
 
     // Early exit for specular if beyond maxDistance
     vec3 specularContribution = vec3(0.0);
@@ -215,18 +219,51 @@ vec3 calculatePointLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albed
     return diffuse * attenuation;
 }
 
-vec3 getClusterColor(uint tileIndex) {
-    vec4 aabbPoint = clusters[tileIndex].minPoint;
-    
-    // Adjust hue calculation to prevent excessively large or small values
-    float hue = float(tileIndex) / (aabbPoint.x * aabbPoint.y * aabbPoint.z);
-    
+vec3 getSliceColor(float zViewPosition) {
+    uint sliceIndex = uint(floor((log(abs(zViewPosition) / zNear) * gridSize.z) / log(zFar / zNear)));
+
+    float hue = float(sliceIndex) / float(gridSize.z);
+
     vec3 color = vec3(0.0);
     color.r = abs(sin(hue * 3.14));
     color.g = abs(sin((hue + 0.33) * 3.14));
     color.b = abs(sin((hue + 0.66) * 3.14));
     
     return color;
+}
+
+vec4 getNormal(int faceIndex) {
+    if (faceIndex == 0)
+        return vec4(-1, 0, 0, 0);
+    else if (faceIndex == 1)
+        return vec4(1, 0, 0, 0);
+    else if (faceIndex == 2)
+        return vec4(0, 1, 0, 0);
+    else if (faceIndex == 3)
+        return vec4(0, -1, 0, 0);
+    else if (faceIndex == 4)
+        return vec4(0, 0, 1, 0);
+    else 
+        return vec4(0, 0, -1, 0);
+    
+    return vec4(0, 0, 0, 0);
+}
+
+vec3 getOffset(int faceIndex) {
+    if (faceIndex == 0)
+        return vec3(OFFSET, 0, 0);
+    else if (faceIndex == 1)
+        return vec3(-OFFSET, 0, 0);
+    else if (faceIndex == 2)
+        return vec3(0, -OFFSET, 0);
+    else if (faceIndex == 3)
+        return vec3(0, OFFSET, 0);
+    else if (faceIndex == 4)
+        return vec3(0, 0, -OFFSET);
+    else
+        return vec3(0, 0, OFFSET);
+
+    return vec3(0, 0, 0);
 }
 
 void main() {
@@ -255,17 +292,25 @@ void main() {
 
         vec3 lightPosViewSpace = (ubo.view * vec4(light.position, 1.0)).xyz;
         float distToLight = length(fragPos - lightPosViewSpace);
-        if (distToLight > editorData.maxDistance) continue;
+        if (distToLight > DIFFUSE_MULTIPLIER * editorData.maxDistance) continue;
         if (distToLight < EPSILON) {
             finalColor = light.color.rgb * light.color.a;
             break;
         }
             
 //        finalColor += calculatePointLight(light, fragPos, normal, albedo);
-        
+
         for (int faceIndex = 0; faceIndex < 6; ++faceIndex) {
+            vec3 lightFacePos = (ubo.view * vec4(light.position + getOffset(faceIndex), 1.0f)).xyz;
+            vec3 lightFaceNormal = normalize((ubo.view * getNormal(faceIndex)).xyz);
+            vec3 lightToFrag = normalize(fragPos - lightFacePos);
+    
+            float LdotF = dot(lightFaceNormal, lightToFrag);
+
             if ((light.visibilityMask & (1u << faceIndex)) != 0) {
-                finalColor += calculateAreaLight(light, fragPos, normal, albedo, faceIndex);
+                // Maximum cutoff I can use for efficiency before artifacts
+                if (LdotF > 0.5f)
+                    finalColor += calculateAreaLight(light, fragPos, normal, albedo, faceIndex);
             }
         }
     }

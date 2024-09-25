@@ -52,3 +52,5 @@ struct ObjectData {
     vec4 aabbMin;
     vec4 aabbMax; // w component stores the instanceCount
 };
+
+const float DIFFUSE_MULTIPLIER = 2.0f;
