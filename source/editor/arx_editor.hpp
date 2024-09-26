@@ -31,7 +31,7 @@ namespace arx {
                 uint32_t deferred = true;
                 float directLightColor = 4000;
                 float directLightIntensity = .5;
-                float perLightMaxDistance = 5.f;
+                float perLightMaxDistance = 3.0f;
                 float padding2;
             } lighting;
         };

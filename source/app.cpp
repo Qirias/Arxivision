@@ -57,7 +57,7 @@ namespace arx {
         ArxCamera camera{};
         UserInput userController{*this};
 //        chunkManager->MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        if (!chunkManager->vox2Chunks(gameObjects, "data/scenes/monu5Edited.vox"))
+        if (!chunkManager->vox2Chunks(gameObjects, "data/scenes/monu10Emit.vox"))
             this->~App();
         else
             ARX_LOG_INFO("Initialized scene");

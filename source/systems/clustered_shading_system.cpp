@@ -227,7 +227,7 @@ namespace arx {
         frustumParams->writeToBuffer(&params);
 
         viewMatrixBuffer->writeToBuffer(&rhs.view);
-        maxDistance *= 0.66;
+        // maxDistance *= 0.66;
         maxDistanceBuffer->writeToBuffer(&maxDistance);
     }
 

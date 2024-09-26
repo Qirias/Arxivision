@@ -906,7 +906,7 @@ namespace arx {
             renderPassInfo.pSubpasses = &subpass;
             renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
             renderPassInfo.pDependencies = dependencies.data();
-            
+                        
             rpManager.createRenderPass("SSAO", renderPassInfo);
         }
         

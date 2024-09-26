@@ -101,6 +101,8 @@ namespace arx {
         svo = std::make_unique<SVO>(worldSize, CHUNK_SIZE);
         std::unordered_map<uint32_t, std::vector<PointLight>> chunkLights;
         
+        int areaLights = 0;
+
         for (uint32_t instanceIndex = 0; instanceIndex < scene->num_instances; ++instanceIndex) {
             
             const ogt_vox_instance* instance = &scene->instances[instanceIndex];
@@ -175,6 +177,7 @@ namespace arx {
                                 light.color = color;
                                 light.visibilityMask = visibilityMask;
                                 visibilityMask |= (1u << 6);
+                                areaLights += std::popcount(visibilityMask);
                                 chunkLights[chunkID].push_back(light);
                             }
         
@@ -220,7 +223,7 @@ namespace arx {
         
         ogt_vox_destroy_scene(scene);
 
-        ARX_LOG_INFO("Voxel Lights: {}", Materials::currentPointLightCount);
+        ARX_LOG_INFO("Number of lights: {}", areaLights);
     
         return true;
     }

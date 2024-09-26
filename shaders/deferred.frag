@@ -44,6 +44,7 @@ layout (location = 0) in vec2 inUV;
 layout (location = 0) out vec4 outFragColor;
 
 const float OFFSET = 0.5001f;
+const float gamma = 2.2;
 
 // Need 4 points for each face to create area lights
 // Light's position is in the center of each voxel
@@ -105,6 +106,14 @@ const float LUT_BIAS = 0.5/LUT_SIZE;
 
 const float EPSILON = 0.01;
 
+vec3 PowVec3(vec3 v, float p) {
+    return vec3(pow(v.x, p), pow(v.y, p), pow(v.z, p));
+}
+
+vec3 ToLinear(vec3 v) {
+    return PowVec3(v, gamma);
+}
+vec3 ToSRGB(vec3 v)   { return PowVec3(v, 1.0/gamma); }
 vec3 IntegrateEdgeVec(vec3 v1, vec3 v2) {
     float x = dot(v1, v2);
     float y = abs(x);
@@ -179,10 +188,14 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     vec3 V = normalize(-fragPos);
     float dotNV = clamp(dot(normal, V), 0.0f, 1.0f);
 
-    vec2 uv = vec2(0.3, sqrt(1.0f - dotNV));
+    vec2 uv = vec2(0.1, sqrt(1.0f - dotNV));
     uv = uv * LUT_SCALE + LUT_BIAS;
     
+    vec3 mSpecular = ToLinear(vec3(0.23f, 0.23f, 0.23f));
+
     vec4 t1 = texture(samplerLTC1, uv);
+    vec4 t2 = texture(samplerLTC2, uv);
+
     mat3 Minv = mat3(
         vec3(t1.x, 0, t1.y),
         vec3(0, 1, 0),
@@ -191,16 +204,18 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
 
     vec3 diffuse = LTC_Evaluate(normal, V, fragPos, mat3(1), translatedPoints, faceIndex, false);
     
-    // Calculate diffuse attenuation based on 3 * maxDistance
     float diffuseAttenuation = 1.0 - smoothstep(0.0, DIFFUSE_MULTIPLIER * editorData.maxDistance, distanceToLight);
-    vec3 diffuseContribution = albedo * diffuse * diffuseAttenuation*diffuseAttenuation;
+    vec3 diffuseContribution = albedo * (diffuse * diffuseAttenuation);
 
     // Early exit for specular if beyond maxDistance
     vec3 specularContribution = vec3(0.0);
     if (distanceToLight <= editorData.maxDistance) {
         vec3 specular = LTC_Evaluate(normal, V, fragPos, Minv, translatedPoints, faceIndex, false);
-        float specularAttenuation = 1.0 - smoothstep(0.0, editorData.maxDistance, distanceToLight);
-        specularContribution = specular * specularAttenuation;
+        // GGX BRDF shadowing and Fresnel
+		// t2.x: shadowedF90 (F90 normally it should be 1.0)
+		// t2.y: Smith function for Geometric Attenuation Term, it is dot(V or L, H).
+        specular *= mSpecular*t2.x + (1.0f - mSpecular) * t2.y;
+        specularContribution = specular;
     }
 
     return light.color.rgb * light.color.a * (specularContribution + diffuseContribution);
@@ -315,5 +330,5 @@ void main() {
         }
     }
 
-    outFragColor = vec4(finalColor, 1.0);
+    outFragColor = vec4(ToSRGB(finalColor), 1.0);
 }
