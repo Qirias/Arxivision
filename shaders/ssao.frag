@@ -26,8 +26,14 @@ layout (location = 0) out float outFragColor;
 void main()
 {
     // Get G-Buffer values
-    vec3 fragPos = texture(samplerPositionDepth, inUV).rgb;
+    vec4 fragPos = texture(samplerPositionDepth, inUV);
     vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
+
+    // Early exit if it doesn't hit geometry
+    if (fragPos.w == 1.0f) {
+        outFragColor = 1.0f;
+        return;
+    }
 
     // Get a random vector using a noise lookup
     ivec2 texDim = textureSize(samplerPositionDepth, 0);
@@ -46,7 +52,7 @@ void main()
     for(int i = 0; i < SSAO_KERNEL_SIZE; i++)
     {
         vec3 samplePos = TBN * uboSSAOKernel.samples[i].xyz;
-        samplePos = fragPos + samplePos * SSAO_RADIUS;
+        samplePos = fragPos.rgb + samplePos * SSAO_RADIUS;
         
         // project
         vec4 offset = vec4(samplePos, 1.0f);
@@ -57,7 +63,7 @@ void main()
         float sampleDepth = texture(samplerPositionDepth, offset.xy).w;
         vec3 sampleNormal = normalize(texture(samplerNormal, offset.xy).rgb * 2.0 - 1.0);
         
-        // If sampledNormal is very similar to the current fragment normal, skip the sample
+        // If sampledNormal is very similar to the current fragment's normal, skip the sample
         if(dot(sampleNormal, normal) > 0.99)
             continue;
 
