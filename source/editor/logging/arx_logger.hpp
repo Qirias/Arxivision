@@ -52,7 +52,6 @@ namespace arx {
         Logger(const Logger&) = delete;
         Logger& operator=(const Logger&) = delete;
 
-
         template<typename T, typename... Args>
         static void formatString(std::ostringstream& oss, const std::string& format, T value, Args... args) {
             size_t pos = format.find("{}");

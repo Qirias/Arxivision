@@ -72,6 +72,7 @@ namespace arx {
     }
 
     bool ChunkManager::vox2Chunks(ArxGameObject::Map& voxel, const std::string& filepath) {
+        Timer::start();
         const ogt_vox_scene* scene = loadVoxModel(filepath);
         if (!scene) return false;
         
@@ -169,7 +170,7 @@ namespace arx {
                             
                             ogt_matl_type mat = scene->materials.matl[colorIndex].type;
                             if (mat == 3) { // Emit
-                                // Values of 0-1023 for each directions, otherwise I need more than 32bits
+                                // Values of 0-1023 for each direction, otherwise I need more than 32bits
                                 uint32_t chunkID = (chunkX & 0x3FF) | ((chunkY & 0x3FF) << 10) | ((chunkZ & 0x3FF) << 20);
                                 
                                 PointLight light;
@@ -220,11 +221,12 @@ namespace arx {
         if (chunkLights.size() > 0)
             Materials::initialize(arxDevice, chunkLights);
         BufferManager::createSVOBuffers(arxDevice, svo->getNodes(), svo->getVoxels());
-        
+
         ogt_vox_destroy_scene(scene);
 
+        ARX_LOG_INFO("Took {} ms", Timer::stop());
         ARX_LOG_INFO("Number of lights: {}", areaLights);
-    
+
         return true;
     }
 

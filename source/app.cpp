@@ -45,8 +45,6 @@ namespace arx {
         editor.reset();
         arxRenderer.reset();
 
-        Logger::shutdown();
-
         Profiler::cleanup(arxDevice);
 
         ARX_LOG_INFO("App destructed");
@@ -56,12 +54,9 @@ namespace arx {
     void App::run() {
         ArxCamera camera{};
         UserInput userController{*this};
-//        chunkManager->MengerSponge(gameObjects, glm::ivec3(pow(3, 3)));
-        if (!chunkManager->vox2Chunks(gameObjects, "data/scenes/monu10Emit.vox"))
+        
+        if (!chunkManager->vox2Chunks(gameObjects, "data/scenes/monu5Edited.vox"))
             this->~App();
-        else
-            ARX_LOG_INFO("Initialized scene");
-    
     
         // Create large instance buffers that contains all the instance buffers of each chunk that contain the instance data
         // We will use the gl_InstanceIndex in the vertex shader to render from firstInstance + instanceCount
@@ -110,10 +105,8 @@ namespace arx {
         while (!arxWindow.shouldClose()) {
             glfwPollEvents();
 
-            if (arxRenderer->windowResized()) {
-                aspect = arxRenderer->getAspectRatio();
-                camera.setPerspectiveProjection(glm::radians(60.f), aspect, Editor::data.camera.zNear, Editor::data.camera.zFar);
-            }
+            aspect = arxRenderer->getAspectRatio(); // in case of resize
+            camera.setPerspectiveProjection(glm::radians(60.f), aspect, Editor::data.camera.zNear, Editor::data.camera.zFar);
 
             // Start the ImGui frame
             editor->newFrame();
@@ -166,8 +159,9 @@ namespace arx {
                 ubo.projection      = camera.getProjection();
                 ubo.view            = camera.getView();
                 ubo.inverseView     = camera.getInverseView();
-                ubo.zNear           = Editor::data.camera.zNear;
-                ubo.zFar            = Editor::data.camera.zFar;
+                // Don't update zNear and zFar for the screenspace techniques and especially the frustum cluster
+                ubo.zNear           = 0.1f;
+                ubo.zFar            = 1024.f;
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
 
