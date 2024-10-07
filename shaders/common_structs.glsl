@@ -1,7 +1,10 @@
 // Lighting
-struct Cluster {
+struct ClusterBounds {
     vec4 minPoint;
     vec4 maxPoint;
+};
+
+struct ClusterLights {
     uint count;
     uint lightIndices[711];
 };
@@ -23,6 +26,8 @@ struct EditorData
     float zFar;
     float speed;
     float padding1;
+    vec3 position;
+    float padding2;
 
     // Lighting parameters
     uint ssaoEnabled;
@@ -32,7 +37,7 @@ struct EditorData
     float directLightColor;
     float directLightIntensity;
     float maxDistance;
-    float padding2;
+    float padding3;
 };
 
 

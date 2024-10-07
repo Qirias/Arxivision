@@ -6,34 +6,38 @@
 layout (local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 
-layout (std430, binding = 0) restrict buffer ClusterBuffer {
-    Cluster clusters[];
+layout (std430, binding = 0) restrict buffer ClusterLightsBuffer {
+    ClusterLights clusterLights[];
 };
 
-layout (std140, binding = 1) readonly buffer PointLightsBuffer {
+layout (std430, binding = 1) restrict buffer ClusterBoundsBuffer {
+    ClusterBounds clusterBounds[];
+};
+
+layout (std140, binding = 2) readonly buffer PointLightsBuffer {
     PointLight pointLights[];
 };
 
-layout (binding = 2) uniform ViewMatrix {
+layout (binding = 3) uniform ViewMatrix {
     mat4 viewMatrix;
 };
 
-layout (binding = 3) uniform LightCountBuffer {
+layout (binding = 4) uniform LightCountBuffer {
     uint lightCount;
 };
 
-layout (binding = 4) uniform MaxLightDistance {
+layout (binding = 5) uniform MaxLightDistance {
     float maxDistance;
 };
 
-bool testLightAABB(uint i, Cluster cluster) {
+bool testLightAABB(uint i, ClusterBounds clusterBound) {
     float radius = maxDistance*DIFFUSE_MULTIPLIER; // diffuse has maxDistance of 3 times more
 
     vec3 viewLightPos = vec3(viewMatrix * vec4(pointLights[i].position, 1.0));
 
     // Check if the light's bounding sphere intersects the cluster's AABB
     // Basically clamping
-    vec3 closestPoint = max(cluster.minPoint.xyz, min(viewLightPos, cluster.maxPoint.xyz));
+    vec3 closestPoint = max(clusterBound.minPoint.xyz, min(viewLightPos, clusterBound.maxPoint.xyz));
     float distanceSquared = dot(closestPoint - viewLightPos, closestPoint - viewLightPos);
 
     return distanceSquared <= (radius * radius);
@@ -42,19 +46,21 @@ bool testLightAABB(uint i, Cluster cluster) {
 void main()
 {
     uint index = gl_WorkGroupID.x * LOCAL_SIZE + gl_LocalInvocationID.x;
-    Cluster cluster = clusters[index];
+    ClusterLights clusterLight = clusterLights[index];
+    ClusterBounds clusterBound = clusterBounds[index];
 
-    cluster.count = 0;
+    clusterLight.count = 0;
 
     for (uint i = 0; i < lightCount; ++i)
     {
         if (pointLights[i].visibilityMask == 0) continue;
         
-        if (testLightAABB(i, cluster) && cluster.count < 711)
+        if (testLightAABB(i, clusterBound) && clusterLight.count < 711)
         {
-            cluster.lightIndices[cluster.count] = i;
-            cluster.count++;
+            clusterLight.lightIndices[clusterLight.count] = i;
+            clusterLight.count++;
         }
     }
-    clusters[index] = cluster;
+    clusterLights[index] = clusterLight;
+    clusterBounds[index] = clusterBound;
 }

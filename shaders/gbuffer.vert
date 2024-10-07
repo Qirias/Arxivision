@@ -48,8 +48,7 @@ void main() {
     InstanceData instance = instances[gl_InstanceIndex];
     
     // Transform the normal to world space
-    mat3 normalWorldMatrix = transpose(inverse(mat3(push.modelMatrix)));
-    vec3 worldNormal = normalize(normalWorldMatrix * inNormal);
+    vec3 worldNormal = normalize(mat3(push.modelMatrix) * inNormal);
 
     // Determine the face index based on the world normal
     int faceIndex = getFaceIndex(worldNormal);
@@ -65,7 +64,7 @@ void main() {
     positionWorld.xyz += instance.translation.xyz;
     gl_Position = ubo.projection * ubo.view * positionWorld;
 
-    mat3 normalViewMatrix = transpose(inverse(mat3(ubo.view * push.modelMatrix)));
+    mat3 normalViewMatrix = mat3(ubo.view * push.modelMatrix);
     
     outNormalView = normalViewMatrix * inNormal;
     outPosView = vec3(ubo.view * positionWorld);

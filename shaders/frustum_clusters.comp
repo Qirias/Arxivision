@@ -7,8 +7,8 @@
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
-layout (std430, binding = 0) restrict buffer ClusterBuffer {
-    Cluster clusters[];
+layout (std430, binding = 0) restrict buffer ClusterBoundsBuffer {
+    ClusterBounds clusterBounds[];
 };
 
 layout (std430, binding = 1) uniform FrustumBuffer {
@@ -81,6 +81,6 @@ void main() {
     vec3 maxPointAABB = max(max(minPointNear, minPointFar), max(maxPointNear, maxPointFar));
 
     // planeNear and planeFar are not needed I just put them there
-    clusters[tileIndex].minPoint  = vec4(minPointAABB , planeNear);
-    clusters[tileIndex].maxPoint  = vec4(maxPointAABB , planeFar);
+    clusterBounds[tileIndex].minPoint  = vec4(minPointAABB , planeNear);
+    clusterBounds[tileIndex].maxPoint  = vec4(maxPointAABB , planeFar);
 }

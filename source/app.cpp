@@ -119,15 +119,17 @@ namespace arx {
                 if (!Editor::data.lighting.ssaoEnabled) Editor::data.lighting.ssaoOnly = false;
                 if (Editor::data.lighting.ssaoOnly || !Editor::data.lighting.ssaoEnabled) Editor::data.lighting.ssaoBlur = false;
                 if (Editor::data.lighting.ssaoOnly) Editor::data.lighting.deferred = false;
+                Editor::data.camera.position = viewerObject.transform.translation;
             }
 
             if (userController.showCartesian()) editor->drawCoordinateVectors(camera);
-            editor->drawDebugWindow();
+            editor->drawPropertiesWindow();
 
             // Fetch from the window
             {
                 arxRenderer->getSwapChain()->cull->miscData.frustumCulling = Editor::data.camera.frustumCulling;
                 arxRenderer->getSwapChain()->cull->miscData.occlusionCulling = Editor::data.camera.occlusionCulling;
+                viewerObject.transform.translation = Editor::data.camera.position;
             }
             
             userController.processInput(arxWindow.getGLFWwindow(), frameTime, viewerObject);    

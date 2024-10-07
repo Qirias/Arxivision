@@ -69,7 +69,7 @@ namespace arx {
                                         .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // LTC2
                                         .addBinding(5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
                                         .addBinding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // PointLightsBuffer
-                                        .addBinding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Frustum Clusters
+                                        .addBinding(7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Cluster Lights
                                         .addBinding(8, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // lightCount
                                         .addBinding(9, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Frustum params
                                         .addBinding(10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Editor Params
@@ -84,7 +84,7 @@ namespace arx {
                                         .addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerSSAOBlur
                                         .addBinding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) // samplerDeferred
                                         .addBinding(6, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // UBO
-                                        .addBinding(7, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                                        .addBinding(7, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT) // Editor Params
                                         .build());
 
         // ImGUI
@@ -578,7 +578,7 @@ namespace arx {
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)][2]->unmap();
         
         
-        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(ClusteredShading::clusterBuffer);
+        passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(ClusteredShading::clusterLightsBuffer);
         
         passBuffers[static_cast<uint8_t>(PassName::DEFERRED)].push_back(std::make_shared<ArxBuffer>(
                                                                     arxDevice,

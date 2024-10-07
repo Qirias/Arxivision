@@ -9,20 +9,21 @@ namespace arx {
 
     // Frustum Cluster
     std::unique_ptr<ArxDescriptorSetLayout> ClusteredShading::descriptorSetLayoutCluster;
-    VkPipelineLayout ClusteredShading::pipelineLayoutCluster;
-    std::unique_ptr<ArxPipeline> ClusteredShading::pipelineCluster;
-    std::unique_ptr<ArxDescriptorPool> ClusteredShading::descriptorPoolCluster;
-    VkDescriptorSet ClusteredShading::descriptorSetCluster;
+    VkPipelineLayout                        ClusteredShading::pipelineLayoutCluster;
+    std::unique_ptr<ArxPipeline>            ClusteredShading::pipelineCluster;
+    std::unique_ptr<ArxDescriptorPool>      ClusteredShading::descriptorPoolCluster;
+    VkDescriptorSet                         ClusteredShading::descriptorSetCluster;
 
-    std::shared_ptr<ArxBuffer> ClusteredShading::clusterBuffer;
-    std::shared_ptr<ArxBuffer> ClusteredShading::frustumParams;
+    std::shared_ptr<ArxBuffer>  ClusteredShading::clusterLightsBuffer;
+    std::shared_ptr<ArxBuffer>  ClusteredShading::clusterBoundsBuffer;
+    std::shared_ptr<ArxBuffer>  ClusteredShading::frustumParams;
 
     // Cluster Culling
-    std::unique_ptr<ArxDescriptorSetLayout> ClusteredShading::descriptorSetLayoutCulling;
-    VkPipelineLayout ClusteredShading::pipelineLayoutCulling;
-    std::unique_ptr<ArxPipeline> ClusteredShading::pipelineCulling;
-    std::unique_ptr<ArxDescriptorPool> ClusteredShading::descriptorPoolCulling;
-    VkDescriptorSet ClusteredShading::descriptorSetCulling;
+    std::unique_ptr<ArxDescriptorSetLayout>     ClusteredShading::descriptorSetLayoutCulling;
+    VkPipelineLayout                            ClusteredShading::pipelineLayoutCulling;
+    std::unique_ptr<ArxPipeline>                ClusteredShading::pipelineCulling;
+    std::unique_ptr<ArxDescriptorPool>          ClusteredShading::descriptorPoolCulling;
+    VkDescriptorSet                             ClusteredShading::descriptorSetCulling;
 
     std::shared_ptr<ArxBuffer> ClusteredShading::pointLightsBuffer;
     std::shared_ptr<ArxBuffer> ClusteredShading::lightCountBuffer;
@@ -61,7 +62,8 @@ namespace arx {
         pipelineCulling.reset();
         descriptorPoolCulling.reset();
         
-        clusterBuffer.reset();
+        clusterLightsBuffer.reset();
+        clusterBoundsBuffer.reset();
         frustumParams.reset();
         pointLightsBuffer.reset();
         lightCountBuffer.reset();
@@ -72,17 +74,18 @@ namespace arx {
     void ClusteredShading::createDescriptorSetLayout() {
         // Frustum Cluster
         descriptorSetLayoutCluster = ArxDescriptorSetLayout::Builder(*arxDevice)
-            .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-            .addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+            .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT) // Cluster Lights
+            .addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT) // Frustum 
             .build();
         
         // Cluster Culling
         descriptorSetLayoutCulling = ArxDescriptorSetLayout::Builder(*arxDevice)
             .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
             .addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-            .addBinding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+            .addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
             .addBinding(3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
             .addBinding(4, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+            .addBinding(5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
             .build();
     }
 
@@ -143,18 +146,18 @@ namespace arx {
         // Cluster Culling
         descriptorPoolCulling = ArxDescriptorPool::Builder(*arxDevice)
             .setMaxSets(1)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.0f)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3.0f)
             .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3.0f)
             .build();
     }
 
     void ClusteredShading::createDescriptorSets() {
         // Frustum Cluster
-        clusterBuffer = std::make_shared<ArxBuffer>(*arxDevice,
-                                                    sizeof(Cluster),
-                                                    numClusters,
-                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        clusterBoundsBuffer = std::make_shared<ArxBuffer>(*arxDevice,
+                                                        sizeof(ClusterBounds),
+                                                        numClusters,
+                                                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         
         frustumParams = std::make_shared<ArxBuffer>(*arxDevice,
                                                     sizeof(Frustum),
@@ -165,15 +168,21 @@ namespace arx {
         frustumParams->map();
 
         
-        auto clusterBufferInfo = clusterBuffer->descriptorInfo();
-        auto frustumParamsInfo = frustumParams->descriptorInfo();
+        auto clusterBoundsBufferInfo    = clusterBoundsBuffer->descriptorInfo();
+        auto frustumParamsInfo          = frustumParams->descriptorInfo();
         
         ArxDescriptorWriter(*descriptorSetLayoutCluster, *descriptorPoolCluster)
-            .writeBuffer(0, &clusterBufferInfo)
+            .writeBuffer(0, &clusterBoundsBufferInfo)
             .writeBuffer(1, &frustumParamsInfo)
             .build(descriptorSetCluster);
         
         // Cluster Culling
+        clusterLightsBuffer = std::make_shared<ArxBuffer>(*arxDevice,
+                                                        sizeof(ClusterLights),
+                                                        numClusters,
+                                                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
         pointLightsBuffer = Materials::pointLightBuffer;
         
         lightCountBuffer = std::make_shared<ArxBuffer>(*arxDevice,
@@ -203,16 +212,18 @@ namespace arx {
         if (Materials::maxPointLights > 0)
             pointLightBufferInfo = pointLightsBuffer->descriptorInfo();
         
-        auto lightCountBufferInfo = lightCountBuffer->descriptorInfo();
-        auto viewMatrixBufferInfo = viewMatrixBuffer->descriptorInfo();
-        auto maxDistanceBufferInfo = maxDistanceBuffer->descriptorInfo();
+        auto clusterLightsBufferInfo    = clusterLightsBuffer->descriptorInfo();
+        auto lightCountBufferInfo       = lightCountBuffer->descriptorInfo();
+        auto viewMatrixBufferInfo       = viewMatrixBuffer->descriptorInfo();
+        auto maxDistanceBufferInfo      = maxDistanceBuffer->descriptorInfo();
 
         ArxDescriptorWriter(*descriptorSetLayoutCulling, *descriptorPoolCulling)
-            .writeBuffer(0, &clusterBufferInfo)
-            .writeBuffer(1, &pointLightBufferInfo)
-            .writeBuffer(2, &viewMatrixBufferInfo)
-            .writeBuffer(3, &lightCountBufferInfo)
-            .writeBuffer(4, &maxDistanceBufferInfo)
+            .writeBuffer(0, &clusterLightsBufferInfo)
+            .writeBuffer(1, &clusterBoundsBufferInfo)
+            .writeBuffer(2, &pointLightBufferInfo)
+            .writeBuffer(3, &viewMatrixBufferInfo)
+            .writeBuffer(4, &lightCountBufferInfo)
+            .writeBuffer(5, &maxDistanceBufferInfo)
             .build(descriptorSetCulling);
     }
 

@@ -22,6 +22,8 @@ namespace arx {
                 float zFar = 1024.f;
                 float speed = 40.f;
                 float padding1;
+                glm::vec3 position = glm::vec3(0.0, -20.0, -10.0f);
+                float padding2;
             } camera;
 
             struct LightingParams {
@@ -46,7 +48,7 @@ namespace arx {
         void cleanup();
         void newFrame();
         void render(VkCommandBuffer commandBuffer, VkDescriptorSet descriptorSet);
-        void drawDebugWindow();
+        void drawPropertiesWindow();
         void drawCoordinateVectors(ArxCamera& camera);
         void drawConsoleWindow();
         void drawProfilerWindow();

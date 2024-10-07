@@ -11,12 +11,15 @@ namespace arx {
     class ClusteredShading {
     public:
         
-        struct alignas(16) Cluster
+        struct alignas(16) ClusterLights
         {
-            glm::vec4 minPoint;
-            glm::vec4 maxPoint;
             unsigned int count;
             unsigned int lightIndices[711];
+        };
+
+        struct alignas(16) ClusterBounds {
+            glm::vec4 minPoint;
+            glm::vec4 maxPoint;
         };
         
         struct Frustum {
@@ -36,7 +39,8 @@ namespace arx {
         static void dispatchComputeFrustumCluster(VkCommandBuffer commandBuffer);
         static void dispatchComputeClusterCulling(VkCommandBuffer commandBuffer);
         
-        static std::shared_ptr<ArxBuffer>               clusterBuffer;
+        static std::shared_ptr<ArxBuffer>               clusterLightsBuffer;
+        static std::shared_ptr<ArxBuffer>               clusterBoundsBuffer;
         static std::shared_ptr<ArxBuffer>               frustumParams;
         static std::shared_ptr<ArxBuffer>               pointLightsBuffer;
         static std::shared_ptr<ArxBuffer>               lightCountBuffer;

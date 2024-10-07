@@ -212,17 +212,21 @@ namespace arx {
         }
     }
 
-    void Editor::drawDebugWindow() {
+    void Editor::drawPropertiesWindow() {
         ImGui::Begin("Properties", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
 
         // General info
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Debug Information");
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Information");
         ImGui::Separator();
         ImGui::Text("Press I for ImGui, O for game");
         ImGui::Text("Chunks: %d", static_cast<uint32_t>(BufferManager::readDrawCommandCount()));
         ImGui::Spacing();
+
+        float labelWidth = ImGui::GetFontSize() * 1.2f;
+        float camPosInputWidth = (ImGui::GetContentRegionAvail().x - labelWidth * 3 - ImGui::GetStyle().ItemSpacing.x * 2) / 3.0f;
+        float inputWidth = ImGui::GetContentRegionAvail().x;
 
         // Camera parameters
         if (ImGui::CollapsingHeader("Camera Parameters", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -230,12 +234,51 @@ namespace arx {
             ImGui::Checkbox("Frustum Culling", reinterpret_cast<bool*>(&data.camera.frustumCulling));
             ImGui::Checkbox("Occlusion Culling", reinterpret_cast<bool*>(&data.camera.occlusionCulling));
             ImGui::Checkbox("Freeze Culling", reinterpret_cast<bool*>(&data.camera.disableCulling));
-            ImGui::SliderFloat("zNear", &data.camera.zNear, 0.1f, 1000.0f);
-            ImGui::SliderFloat("zFar", &data.camera.zFar, 100.0f, 2000.0f);
-            ImGui::SliderFloat("Speed", &data.camera.speed, 1.0f, 320.0f);
+
+            ImGui::Text("zNear");
+            ImGui::PushItemWidth(inputWidth);
+            ImGui::SliderFloat("##zNear", &data.camera.zNear, 0.1f, 1000.0f);
+            ImGui::PopItemWidth();
+
+            ImGui::Text("zFar");
+            ImGui::PushItemWidth(inputWidth);
+            ImGui::SliderFloat("##zFar", &data.camera.zFar, 100.0f, 2000.0f);
+            ImGui::PopItemWidth();
+
+            ImGui::Text("Speed");
+            ImGui::PushItemWidth(inputWidth);
+            ImGui::SliderFloat("##Speed", &data.camera.speed, 1.0f, 320.0f);
+            ImGui::PopItemWidth();
+            
+            // Position input with colored XYZ labels inline
+            ImGui::Text("Position:");
+
+            // X component
+            ImGui::TextColored(ImVec4(0.8f, 0.2f, 0.2f, 1.0f), "X");
+            ImGui::SameLine();
+            ImGui::PushItemWidth(camPosInputWidth);
+            ImGui::InputFloat("##X", &data.camera.position[0], 0.0f, 0.0f, "%.3f", ImGuiInputTextFlags_CharsDecimal);
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            // Y component
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "Y");
+            ImGui::SameLine();
+            ImGui::PushItemWidth(camPosInputWidth);
+            ImGui::InputFloat("##Y", &data.camera.position[1], 0.0f, 0.0f, "%.3f", ImGuiInputTextFlags_CharsDecimal);
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            // Z component
+            ImGui::TextColored(ImVec4(0.2f, 0.2f, 0.8f, 1.0f), "Z");
+            ImGui::SameLine();
+            ImGui::PushItemWidth(camPosInputWidth);
+            ImGui::InputFloat("##Z", &data.camera.position[2], 0.0f, 0.0f, "%.3f", ImGuiInputTextFlags_CharsDecimal);
+            ImGui::PopItemWidth();
+
             ImGui::Unindent();
         }
-
+        
         // Lighting parameters
         if (ImGui::CollapsingHeader("Lighting Parameters", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Indent();
@@ -249,9 +292,22 @@ namespace arx {
             ImGui::BeginDisabled(data.lighting.ssaoOnly != 0);
             ImGui::Checkbox("Deferred", reinterpret_cast<bool*>(&data.lighting.deferred));
             ImGui::EndDisabled();
-            ImGui::SliderFloat("Sun Kelvin", &data.lighting.directLightColor, 0.0f, 10000.0f);
-            ImGui::SliderFloat("Sun Intensity", &data.lighting.directLightIntensity, 0.0f, 1.0f);
-            ImGui::SliderFloat("Per Light Max Distance", &data.lighting.perLightMaxDistance, 0.1f, 20.0f);
+
+            ImGui::Text("Sun Kelvin");
+            ImGui::PushItemWidth(inputWidth);
+            ImGui::SliderFloat("##Sun Kelvin", &data.lighting.directLightColor, 0.0f, 10000.0f);
+            ImGui::PopItemWidth();
+
+            ImGui::Text("Sun Intensity");
+            ImGui::PushItemWidth(inputWidth);
+            ImGui::SliderFloat("##Sun Intensity", &data.lighting.directLightIntensity, 0.0f, 1.0f);
+            ImGui::PopItemWidth();
+
+            ImGui::Text("Per Light Max Distance");
+            ImGui::PushItemWidth(inputWidth);
+            ImGui::SliderFloat("##Per Light Max Distance", &data.lighting.perLightMaxDistance, 0.1f, 20.0f);
+            ImGui::PopItemWidth();
+            
             ImGui::Unindent();
         }
 

@@ -18,8 +18,8 @@ layout (binding = 6) readonly buffer PointLightsBuffer {
     PointLight pointLights[];
 };
 
-layout (std430, binding = 7) restrict buffer ClusterBuffer {
-    Cluster clusters[];
+layout (std430, binding = 7) restrict buffer ClusterLightsBuffer {
+    ClusterLights clusterLights[];
 };
 
 layout (binding = 8) uniform LightCount {
@@ -175,7 +175,7 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     vec3 lightPosViewSpace = (ubo.view * vec4(light.position, 1.0)).xyz;
     float distanceToLight = length(lightPosViewSpace - fragPos);
 
-    // Early exit for both specular and diffuse if beyond 3 * maxDistance
+    // Early exit for both specular and diffuse if beyond MULTIPLIER * maxDistance
     if (distanceToLight > DIFFUSE_MULTIPLIER * editorData.maxDistance) {
         return vec3(0.0);
     }
@@ -205,7 +205,7 @@ vec3 calculateAreaLight(PointLight light, vec3 fragPos, vec3 normal, vec3 albedo
     vec3 diffuse = LTC_Evaluate(normal, V, fragPos, mat3(1), translatedPoints, faceIndex, false);
     
     float diffuseAttenuation = 1.0 - smoothstep(0.0, DIFFUSE_MULTIPLIER * editorData.maxDistance, distanceToLight);
-    vec3 diffuseContribution = albedo * (diffuse * diffuseAttenuation);
+    vec3 diffuseContribution = albedo * (diffuse * diffuseAttenuation * diffuseAttenuation);
 
     // Early exit for specular if beyond maxDistance
     vec3 specularContribution = vec3(0.0);
@@ -292,7 +292,7 @@ void main() {
     uvec3 tile = uvec3(gl_FragCoord.xy / tileSize, zTile);
     uint tileIndex = tile.x + (tile.y * gridSize.x) + (tile.z * gridSize.x * gridSize.y);
 
-    uint clusterLightCount = clusters[tileIndex].count;
+    uint clusterLightCount = clusterLights[tileIndex].count;
     
     vec3 finalColor = vec3(0.0);
     
@@ -300,7 +300,7 @@ void main() {
 
     for (uint i = 0; i < clusterLightCount; i++) {
         
-        uint lightIndex = clusters[tileIndex].lightIndices[i];
+        uint lightIndex = clusterLights[tileIndex].lightIndices[i];
         PointLight light = pointLights[lightIndex];
         
         if (light.visibilityMask == 0) continue;
@@ -322,9 +322,11 @@ void main() {
     
             float LdotF = dot(lightFaceNormal, lightToFrag);
 
+            // Faces that are looking the same way as the light source and they are not the light source are skipped
+            if (dot(normal, lightFaceNormal) > 0.99 && length(fragPos - lightPosViewSpace) > 0.9) continue;
+
             if ((light.visibilityMask & (1u << faceIndex)) != 0) {
-                // Maximum cutoff I can use for efficiency before artifacts
-                if (LdotF > 0.5f)
+                if (LdotF > 0.51f) // cos(89)
                     finalColor += calculateAreaLight(light, fragPos, normal, albedo, faceIndex);
             }
         }
